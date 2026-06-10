@@ -1,0 +1,20 @@
+# Secrets y configuración local (usar backend/.env.example como plantilla)
+backend/.env
+
+# Bases de datos locales
+*.db
+*.sqlite3
+
+# Python
+backend/.venv/
+__pycache__/
+*.pyc
+
+# Node / Expo
+frontend/node_modules/
+frontend/.expo/
+
+# IDE y sistema
+.vscode/*.log
+Thumbs.db
+.DS_Store

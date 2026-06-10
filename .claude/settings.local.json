@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(\\(Get-Content \"P:\\\\AsistenteHogar\\\\ConversacionInicial.md\" | Measure-Object -Line\\).Lines)",
+      "PowerShell($c = [System.IO.File]::ReadAllLines\\(\"P:\\\\AsistenteHogar\\\\ConversacionInicial.md\"\\); $c.Count)",
+      "PowerShell(Get-Content \"P:\\\\AsistenteHogar\\\\backend\\\\.env\" | ForEach-Object { \\($_ -split '='\\)[0] })",
+      "PowerShell(Get-Content \"P:\\\\AsistenteHogar\\\\frontend\\\\.env.development\"; \"---\"; Get-Content \"P:\\\\AsistenteHogar\\\\frontend\\\\.env.production\")",
+      "PowerShell(Set-Content *)",
+      "PowerShell(Add-Content *)",
+      "PowerShell(Set-Location \"P:\\\\AsistenteHogar\\\\backend\"; $env:ENVIRONMENT='production'; .\\\\.venv\\\\Scripts\\\\python.exe -X utf8 -c \"from app.main import app; print\\('docs_url:', app.docs_url\\); print\\('openapi_url:', app.openapi_url\\)\"; $env:ENVIRONMENT=$null)"
+    ]
+  }
+}

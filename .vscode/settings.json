@@ -1,0 +1,24 @@
+{
+  "python.defaultInterpreterPath": "P:\\AsistenteHogar\\backend\\.venv\\Scripts\\python.exe",
+  "python.experiments.optOutFrom": [
+    "pythonTerminalEnvVarActivation"
+  ],
+  "python.analysis.extraPaths": [
+    "${workspaceFolder}/backend",
+    "${workspaceFolder}/backend/app"
+  ],
+  "python.analysis.ignore": [
+    "**/node_modules/**",
+    "frontend/**"
+  ],
+  "python.venvFolders": [
+    "backend/.venv"
+  ],
+  "files.exclude": {
+    "**/node_modules": true,
+    "frontend/node_modules": true
+  },
+  "python.linting.enabled": true,
+  "typescript.tsdk": "frontend/node_modules/typescript/lib",
+  "typescript.tsserver.maxTsServerMemory": 4096
+}

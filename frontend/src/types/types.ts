@@ -1,0 +1,103 @@
+export interface AlimentoItem {
+  id: string;
+  hogar_id: string;
+  nombre: string;
+  cantidad: number;
+  unidad: string;
+  fecha_caducidad: string | null; // Formato YYYY-MM-DD
+  categoria: string;
+  is_deleted: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface EventoItem {
+  id: string;
+  hogar_id: string;
+  titulo: string;
+  descripcion: string | null;
+  fecha_inicio: string; // ISO-8601 string
+  fecha_fin: string; // ISO-8601 string
+  participantes: string[] | null;
+  is_deleted: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ConflictoDetalle {
+  evento_a: EventoItem;
+  evento_b: EventoItem;
+  duracion_solapamiento_segundos: number;
+}
+
+export interface ConflictoEvento {
+  evento_nuevo: EventoItem;
+  evento_conflictivo: EventoItem;
+}
+
+export interface TareaItem {
+  id: string;
+  hogar_id: string;
+  nombre: string;
+  asignado_a: string | null;
+  frecuencia: string;
+  prioridad: string;
+  ultimo_completado: string | null;
+  estado: string;
+  is_deleted: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PantryStockMetrics {
+  porcentaje_stock: number;
+  items_disponibles: number;
+  alertas_caducidad: AlimentoItem[];
+  items: AlimentoItem[];
+}
+
+export interface CalendarAgendaResponse {
+  eventos: EventoItem[];
+  conflictos: ConflictoDetalle[];
+}
+
+export interface DashboardData {
+  fecha: string;
+  eventos_hoy: EventoItem[];
+  alertas_despensa: PantryStockMetrics;
+  tareas_pendientes: TareaItem[];
+  conflictos_agenda: ConflictoDetalle[];
+  clima_temperatura: string;
+  clima_estado: string;
+  briefing_texto?: string;
+}
+
+export interface BriefingData {
+  hogar_id: string;
+  fecha: string;
+  briefing: string;
+}
+
+export interface Usuario {
+  id: string;
+  hogar_id: string;
+  email: string;
+  nombre: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Hogar {
+  id: string;
+  nombre: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TokenResponse {
+  access_token: string;
+  token_type: string;
+  usuario: Usuario;
+  hogar: Hogar;
+}
