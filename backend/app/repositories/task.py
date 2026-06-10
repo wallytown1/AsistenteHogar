@@ -6,7 +6,7 @@ from sqlalchemy.exc import IntegrityError
 
 from app.models.models import TareaHogar
 from app.schemas.schemas import TareaHogarCreate, TareaHogarUpdate
-from app.repositories.exceptions import DatabaseIntegrityError
+from app.repositories.exceptions import DatabaseIntegrityError, TaskNotFoundError
 
 class TaskRepository:
     def __init__(self, session: AsyncSession):
@@ -26,8 +26,7 @@ class TaskRepository:
         result = await self.session.execute(stmt)
         task = result.scalar_one_or_none()
         if not task:
-            # Reutilizar excepciones de negocio heredadas deexceptions.py
-            raise ValueError(f"No se ha encontrado la tarea {task_id} en el hogar {hogar_id}")
+            raise TaskNotFoundError(str(task_id), str(hogar_id))
         return task
 
     async def get_all(self, hogar_id: uuid.UUID) -> List[TareaHogar]:

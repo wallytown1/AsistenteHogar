@@ -5,6 +5,42 @@ Formato: `[FECHA] [ÁREA] [TIPO] Descripción`
 
 ---
 
+## [2026-06-11] — FASE IA: Integración real de Gemini (briefing + recetas)
+
+### Decisiones clave
+- `gemini-1.5-flash` ya no existe en la API (el briefing caía siempre al fallback sin saberlo). Modelo
+  actualizado a `gemini-2.5-flash`, configurable vía `GEMINI_MODEL`; `thinkingBudget=0` (menos latencia/coste).
+- Caché TTL en memoria por hash de datos: briefing 30 min, recetas 1 h. Cambian los datos → se regenera.
+  Deuda: migrar a Redis junto con el rate limiter si hay varias réplicas.
+- Nueva función IA: `GET /pantry/recetas` — sugiere hasta 3 recetas desde el inventario real, priorizando
+  caducidades (salida JSON estructurada con `responseSchema`). IA pasiva: solo sugiere.
+
+### Archivos
+- `MOD` backend/app/services/llm.py — rewrite: helper `_call_gemini`, caché, `generate_recipe_suggestions`.
+- `MOD` backend/app/{core/config.py (+GEMINI_API_KEY/GEMINI_MODEL), schemas/schemas.py (+RecetaSugerida), api/routers/pantry.py (+/pantry/recetas), .env.example}.
+- `MOD` frontend/src/{types/types.ts (+RecetaSugerida), screens/PantryScreen.tsx — mock de recetas hardcodeado sustituido por IA real con botón "Sugerir con IA"}.
+
+### Verificación: E2E con API real — briefing IA OK; 3 recetas coherentes con inventario; caché 2ª llamada 7 ms; smoke test 12/12; `ts:check` 0 errores.
+### Qué sigue: **F4 — Modelo freemium** (requiere cuenta RevenueCat).
+
+---
+
+## [2026-06-11] — Auditoría: corrección de bugs y deuda técnica
+
+### Correcciones (auditoría exhaustiva pre-producción)
+- `FIX` backend/app/services/llm.py — la API key de Gemini iba como query param en la URL y se filtraba
+  en logs de errores de red; movida al header `x-goog-api-key`. Eliminado "(Madrid)" hardcodeado del fallback.
+- `FIX` backend/app/repositories/{exceptions.py (+TaskNotFoundError), task.py (ValueError → TaskNotFoundError), user.py (+rollback si refresh falla tras commit)}.
+- `FIX` backend/app/api/routers/{tasks.py (captura TaskNotFoundError, no ValueError genérico), dashboard.py (docstring obsoleto X-Hogar-ID, clima duplicado)}.
+- `FIX` backend/app/services/dashboard.py — sanitización vía `model_copy()`: ya no muta DTOs Pydantic in-place.
+- `ADD` backend/app/core/utils.py — `sanitize_text` única (estaba duplicada en tasks.py y dashboard.py).
+- `ADD` backend/alembic/versions/3e8f2a1b9c7d — índices: tareas_hogar(hogar_id,estado,is_deleted), eventos_calendario(hogar_id,fecha_inicio/fin).
+- `MOD` backend/app/services/calendar.py — comentario de complejidad corregido (O(N²) peor caso, no O(N log N)).
+
+### Verificación: smoke test 12/12 OK; migración de índices aplicada; imports verificados.
+
+---
+
 ## [2026-06-10] — FASE 3: Hardening de producción (Backend)
 
 ### Decisiones clave

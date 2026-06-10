@@ -56,6 +56,19 @@ export interface PantryStockMetrics {
   items: AlimentoItem[];
 }
 
+export interface RecetaSugerida {
+  titulo: string;
+  tiempo_min: number;
+  ingredientes_usados: string[];
+  pasos: string[];
+}
+
+export interface RecetasSugeridasResponse {
+  recetas: RecetaSugerida[];
+  generado_por_ia: boolean;
+  mensaje: string | null;
+}
+
 export interface CalendarAgendaResponse {
   eventos: EventoItem[];
   conflictos: ConflictoDetalle[];

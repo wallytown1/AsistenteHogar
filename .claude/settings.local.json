@@ -7,7 +7,10 @@
       "PowerShell(Get-Content \"P:\\\\AsistenteHogar\\\\frontend\\\\.env.development\"; \"---\"; Get-Content \"P:\\\\AsistenteHogar\\\\frontend\\\\.env.production\")",
       "PowerShell(Set-Content *)",
       "PowerShell(Add-Content *)",
-      "PowerShell(Set-Location \"P:\\\\AsistenteHogar\\\\backend\"; $env:ENVIRONMENT='production'; .\\\\.venv\\\\Scripts\\\\python.exe -X utf8 -c \"from app.main import app; print\\('docs_url:', app.docs_url\\); print\\('openapi_url:', app.openapi_url\\)\"; $env:ENVIRONMENT=$null)"
+      "PowerShell(Set-Location \"P:\\\\AsistenteHogar\\\\backend\"; $env:ENVIRONMENT='production'; .\\\\.venv\\\\Scripts\\\\python.exe -X utf8 -c \"from app.main import app; print\\('docs_url:', app.docs_url\\); print\\('openapi_url:', app.openapi_url\\)\"; $env:ENVIRONMENT=$null)",
+      "Bash(Get-ChildItem -Path \"P:\\\\AsistenteHogar\" -Recurse -Directory -Depth 2)",
+      "Bash(Select-Object -ExpandProperty FullName)",
+      "PowerShell(Set-Location \"P:\\\\AsistenteHogar\\\\backend\"; Select-String -Path .env -Pattern \"GEMINI\" | ForEach-Object { $_.Line.Substring\\(0, [Math]::Min\\(25, $_.Line.Length\\)\\) + \"...\" })"
     ]
   }
 }

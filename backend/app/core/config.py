@@ -24,3 +24,8 @@ ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "4320
 # En producción se ocultan los docs interactivos y el CORS no admite orígenes por defecto.
 ENVIRONMENT = os.getenv("ENVIRONMENT", "development").lower()
 IS_PRODUCTION = ENVIRONMENT == "production"
+
+# Google Gemini. La clave es opcional: sin ella las funciones de IA operan en modo
+# de contingencia (briefing estático, sin sugerencias de recetas).
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")

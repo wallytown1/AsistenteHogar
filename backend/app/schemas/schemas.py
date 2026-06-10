@@ -235,16 +235,43 @@ class PantryStockMetrics(BaseSchema):
         description="Lista completa de todos los alimentos activos en la despensa"
     )
 
+class RecetaSugerida(BaseSchema):
+    titulo: str = Field(..., description="Nombre de la receta sugerida")
+    tiempo_min: int = Field(..., ge=0, description="Tiempo estimado de preparación en minutos")
+    ingredientes_usados: List[str] = Field(default_factory=list, description="Ingredientes de la despensa que aprovecha")
+    pasos: List[str] = Field(default_factory=list, description="Pasos breves de preparación")
+
+class RecetasSugeridasResponse(BaseSchema):
+    recetas: List[RecetaSugerida] = Field(default_factory=list, description="Recetas sugeridas por la IA a partir de la despensa")
+    generado_por_ia: bool = Field(..., description="True si las sugerencias provienen del modelo de IA")
+    mensaje: Optional[str] = Field(None, description="Aviso cuando no hay sugerencias disponibles")
+
 class DashboardUnifiedContext(BaseSchema):
     fecha: str = Field(..., description="Fecha del briefing en formato ISO-8601")
     eventos_hoy: List[EventoCalendarioResponse] = Field(default_factory=list, description="Lista de eventos activos programados para hoy")
     alertas_despensa: PantryStockMetrics = Field(..., description="Estado de métricas de stock y alertas de caducidad")
     tareas_pendientes: List[TareaHogarResponse] = Field(default_factory=list, description="Lista de tareas del hogar con estado pendiente")
     conflictos_agenda: List[ConflictoDetalle] = Field(default_factory=list, description="Lista de conflictos de solapamiento horario de hoy")
-    clima_temperatura: str = Field("22°C", description="Temperatura climatológica mokeada")
-    clima_estado: str = Field("Parcialmente nublado", description="Estado del clima mokeado")
     briefing_texto: Optional[str] = Field(None, description="Resumen ejecutivo amigable generado por IA")
 
 class CalendarAgendaResponse(BaseSchema):
     eventos: List[EventoCalendarioResponse] = Field(default_factory=list, description="Eventos del hogar")
     conflictos: List[ConflictoDetalle] = Field(default_factory=list, description="Conflictos de solapamiento de horarios")
+
+
+# --- INTERPRETACIÓN DE EVENTOS EN LENGUAJE NATURAL (IA) ---
+
+class InterpretarEventoRequest(BaseSchema):
+    texto: str = Field(..., min_length=3, max_length=300, description="Frase en lenguaje natural que describe el evento (ej: 'dentista mañana a las 10 con papá')")
+    fecha_referencia: datetime = Field(..., description="Fecha y hora actual del dispositivo del usuario para resolver expresiones relativas")
+
+class EventoInterpretado(BaseSchema):
+    titulo: str = Field(..., min_length=2, max_length=200)
+    descripcion: Optional[str] = Field(None)
+    fecha_inicio: datetime
+    fecha_fin: datetime
+    participantes: Optional[List[str]] = Field(None)
+
+class InterpretarEventoResponse(BaseSchema):
+    evento: Optional[EventoInterpretado] = Field(None, description="Propuesta de evento interpretada por la IA (el usuario debe confirmarla)")
+    mensaje: Optional[str] = Field(None, description="Motivo cuando no se pudo interpretar la frase")

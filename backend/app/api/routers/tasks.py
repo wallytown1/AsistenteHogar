@@ -4,16 +4,11 @@ from typing import List, Optional
 
 from app.api.deps import get_hogar_id, get_task_repository
 from app.repositories.task import TaskRepository
+from app.repositories.exceptions import TaskNotFoundError
 from app.schemas.schemas import TareaHogarIn, TareaHogarUpdate, TareaHogarOut
+from app.core.utils import sanitize_text
 
 router = APIRouter(tags=["Tasks"])
-
-
-def sanitize_text(t: str) -> str:
-    """Sanitiza campos de texto libre para evitar problemas de escape."""
-    if not t:
-        return t
-    return t.replace("\\", "\\\\").replace('"', '\\"').strip()
 
 
 @router.get("/tasks", response_model=List[TareaHogarOut])
@@ -60,8 +55,8 @@ async def patch_task(
         
     try:
         return await task_repo.update(tarea_id, hogar_id, schema)
-    except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except TaskNotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=e.message)
 
 
 @router.delete("/tasks/{tarea_id}", response_model=TareaHogarOut)
@@ -73,5 +68,5 @@ async def delete_task(
     """Realiza el borrado lógico (is_deleted = True) de la tarea del hogar actual."""
     try:
         return await task_repo.delete(tarea_id, hogar_id)
-    except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except TaskNotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=e.message)

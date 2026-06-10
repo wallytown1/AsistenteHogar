@@ -24,6 +24,13 @@ class EventoNotFoundError(RepositoryError):
         self.hogar_id = hogar_id
         super().__init__(f"No se ha encontrado el evento con ID {evento_id} en el hogar {hogar_id}")
 
+class TaskNotFoundError(RepositoryError):
+    """Raised when a task does not exist or does not belong to the Hogar."""
+    def __init__(self, task_id: str, hogar_id: str):
+        self.task_id = task_id
+        self.hogar_id = hogar_id
+        super().__init__(f"No se ha encontrado la tarea con ID {task_id} en el hogar {hogar_id}")
+
 class DatabaseIntegrityError(RepositoryError):
     """Raised when a database integrity constraint is violated (e.g., FK non-existent)."""
     def __init__(self, detail: str):

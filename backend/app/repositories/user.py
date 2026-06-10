@@ -62,4 +62,7 @@ class UserRepository:
         except IntegrityError:
             await self.session.rollback()
             raise DatabaseIntegrityError("El email indicado ya está registrado en otro hogar.")
+        except Exception:
+            await self.session.rollback()
+            raise
         return usuario, hogar

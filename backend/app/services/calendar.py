@@ -37,8 +37,8 @@ class CalendarService:
         return EventoCalendarioResponse.model_validate(evento)
 
     async def get_household_agenda(self, hogar_id: uuid.UUID) -> Tuple[List[EventoCalendarioResponse], List[ConflictoDetalle]]:
-        """Recupera la agenda completa y ejecuta un algoritmo de barrido lineal eficiente
-        en O(N log N) para identificar e indexar los conflictos de agenda (solapamientos)."""
+        """Recupera la agenda completa y detecta solapamientos. Sorting O(N log N) + barrido
+        con early-exit: O(N) promedio para eventos no solapados, O(N²) peor caso."""
         db_eventos = await self.calendar_repo.get_all(hogar_id)
         eventos = [EventoCalendarioResponse.model_validate(e) for e in db_eventos]
 

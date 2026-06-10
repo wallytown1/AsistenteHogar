@@ -13,7 +13,7 @@ import {
   ActivityIndicator
 } from 'react-native';
 import { usePantry, getDiasParaCaducar } from '../hooks/usePantry';
-import { AlimentoItem } from '../types/types';
+import { AlimentoItem, RecetaSugerida, RecetasSugeridasResponse } from '../types/types';
 import { apiRequest } from '../api/api';
 
 export default function PantryScreen() {
@@ -46,6 +46,28 @@ export default function PantryScreen() {
 
   // Checkbox de selección por lote
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
+
+  // Recetas sugeridas por IA
+  const [recetas, setRecetas] = useState<RecetaSugerida[]>([]);
+  const [recetasMensaje, setRecetasMensaje] = useState<string | null>(null);
+  const [recetasLoading, setRecetasLoading] = useState(false);
+
+  const fetchRecetas = async () => {
+    setRecetasLoading(true);
+    setRecetasMensaje(null);
+    try {
+      const res = await apiRequest<RecetasSugeridasResponse>('/pantry/recetas');
+      setRecetas(res.recetas);
+      if (res.recetas.length === 0) {
+        setRecetasMensaje(res.mensaje || 'No hay sugerencias disponibles en este momento.');
+      }
+    } catch (err: any) {
+      setRecetas([]);
+      setRecetasMensaje(err.message || 'No se pudieron generar las recetas.');
+    } finally {
+      setRecetasLoading(false);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -201,28 +223,6 @@ export default function PantryScreen() {
       barColor: 'bg-red-500',
     }
   };
-
-  // Recetas sugeridas
-  const recetas = [
-    {
-      id: 'r1',
-      titulo: 'Tortilla con huevos y patatas',
-      sub: 'Tiempo: 25 min • Usando 3 huevos',
-      image: 'https://images.unsplash.com/photo-1574969894147-23730b284618?w=150',
-    },
-    {
-      id: 'r2',
-      titulo: 'Ensalada mediterránea',
-      sub: 'Tiempo: 10 min • Usa queso y aceite de oliva',
-      image: 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=150',
-    },
-    {
-      id: 'r3',
-      titulo: 'Pancakes rápidos',
-      sub: 'Tiempo: 20 min • Usa harina y leche',
-      image: 'https://images.unsplash.com/photo-1567620905732-2d1ec7ab7445?w=150',
-    }
-  ];
 
   return (
     <View className="flex-1 bg-[#fafafa]">
@@ -478,32 +478,58 @@ export default function PantryScreen() {
             })}
         </View>
 
-        {/* Sección: Recetas sugeridas */}
+        {/* Sección: Recetas sugeridas por IA */}
         <View className="bg-white border border-gray-100 rounded-3xl p-5 shadow-sm">
-          <Text className="text-black text-sm font-bold mb-4">Recetas sugeridas</Text>
-
-          <View className="space-y-4">
-            {recetas.map(receta => (
-              <View key={receta.id} className="flex-row items-center justify-between mb-3">
-                <View className="flex-row items-center flex-1 pr-3">
-                  <Image
-                    source={{ uri: receta.image }}
-                    className="w-12 h-12 rounded-xl mr-3 bg-gray-100"
-                  />
-                  <View className="flex-1">
-                    <Text className="text-black text-xs font-bold">{receta.titulo}</Text>
-                    <Text className="text-gray-400 text-[10px] mt-0.5">{receta.sub}</Text>
-                  </View>
-                </View>
-                <TouchableOpacity
-                  onPress={() => Alert.alert("Receta sugerida", `Mostrando ingredientes y pasos detallados para "${receta.titulo}"...`)}
-                  className="bg-black rounded-full px-4 py-1.5"
-                >
-                  <Text className="text-white text-xs font-bold">Ver</Text>
-                </TouchableOpacity>
-              </View>
-            ))}
+          <View className="flex-row justify-between items-center mb-4">
+            <Text className="text-black text-sm font-bold">Recetas sugeridas ✨</Text>
+            <TouchableOpacity
+              onPress={fetchRecetas}
+              disabled={recetasLoading}
+              className="bg-black rounded-full px-4 py-1.5"
+              accessibilityLabel="Generar sugerencias de recetas con IA"
+            >
+              <Text className="text-white text-xs font-bold">
+                {recetasLoading ? 'Pensando...' : recetas.length > 0 ? 'Actualizar' : 'Sugerir con IA'}
+              </Text>
+            </TouchableOpacity>
           </View>
+
+          {recetasLoading && (
+            <View className="items-center py-4">
+              <ActivityIndicator size="small" color="#000000" />
+              <Text className="text-gray-400 text-[10px] mt-2 font-medium">El chef IA está revisando tu despensa...</Text>
+            </View>
+          )}
+
+          {!recetasLoading && recetasMensaje && (
+            <Text className="text-gray-500 text-xs text-center py-3 font-medium">{recetasMensaje}</Text>
+          )}
+
+          {!recetasLoading && recetas.length === 0 && !recetasMensaje && (
+            <Text className="text-gray-400 text-xs text-center py-3 font-medium">
+              Pulsa "Sugerir con IA" para recibir recetas que aprovechen tu despensa, priorizando lo que caduca pronto.
+            </Text>
+          )}
+
+          {!recetasLoading && recetas.map((receta, idx) => (
+            <View key={`${receta.titulo}-${idx}`} className="flex-row items-center justify-between mb-3">
+              <View className="flex-1 pr-3">
+                <Text className="text-black text-xs font-bold">{receta.titulo}</Text>
+                <Text className="text-gray-400 text-[10px] mt-0.5">
+                  Tiempo: {receta.tiempo_min} min • Usa {receta.ingredientes_usados.slice(0, 3).join(', ')}
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => Alert.alert(
+                  receta.titulo,
+                  `Ingredientes: ${receta.ingredientes_usados.join(', ')}\n\nPasos:\n${receta.pasos.map((p, i) => `${i + 1}. ${p}`).join('\n')}`
+                )}
+                className="bg-black rounded-full px-4 py-1.5"
+              >
+                <Text className="text-white text-xs font-bold">Ver</Text>
+              </TouchableOpacity>
+            </View>
+          ))}
         </View>
 
       </ScrollView>
