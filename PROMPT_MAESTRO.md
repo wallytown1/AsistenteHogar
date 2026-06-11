@@ -18,6 +18,7 @@ Progreso por fases: `CHANGELOG.md` (cada fase completada añade una entrada).
 | F2 | Frontend auth: pantallas login/registro, token en SecureStore, gating de navegación | ✅ Completada |
 | F3 | Hardening producción: eliminar semillado MVP, rate limiting, logs estructurados, CORS estricto, secrets fuera del repo | ✅ Completada |
 | F-IA | IA real con Gemini: briefing del dashboard + sugerencias de recetas desde despensa, caché TTL, modelo configurable | ✅ Completada |
+| F-HONESTA | Reenfoque agente personal: eliminada toda la UI de funciones imposibles (domótica, energía, seguridad, clima); evento rápido por lenguaje natural con Gemini (`POST /calendar/interpretar`, IA pasiva) | ✅ Completada |
 | F4 | Modelo freemium: entitlements en backend, integración RevenueCat (IAP iOS/Android), límites free vs premium | Pendiente |
 | F5 | Infraestructura: deploy backend (Railway/Render) con PostgreSQL gestionado, migraciones automáticas, dominio + HTTPS | Pendiente |
 | F6 | Build de tiendas: EAS Build, app.json/eas.json, iconos, splash, políticas de privacidad | Pendiente |

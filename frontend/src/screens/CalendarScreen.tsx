@@ -2,23 +2,38 @@ import React, { useState } from 'react';
 import {
   View,
   Text,
-  FlatList,
   TouchableOpacity,
   TextInput,
   Modal,
   ScrollView,
   Alert,
-  Image,
   ActivityIndicator
 } from 'react-native';
 import { useCalendar } from '../hooks/useCalendar';
-import { EventoItem, ConflictoEvento } from '../types/types';
+import { EventoItem, ConflictoEvento, InterpretarEventoResponse } from '../types/types';
+import { apiRequest } from '../api/api';
 
 function formatHora(iso: string): string {
   if (!iso) return '';
   const d = new Date(iso);
   return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
 }
+
+function formatFechaLarga(d: Date): string {
+  return d.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
+}
+
+function getInitials(name: string): string {
+  return name
+    .split(' ')
+    .map(p => p.charAt(0))
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
+}
+
+// Horas del eje vertical del calendario
+const HOURS = Array.from({ length: 16 }, (_, i) => `${(i + 7).toString().padStart(2, '0')}:00`);
 
 export default function CalendarScreen() {
   const {
@@ -30,20 +45,23 @@ export default function CalendarScreen() {
     deleteEvento,
     refetch
   } = useCalendar();
-  const [viewTab, setViewTab] = useState<'Día' | 'Semana' | 'Mes'>('Semana');
-  const [selectedMembers, setSelectedMembers] = useState<string[]>(['Andrés', 'Sofía']);
+  const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
   const [modalVisible, setModalVisible] = useState(false);
   const [conflictoModal, setConflictoModal] = useState<ConflictoEvento | null>(null);
-  
-  // States para crear evento rápido
+
+  // States para crear evento rápido con IA
   const [quickInput, setQuickInput] = useState('');
-  
+  const [quickLoading, setQuickLoading] = useState(false);
+
   // States para modal de creación detallada
   const [titulo, setTitulo] = useState('');
   const [descripcion, setDescripcion] = useState('');
   const [horaInicio, setHoraInicio] = useState('');
   const [horaFin, setHoraFin] = useState('');
   const [participantes, setParticipantes] = useState('');
+
+  // Participantes reales extraídos de los eventos del hogar
+  const miembros = Array.from(new Set(eventos.flatMap(e => e.participantes || [])));
 
   const toggleMember = (member: string) => {
     setSelectedMembers(prev =>
@@ -75,37 +93,11 @@ export default function CalendarScreen() {
     );
   }
 
-  const handleAdd = () => {
-    if (!titulo.trim() || !horaInicio || !horaFin) {
-      Alert.alert('Campos requeridos', 'El título, hora de inicio y fin son obligatorios.');
-      return;
-    }
-    
-    // IA Pasiva - Confirmar creación del evento
-    Alert.alert(
-      "Confirmar creación",
-      `¿Deseas guardar el evento "${titulo}"?`,
-      [
-        { text: "Cancelar", style: "cancel" },
-        { text: "Confirmar", onPress: () => saveEvento(titulo, descripcion, horaInicio, horaFin, participantes) }
-      ]
-    );
-  };
-
-  const saveEvento = (t: string, desc: string, hIStr: string, hFStr: string, part: string, bypass = false) => {
-    const hoy = new Date();
-    const [hI, mI] = hIStr.split(':').map(Number);
-    const [hF, mF] = hFStr.split(':').map(Number);
-    const fechaInicio = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate(), hI || 9, mI || 0).toISOString();
-    const fechaFin = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate(), hF || 10, mF || 0).toISOString();
-
-    addEvento({
-      titulo: t,
-      descripcion: desc || null,
-      fecha_inicio: fechaInicio,
-      fecha_fin: fechaFin,
-      participantes: part ? part.split(',').map((p: string) => p.trim()).filter(Boolean) : null,
-    }, bypass).then((conflicto) => {
+  const crearEvento = (
+    evento: Omit<EventoItem, 'id' | 'is_deleted' | 'hogar_id' | 'created_at' | 'updated_at'>,
+    bypass = false
+  ) => {
+    addEvento(evento, bypass).then((conflicto) => {
       if (conflicto) {
         setConflictoModal(conflicto);
       } else {
@@ -118,160 +110,146 @@ export default function CalendarScreen() {
     });
   };
 
-  const handleQuickAdd = () => {
-    if (!quickInput.trim()) return;
-    
-    // Parseo rápido simulado
-    const tituloSugerido = quickInput;
+  const handleAdd = () => {
+    if (!titulo.trim() || !horaInicio || !horaFin) {
+      Alert.alert('Campos requeridos', 'El título, hora de inicio y fin son obligatorios.');
+      return;
+    }
+
+    // IA Pasiva - Confirmar creación del evento
     Alert.alert(
-      "Sugerencia de evento rápido",
-      `¿Deseas crear el evento "${tituloSugerido}" hoy de 12:00 a 13:00?`,
+      "Confirmar creación",
+      `¿Deseas guardar el evento "${titulo}"?`,
       [
         { text: "Cancelar", style: "cancel" },
         { text: "Confirmar", onPress: () => {
-          saveEvento(tituloSugerido, "Evento rápido inteligente", "12:00", "13:00", "María");
-          setQuickInput('');
+          const hoy = new Date();
+          const [hI, mI] = horaInicio.split(':').map(Number);
+          const [hF, mF] = horaFin.split(':').map(Number);
+          crearEvento({
+            titulo: titulo.trim(),
+            descripcion: descripcion || null,
+            fecha_inicio: new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate(), hI || 9, mI || 0).toISOString(),
+            fecha_fin: new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate(), hF || 10, mF || 0).toISOString(),
+            participantes: participantes ? participantes.split(',').map((p: string) => p.trim()).filter(Boolean) : null,
+          });
         }}
       ]
     );
   };
 
-  const handleReprogramar = () => {
-    Alert.alert(
-      "Propuesta de Reprogramación",
-      "La IA sugiere mover 'Clases de piano' a las 09:30 (María disponible). ¿Aplicar cambio?",
-      [
-        { text: "Cancelar", style: "cancel" },
-        { text: "Aplicar cambio", onPress: () => Alert.alert("Agenda actualizada", "El evento se ha reprogramado exitosamente.") }
-      ]
-    );
-  };
+  /**
+   * Evento rápido con IA real: Gemini interpreta el texto en lenguaje natural
+   * y devuelve una PROPUESTA. El usuario siempre confirma antes de crear (IA pasiva).
+   */
+  const handleQuickAdd = async () => {
+    const texto = quickInput.trim();
+    if (texto.length < 3 || quickLoading) return;
 
-  // Miembros de la familia con sus avatares correspondientes
-  const familyMembers = [
-    { name: 'María', avatar: '👩', color: '#ec4899', photo: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100' },
-    { name: 'Andrés', avatar: '👨', color: '#3b82f6', photo: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100' },
-    { name: 'Sofía', avatar: '👧', color: '#10b981', photo: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100' },
-  ];
+    setQuickLoading(true);
+    try {
+      const res = await apiRequest<InterpretarEventoResponse>('/calendar/interpretar', {
+        method: 'POST',
+        json: { texto, fecha_referencia: new Date().toISOString() },
+      });
 
-  // Horas del calendario scannable
-  const hours = ['07:00', '08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00'];
+      if (!res.evento) {
+        Alert.alert(
+          "No se pudo interpretar",
+          res.mensaje || "Intenta describir el evento con más detalle, por ejemplo: \"cena con mis padres el viernes a las 21h\"."
+        );
+        return;
+      }
 
-  // Datos de los eventos del mockup
-  const mockupEventos = [
-    {
-      id: 'mock-1',
-      titulo: 'Cita con pediatra',
-      hora: '09:00 – 09:30',
-      responsable: 'Andrés',
-      etiqueta: 'Salud',
-      tipo: 'salud',
-      avatarPhoto: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100',
-    },
-    {
-      id: 'mock-2',
-      titulo: 'Clases de piano (Conflicto)',
-      hora: '09:15 – 10:00',
-      responsable: 'María',
-      etiqueta: 'Actividades',
-      tipo: 'conflicto',
-      avatarPhoto: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100',
-    },
-    {
-      id: 'mock-3',
-      titulo: 'Repartir tareas - Sacar la basura',
-      hora: '11:00 – 11:15',
-      responsable: 'Sofía',
-      etiqueta: 'Conectado a tarea: Casa • Prioridad: Media',
-      tipo: 'tarea',
-      avatarPhoto: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100',
-    },
-    {
-      id: 'mock-4',
-      titulo: 'Recordatorio: Comprar leche (Despensa baja)',
-      hora: '14:00 – 14:05',
-      responsable: 'Automático',
-      etiqueta: 'Vinculado a: Despensa • Cantidad: 0.5L',
-      tipo: 'recordatorio',
-      avatarPhoto: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=100', // abstracto
+      const ev = res.evento;
+      const inicio = new Date(ev.fecha_inicio);
+      const detalle =
+        `📅 ${formatFechaLarga(inicio)}\n` +
+        `🕐 ${formatHora(ev.fecha_inicio)} – ${formatHora(ev.fecha_fin)}` +
+        (ev.participantes && ev.participantes.length > 0 ? `\n👥 ${ev.participantes.join(', ')}` : '') +
+        (ev.descripcion ? `\n📝 ${ev.descripcion}` : '');
+
+      Alert.alert(
+        `Crear "${ev.titulo}"`,
+        detalle,
+        [
+          { text: "Cancelar", style: "cancel" },
+          { text: "Confirmar", onPress: () => {
+            crearEvento({
+              titulo: ev.titulo,
+              descripcion: ev.descripcion,
+              fecha_inicio: ev.fecha_inicio,
+              fecha_fin: ev.fecha_fin,
+              participantes: ev.participantes,
+            });
+            setQuickInput('');
+          }}
+        ]
+      );
+    } catch (err: any) {
+      Alert.alert("Error", err.message || "No se pudo interpretar el evento.");
+    } finally {
+      setQuickLoading(false);
     }
-  ];
+  };
 
   return (
     <View className="flex-1 bg-[#fafafa]">
       <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 56, paddingBottom: 120 }}>
-        
+
         {/* Cabecera del calendario */}
         <View className="mb-5">
           <View className="flex-row justify-between items-center mb-1">
-            <Text className="text-black text-2xl font-bold">Miércoles, 16 de junio</Text>
-            <View className="flex-row gap-1">
-              <TouchableOpacity className="bg-black rounded-full px-4 py-1.5 justify-center items-center">
-                <Text className="text-white text-xs font-bold">Hoy</Text>
-              </TouchableOpacity>
-              <TouchableOpacity className="bg-gray-100 rounded-full w-8 h-8 justify-center items-center border border-gray-200">
-                <Text className="text-xs">⏳</Text>
-              </TouchableOpacity>
-            </View>
+            <Text className="text-black text-2xl font-bold capitalize">{formatFechaLarga(new Date())}</Text>
+            <TouchableOpacity
+              onPress={refetch}
+              className="bg-black rounded-full px-4 py-1.5 justify-center items-center"
+              accessibilityLabel="Actualizar agenda"
+            >
+              <Text className="text-white text-xs font-bold">↻</Text>
+            </TouchableOpacity>
           </View>
           <Text className="text-gray-400 text-xs font-medium">
-            Agenda combinada · 5 eventos · 1 conflicto
+            Agenda combinada · {eventos.length} evento(s) · {conflictos.length} conflicto(s)
           </Text>
         </View>
 
-        {/* Selector de Vistas (Día, Semana, Mes) */}
-        <View className="flex-row bg-gray-100 p-1 rounded-full mb-5 self-start">
-          {(['Día', 'Semana', 'Mes'] as const).map(tab => (
-            <TouchableOpacity
-              key={tab}
-              onPress={() => setViewTab(tab)}
-              className={`rounded-full px-4 py-1.5 ${viewTab === tab ? 'bg-black' : 'bg-transparent'}`}
-            >
-              <Text className={`text-xs font-bold ${viewTab === tab ? 'text-white' : 'text-gray-500'}`}>
-                {tab}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        {/* Filtro por Miembros de la Familia con Avatares */}
-        <View className="flex-row gap-2 mb-6 overflow-x-scroll pb-1">
-          {familyMembers.map(member => {
-            const isSelected = selectedMembers.includes(member.name);
-            return (
-              <TouchableOpacity
-                key={member.name}
-                onPress={() => toggleMember(member.name)}
-                className={`flex-row items-center border rounded-full px-3 py-1.5 bg-white ${
-                  isSelected ? 'border-gray-300' : 'border-gray-100'
-                }`}
-              >
-                <View className="w-5 h-5 rounded-full border border-gray-300 mr-2 items-center justify-center bg-gray-50">
-                  {isSelected && <View className="w-3 h-3 rounded-full bg-black" />}
-                </View>
-                <Image
-                  source={{ uri: member.photo }}
-                  className="w-6 h-6 rounded-full mr-2 bg-gray-200"
-                />
-                <Text className="text-black text-xs font-bold">{member.name}</Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
+        {/* Filtro por participantes (derivados de los eventos reales) */}
+        {miembros.length > 0 && (
+          <View className="flex-row flex-wrap gap-2 mb-6">
+            {miembros.map(member => {
+              const isSelected = selectedMembers.includes(member);
+              return (
+                <TouchableOpacity
+                  key={member}
+                  onPress={() => toggleMember(member)}
+                  className={`flex-row items-center border rounded-full px-3 py-1.5 ${
+                    isSelected ? 'bg-black border-black' : 'bg-white border-gray-200'
+                  }`}
+                >
+                  <View className={`w-6 h-6 rounded-full mr-2 items-center justify-center ${isSelected ? 'bg-white' : 'bg-gray-100'}`}>
+                    <Text className="text-[9px] font-bold text-black">{getInitials(member)}</Text>
+                  </View>
+                  <Text className={`text-xs font-bold ${isSelected ? 'text-white' : 'text-black'}`}>{member}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        )}
 
         {/* Distribución Horaria Vertical */}
         <View className="mb-6">
-          {hours.map((hour, index) => {
+          {HOURS.map((hour) => {
             const hourNumber = parseInt(hour.split(':')[0], 10);
-            
+
             // Buscar eventos que comiencen en esta hora y que tengan algún participante seleccionado
             const eventAtHour = eventos.find((e) => {
               const d = new Date(e.fecha_inicio);
               if (d.getHours() !== hourNumber) return false;
-              
+
               if (selectedMembers.length === 0) return true;
               if (!e.participantes || e.participantes.length === 0) return true;
-              
+
               return e.participantes.some(p => selectedMembers.includes(p));
             });
 
@@ -281,20 +259,20 @@ export default function CalendarScreen() {
             const isHealth = eventAtHour && (eventAtHour.titulo.toLowerCase().includes('médico') || eventAtHour.titulo.toLowerCase().includes('dentista') || eventAtHour.titulo.toLowerCase().includes('pediatra'));
             const isTask = eventAtHour && (eventAtHour.titulo.toLowerCase().includes('tarea') || eventAtHour.titulo.toLowerCase().includes('basura') || eventAtHour.titulo.toLowerCase().includes('limpiar'));
 
-            const cardBg = hasConflict 
-              ? 'bg-[#fee2e2] border-[#fecaca]' 
-              : isHealth 
-              ? 'bg-[#e0f2fe] border-[#bae6fd]' 
-              : isTask 
-              ? 'bg-[#d1fae5] border-[#a7f3d0]' 
+            const cardBg = hasConflict
+              ? 'bg-[#fee2e2] border-[#fecaca]'
+              : isHealth
+              ? 'bg-[#e0f2fe] border-[#bae6fd]'
+              : isTask
+              ? 'bg-[#d1fae5] border-[#a7f3d0]'
               : 'bg-[#fef3c7] border-[#fde68a]';
 
-            const textColor = hasConflict 
-              ? 'text-[#b91c1c]' 
-              : isHealth 
-              ? 'text-[#0369a1]' 
-              : isTask 
-              ? 'text-[#047857]' 
+            const textColor = hasConflict
+              ? 'text-[#b91c1c]'
+              : isHealth
+              ? 'text-[#0369a1]'
+              : isTask
+              ? 'text-[#047857]'
               : 'text-[#b45309]';
 
             return (
@@ -303,23 +281,21 @@ export default function CalendarScreen() {
                 <View className="w-14 items-start pt-1">
                   <Text className="text-gray-400 text-xs font-bold">{hour}</Text>
                 </View>
-                
+
                 {/* Evento flotando al lado derecho */}
                 <View className="flex-1">
                   {eventAtHour ? (
                     <View className={`rounded-3xl p-4 border relative ${cardBg}`}>
-                      {/* Avatar del responsable */}
+                      {/* Iniciales de los participantes */}
                       <View className="absolute right-4 top-4 flex-row gap-1">
-                        {eventAtHour.participantes?.map((partName) => {
-                          const m = familyMembers.find(fm => fm.name === partName);
-                          return m ? (
-                            <Image
-                              key={partName}
-                              source={{ uri: m.photo }}
-                              className="w-6 h-6 rounded-full border border-white bg-gray-200"
-                            />
-                          ) : null;
-                        })}
+                        {eventAtHour.participantes?.map((partName) => (
+                          <View
+                            key={partName}
+                            className="w-6 h-6 rounded-full border border-white bg-white/70 items-center justify-center"
+                          >
+                            <Text className="text-[8px] font-bold text-black">{getInitials(partName)}</Text>
+                          </View>
+                        ))}
                       </View>
 
                       <View className="pr-12">
@@ -333,10 +309,10 @@ export default function CalendarScreen() {
                           {eventAtHour.descripcion || 'Sin descripción'}
                         </Text>
                       </View>
-                      
+
                       {hasConflict && (
                         <Text className="text-red-600 text-[9px] mt-2 font-bold leading-4">
-                          Conflicto detectado: Colisión horaria en la agenda. Sugerencia disponible abajo.
+                          Conflicto detectado: Colisión horaria en la agenda. Revisa las alertas abajo.
                         </Text>
                       )}
 
@@ -367,10 +343,10 @@ export default function CalendarScreen() {
           })}
         </View>
 
-        {/* Sección: Alertas y sugerencias de Conflicto */}
+        {/* Sección: Alertas de Conflicto */}
         <View className="bg-white border border-gray-100 rounded-3xl p-5 mb-5 shadow-sm">
           <View className="flex-row justify-between items-center mb-3">
-            <Text className="text-black text-sm font-bold">Alertas y sugerencias</Text>
+            <Text className="text-black text-sm font-bold">Alertas de conflicto</Text>
             <Text className="text-red-500 text-[10px] font-bold">
               {conflictos.length} conflicto(s) activo(s)
             </Text>
@@ -386,25 +362,37 @@ export default function CalendarScreen() {
                     Conflicto: {conf.evento_a.titulo} ({horaA}) y {conf.evento_b.titulo} ({horaB})
                   </Text>
 
-                  {/* Acciones flotantes de resolución */}
+                  {/* Acciones reales de resolución */}
                   <View className="flex-row gap-2 mt-4">
                     <TouchableOpacity
-                      onPress={handleReprogramar}
+                      onPress={() => {
+                        Alert.alert(
+                          "Confirmar eliminación",
+                          `¿Deseas eliminar "${conf.evento_a.titulo}" (${horaA})?`,
+                          [
+                            { text: "No", style: "cancel" },
+                            { text: "Sí", onPress: () => deleteEvento(conf.evento_a.id) }
+                          ]
+                        );
+                      }}
                       className="bg-black rounded-full px-4 py-2"
                     >
-                      <Text className="text-white text-[10px] font-bold">Reprogramar</Text>
+                      <Text className="text-white text-[10px] font-bold">Eliminar "{conf.evento_a.titulo.slice(0, 15)}"</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
-                      onPress={() => deleteEvento(conf.evento_b.id)}
+                      onPress={() => {
+                        Alert.alert(
+                          "Confirmar eliminación",
+                          `¿Deseas eliminar "${conf.evento_b.titulo}" (${horaB})?`,
+                          [
+                            { text: "No", style: "cancel" },
+                            { text: "Sí", onPress: () => deleteEvento(conf.evento_b.id) }
+                          ]
+                        );
+                      }}
                       className="bg-black rounded-full px-4 py-2"
                     >
-                      <Text className="text-white text-[10px] font-bold">Eliminar B</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      onPress={() => Alert.alert("Ignorar", "El conflicto continuará visualizándose en la agenda.")}
-                      className="border border-gray-300 bg-white rounded-full px-4 py-2"
-                    >
-                      <Text className="text-gray-500 text-[10px] font-bold">Ignorar</Text>
+                      <Text className="text-white text-[10px] font-bold">Eliminar "{conf.evento_b.titulo.slice(0, 15)}"</Text>
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -415,68 +403,35 @@ export default function CalendarScreen() {
           )}
         </View>
 
-        {/* Sección: Integraciones */}
-        <View className="bg-white border border-gray-100 rounded-3xl p-5 mb-5 shadow-sm">
-          <View className="flex-row justify-between items-center mb-3">
-            <Text className="text-black text-sm font-bold">Integraciones</Text>
-            <Text className="text-gray-400 text-[10px] font-medium">Tareas del hogar · Despensa</Text>
-          </View>
-
-          {/* Comprar leche */}
-          <View className="border border-gray-100 rounded-2xl p-4 mb-3">
-            <View className="flex-row justify-between items-start mb-3">
-              <View>
-                <Text className="text-black text-xs font-bold">Comprar leche</Text>
-                <Text className="text-gray-400 text-[10px] mt-0.5">Despensa: 0.5L restante · Activación automática</Text>
-              </View>
-              <TouchableOpacity
-                onPress={() => Alert.alert("Evento Creado", "Se ha añadido el recordatorio al calendario.")}
-                className="bg-black rounded-full px-3 py-1.5"
-              >
-                <Text className="text-white text-[10px] font-bold">Crear evento</Text>
-              </TouchableOpacity>
-            </View>
+        {/* Crear Evento Rápido con IA */}
+        <View className="bg-white border border-gray-100 rounded-3xl p-4 shadow-sm">
+          <Text className="text-black text-xs font-bold mb-2">Evento rápido con IA ✨</Text>
+          <Text className="text-gray-400 text-[10px] mb-3">
+            Describe el evento en tus palabras y la IA propondrá fecha y hora. Tú siempre confirmas.
+          </Text>
+          <View className="flex-row bg-gray-50 border border-gray-200 rounded-full p-1.5 items-center">
+            <TextInput
+              placeholder='Ej: "cena con mis padres el viernes a las 21h"'
+              placeholderTextColor="#94a3b8"
+              className="flex-1 px-4 py-2 text-black text-xs font-medium"
+              value={quickInput}
+              onChangeText={setQuickInput}
+              onSubmitEditing={handleQuickAdd}
+              editable={!quickLoading}
+            />
             <TouchableOpacity
-              onPress={() => Alert.alert("Despensa actualizada", "Leche marcada como comprada.")}
-              className="border border-gray-300 rounded-full py-2 items-center"
+              onPress={handleQuickAdd}
+              disabled={quickLoading}
+              className="bg-black rounded-full w-10 h-10 items-center justify-center"
+              accessibilityLabel="Interpretar evento con IA"
             >
-              <Text className="text-gray-500 text-[10px] font-bold">Marcar como comprado</Text>
+              {quickLoading ? (
+                <ActivityIndicator size="small" color="#ffffff" />
+              ) : (
+                <Text className="text-white text-lg font-bold">✨</Text>
+              )}
             </TouchableOpacity>
           </View>
-
-          {/* Sacar la basura */}
-          <View className="border border-gray-100 rounded-2xl p-4">
-            <View className="flex-row justify-between items-center">
-              <View className="flex-1 pr-3">
-                <Text className="text-black text-xs font-bold">Sacar la basura</Text>
-                <Text className="text-gray-400 text-[10px] mt-0.5">Tarea programada semanalmente · Sábado 20:00</Text>
-              </View>
-              <TouchableOpacity
-                onPress={() => Alert.alert("Asignar", "Tarea asignada a Sofía.")}
-                className="bg-black rounded-full px-4 py-2"
-              >
-                <Text className="text-white text-[10px] font-bold">Asignar</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-
-        {/* Crear Evento Rápido Input */}
-        <View className="flex-row bg-white border border-gray-100 rounded-full p-2 items-center shadow-sm">
-          <TextInput
-            placeholder="Título, miembro, duración · Sugerencias inteligentes"
-            placeholderTextColor="#94a3b8"
-            className="flex-1 px-4 py-2 text-black text-xs font-medium"
-            value={quickInput}
-            onChangeText={setQuickInput}
-            onSubmitEditing={handleQuickAdd}
-          />
-          <TouchableOpacity
-            onPress={handleQuickAdd}
-            className="bg-black rounded-full w-10 h-10 items-center justify-center"
-          >
-            <Text className="text-white text-lg font-bold">+</Text>
-          </TouchableOpacity>
         </View>
 
       </ScrollView>
@@ -591,7 +546,13 @@ export default function CalendarScreen() {
                   const ev = conflictoModal?.evento_nuevo;
                   setConflictoModal(null);
                   if (ev) {
-                    saveEvento(ev.titulo, ev.descripcion || '', horaInicio, horaFin, participantes, true);
+                    crearEvento({
+                      titulo: ev.titulo,
+                      descripcion: ev.descripcion,
+                      fecha_inicio: ev.fecha_inicio,
+                      fecha_fin: ev.fecha_fin,
+                      participantes: ev.participantes,
+                    }, true);
                   }
                 }}
                 accessibilityLabel="Confirmar evento ignorando conflicto"

@@ -2,19 +2,36 @@ import React, { useState } from 'react';
 import {
   View,
   Text,
-  FlatList,
   TouchableOpacity,
   TextInput,
   Modal,
   ScrollView,
   Alert,
-  Image,
-  Switch,
   ActivityIndicator
 } from 'react-native';
 import { usePantry, getDiasParaCaducar } from '../hooks/usePantry';
 import { AlimentoItem, RecetaSugerida, RecetasSugeridasResponse } from '../types/types';
 import { apiRequest } from '../api/api';
+
+const UMBRAL_BAJO_STOCK = 1;
+
+function getItemStatus(item: AlimentoItem): { text: string; color: string; bar: string } {
+  const dias = getDiasParaCaducar(item.fecha_caducidad);
+  if (dias !== null && dias <= 0) return { text: 'Caducado', color: 'text-red-600', bar: 'bg-red-600' };
+  if (dias !== null && dias <= 2) return { text: 'Caduca pronto', color: 'text-amber-500', bar: 'bg-amber-500' };
+  if (item.cantidad <= UMBRAL_BAJO_STOCK) return { text: 'Bajo stock', color: 'text-red-500', bar: 'bg-red-500' };
+  return { text: 'Stock correcto', color: 'text-green-500', bar: 'bg-green-500' };
+}
+
+function getCategoriaEmoji(categoria: string): string {
+  const c = categoria.toLowerCase();
+  if (c.includes('lácteo') || c.includes('lacteo')) return '🥛';
+  if (c.includes('carne')) return '🥩';
+  if (c.includes('fruta')) return '🍎';
+  if (c.includes('verdura') || c.includes('vegetal')) return '🥦';
+  if (c.includes('bebida')) return '🧃';
+  return '🥫';
+}
 
 export default function PantryScreen() {
   const {
@@ -33,9 +50,7 @@ export default function PantryScreen() {
   
   // Inputs de Filtros
   const [filtroCategoria, setFiltroCategoria] = useState('');
-  const [filtroCaducidad, setFiltroCaducidad] = useState('');
   const [soloBajoStock, setSoloBajoStock] = useState(false);
-  const [notifsCaducidad, setNotifsCaducidad] = useState(true);
 
   // Formulario nuevo producto
   const [nombre, setNombre] = useState('');
@@ -185,44 +200,8 @@ export default function PantryScreen() {
     );
   };
 
-  // Mock de imágenes y niveles de stock para productos
-  const productExtraData: Record<string, { image: string, barWidth: string, statusText: string, statusColor: string, barColor: string }> = {
-    '1': {
-      image: 'https://images.unsplash.com/photo-1550583724-b2692b85b150?w=120', // leche
-      barWidth: 'w-1/4',
-      statusText: 'Bajo stock',
-      statusColor: 'text-red-500',
-      barColor: 'bg-red-500',
-    },
-    '2': {
-      image: 'https://images.unsplash.com/photo-1604503468506-a8da13d82791?w=120', // pollo
-      barWidth: 'w-1/2',
-      statusText: 'Caduca pronto',
-      statusColor: 'text-amber-500',
-      barColor: 'bg-amber-500',
-    },
-    '3': {
-      image: 'https://images.unsplash.com/photo-1586201375761-83865001e31c?w=120', // arroz
-      barWidth: 'w-full',
-      statusText: 'Stock suficiente',
-      statusColor: 'text-green-600',
-      barColor: 'bg-green-600',
-    },
-    '4': {
-      image: 'https://images.unsplash.com/photo-1595855759920-86582396756a?w=120', // tomates
-      barWidth: 'w-3/4',
-      statusText: 'Stock correcto',
-      statusColor: 'text-green-500',
-      barColor: 'bg-green-500',
-    },
-    '5': {
-      image: 'https://images.unsplash.com/photo-1488477181946-6428a0291777?w=120', // yogur
-      barWidth: 'w-1/3',
-      statusText: 'Bajo stock',
-      statusColor: 'text-red-500',
-      barColor: 'bg-red-500',
-    }
-  };
+  // Productos con bajo stock real (para recomendaciones de compra)
+  const itemsBajoStock = items.filter(i => i.cantidad <= UMBRAL_BAJO_STOCK);
 
   return (
     <View className="flex-1 bg-[#fafafa]">
@@ -230,18 +209,7 @@ export default function PantryScreen() {
         
         {/* Cabecera del Gestor de Despensa */}
         <View className="flex-row justify-between items-center mb-5">
-          <Text className="text-black text-xl font-bold">AsistenteHogarAI</Text>
-          <View className="flex-row items-center gap-2">
-            <TouchableOpacity 
-              onPress={() => Alert.alert("Escáner", "Abriendo cámara para escanear código de barras...")}
-              className="bg-black rounded-full px-4 py-2"
-            >
-              <Text className="text-white text-xs font-bold">Escanear</Text>
-            </TouchableOpacity>
-            <TouchableOpacity className="bg-gray-100 rounded-full w-8 h-8 justify-center items-center border border-gray-200">
-              <Text className="text-base">🔔</Text>
-            </TouchableOpacity>
-          </View>
+          <Text className="text-black text-xl font-bold">Despensa</Text>
         </View>
 
         {/* Bloque de Métricas */}
@@ -275,31 +243,21 @@ export default function PantryScreen() {
           </View>
         </View>
 
-        {/* Recomendaciones de Compra */}
-        <View className="flex-row items-center justify-between bg-white border border-gray-100 rounded-3xl p-4 mb-5 shadow-sm">
-          <View className="flex-1 pr-3">
+        {/* Recomendaciones de Compra (calculadas del stock real) */}
+        {itemsBajoStock.length > 0 && (
+          <View className="bg-white border border-gray-100 rounded-3xl p-4 mb-5 shadow-sm">
             <Text className="text-gray-400 text-[10px] font-bold uppercase mb-0.5">Recomendaciones de compra</Text>
-            <Text className="text-black text-xs font-bold">Leche, Huevos, Harina</Text>
+            <Text className="text-black text-xs font-bold">
+              {itemsBajoStock.map(i => i.nombre).join(', ')}
+            </Text>
+            <Text className="text-gray-400 text-[9px] mt-1">Artículos con stock bajo en tu inventario</Text>
           </View>
-          <TouchableOpacity 
-            onPress={() => Alert.alert("Lista de Compras", "Mostrando lista completa de abastecimiento...")}
-            className="bg-black rounded-full px-4 py-2"
-          >
-            <Text className="text-white text-xs font-bold">Ver lista</Text>
-          </TouchableOpacity>
-        </View>
+        )}
 
         {/* Sección de Filtros */}
         <View className="bg-white border border-gray-100 rounded-3xl p-5 mb-5 shadow-sm">
-          <View className="flex-row justify-between items-center mb-3">
-            <Text className="text-black text-xs font-bold">Filtros</Text>
-            <View className="flex-row items-center">
-              <Text className="text-gray-400 text-[10px] font-bold mr-2">Seleccionar</Text>
-              <View className="w-4 h-4 rounded border border-gray-300" />
-            </View>
-          </View>
+          <Text className="text-black text-xs font-bold mb-3">Filtros</Text>
 
-          {/* Inputs de filtro */}
           <TextInput
             placeholder="Categoría (ej. Lácteos)"
             placeholderTextColor="#94a3b8"
@@ -307,32 +265,15 @@ export default function PantryScreen() {
             value={filtroCategoria}
             onChangeText={setFiltroCategoria}
           />
-          <TextInput
-            placeholder="Fecha de caducidad (ordenar)"
-            placeholderTextColor="#94a3b8"
-            className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-black text-xs mb-3 font-medium"
-            value={filtroCaducidad}
-            onChangeText={setFiltroCaducidad}
-          />
 
-          {/* Checkboxes de opciones filtros */}
-          <View className="flex-row justify-between items-center mb-2">
+          <View className="flex-row justify-between items-center">
             <Text className="text-gray-600 text-xs font-semibold">Solo mostrar bajo stock</Text>
-            <TouchableOpacity 
+            <TouchableOpacity
               onPress={() => setSoloBajoStock(!soloBajoStock)}
               className="w-5 h-5 rounded border border-gray-300 items-center justify-center bg-gray-50"
             >
               {soloBajoStock && <View className="w-3 h-3 bg-black rounded" />}
             </TouchableOpacity>
-          </View>
-          <View className="flex-row justify-between items-center">
-            <Text className="text-gray-600 text-xs font-semibold">Notifs caducidad</Text>
-            <Switch
-              value={notifsCaducidad}
-              onValueChange={setNotifsCaducidad}
-              trackColor={{ false: "#e2e8f0", true: "#000000" }}
-              thumbColor={notifsCaducidad ? "#ffffff" : "#f4f3f4"}
-            />
           </View>
         </View>
 
@@ -360,20 +301,11 @@ export default function PantryScreen() {
           {items
             .filter(item => {
               if (filtroCategoria && !item.categoria.toLowerCase().includes(filtroCategoria.toLowerCase())) return false;
-              if (soloBajoStock) {
-                const info = productExtraData[item.id];
-                return info && info.statusText === 'Bajo stock';
-              }
+              if (soloBajoStock) return item.cantidad <= UMBRAL_BAJO_STOCK;
               return true;
             })
             .map(item => {
-              const info = productExtraData[item.id] || {
-                image: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=120',
-                barWidth: 'w-2/3',
-                statusText: 'Stock correcto',
-                statusColor: 'text-green-500',
-                barColor: 'bg-green-500',
-              };
+              const status = getItemStatus(item);
               const isSelected = selectedItems.includes(item.id);
 
               return (
@@ -387,30 +319,31 @@ export default function PantryScreen() {
                     {isSelected && <View className="w-3 h-3 bg-black rounded" />}
                   </TouchableOpacity>
 
-                  {/* Miniatura de producto */}
-                  <Image
-                    source={{ uri: info.image }}
-                    className="w-14 h-14 rounded-2xl mr-3 bg-gray-100"
-                  />
+                  {/* Icono por categoría */}
+                  <View className="w-14 h-14 rounded-2xl mr-3 bg-gray-100 items-center justify-center">
+                    <Text className="text-2xl">{getCategoriaEmoji(item.categoria)}</Text>
+                  </View>
 
                   {/* Detalles */}
                   <View className="flex-1 mr-2">
                     <Text className="text-black text-xs font-bold">{item.nombre}</Text>
                     <Text className="text-gray-500 text-[10px] mt-0.5">
-                      Cantidad: {item.cantidad} {item.unidad} · Despensa
+                      Cantidad: {item.cantidad} {item.unidad} · {item.categoria}
                     </Text>
                     <Text className="text-gray-400 text-[9px] mt-1">
                       Caduca: {item.fecha_caducidad || 'Indefinido'}
                     </Text>
 
-                    {/* Barra de progreso de suministro */}
+                    {/* Barra de nivel de stock (proporcional a la cantidad) */}
                     <View className="w-full h-1 bg-gray-100 rounded-full mt-2 overflow-hidden relative">
-                      <View className={`h-full ${info.barColor} ${info.barWidth}`} />
+                      <View
+                        className={`h-full ${status.bar}`}
+                        style={{ width: `${Math.min(100, Math.round((item.cantidad / 5) * 100))}%` }}
+                      />
                     </View>
-                    
-                    {/* Estatus debajo de la barra */}
-                    <Text className={`${info.statusColor} text-[9px] font-bold mt-1`}>
-                      {info.statusText}
+
+                    <Text className={`${status.color} text-[9px] font-bold mt-1`}>
+                      {status.text}
                     </Text>
                   </View>
 

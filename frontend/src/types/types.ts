@@ -80,9 +80,20 @@ export interface DashboardData {
   alertas_despensa: PantryStockMetrics;
   tareas_pendientes: TareaItem[];
   conflictos_agenda: ConflictoDetalle[];
-  clima_temperatura: string;
-  clima_estado: string;
   briefing_texto?: string;
+}
+
+export interface EventoInterpretado {
+  titulo: string;
+  descripcion: string | null;
+  fecha_inicio: string; // ISO-8601
+  fecha_fin: string; // ISO-8601
+  participantes: string[] | null;
+}
+
+export interface InterpretarEventoResponse {
+  evento: EventoInterpretado | null;
+  mensaje: string | null;
 }
 
 export interface BriefingData {

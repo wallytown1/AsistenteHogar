@@ -3,10 +3,13 @@ import uuid
 
 from app.api.deps import get_hogar_id, get_calendar_service
 from app.services.calendar import CalendarService
+from app.services.llm import interpret_event_text
 from app.schemas.schemas import (
     CalendarAgendaResponse,
     EventoCalendarioCreate,
-    EventoCalendarioResponse
+    EventoCalendarioResponse,
+    InterpretarEventoRequest,
+    InterpretarEventoResponse
 )
 
 router = APIRouter(tags=["Calendar"])
@@ -31,6 +34,18 @@ async def create_calendar_event(
 ):
     """Crea un nuevo evento en el calendario familiar."""
     return await calendar_service.add_event(hogar_id, schema)
+
+@router.post("/calendar/interpretar", response_model=InterpretarEventoResponse)
+async def interpretar_evento(
+    schema: InterpretarEventoRequest,
+    hogar_id: uuid.UUID = Depends(get_hogar_id),
+):
+    """Interpreta texto en lenguaje natural y devuelve una PROPUESTA de evento.
+
+    IA pasiva: nunca crea el evento; el cliente debe confirmar y llamar a POST /calendar.
+    La dependencia de hogar_id solo exige autenticación.
+    """
+    return await interpret_event_text(schema.texto, schema.fecha_referencia)
 
 @router.delete("/calendar/{evento_id}", response_model=EventoCalendarioResponse)
 async def delete_calendar_event(
