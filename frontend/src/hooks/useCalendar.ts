@@ -11,17 +11,22 @@ export function useCalendar() {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchCalendar = useCallback(async () => {
+  const fetchCalendar = useCallback(async (signal?: AbortSignal) => {
     setIsLoading(true);
     setError(null);
     try {
-      const data = await apiRequest<CalendarAgendaResponse>('/calendar');
+      const data = await apiRequest<CalendarAgendaResponse>('/calendar', { signal });
       setEventos(data.eventos || []);
       setConflictos(data.conflictos || []);
     } catch (err: any) {
-      setError(err.message || 'Error al cargar la agenda de la casa');
+      if (err.name === 'AbortError') return;
+      setError(
+        err.name === 'TimeoutError'
+          ? 'El servidor tardó demasiado. Comprueba tu conexión.'
+          : (err.message || 'Error al cargar la agenda de la casa')
+      );
     } finally {
-      setIsLoading(false);
+      if (!signal?.aborted) setIsLoading(false);
     }
   }, []);
 
@@ -98,7 +103,9 @@ export function useCalendar() {
   };
 
   useEffect(() => {
-    fetchCalendar();
+    const ctrl = new AbortController();
+    fetchCalendar(ctrl.signal);
+    return () => ctrl.abort();
   }, [fetchCalendar]);
 
   return {
@@ -108,6 +115,6 @@ export function useCalendar() {
     error,
     addEvento,
     deleteEvento,
-    refetch: fetchCalendar,
+    refetch: () => fetchCalendar(),
   };
 }

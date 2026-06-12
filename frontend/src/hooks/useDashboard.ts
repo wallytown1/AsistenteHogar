@@ -10,22 +10,29 @@ export function useDashboard() {
   const [briefing, setBriefing] = useState<DashboardData | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchBriefing = useCallback(async () => {
+  const fetchBriefing = useCallback(async (signal?: AbortSignal) => {
     setLoading(true);
     setError(null);
     try {
-      const data = await apiRequest<DashboardData>('/dashboard');
+      const data = await apiRequest<DashboardData>('/dashboard', { signal });
       setBriefing(data);
     } catch (err: any) {
-      setError(err.message || 'Error al generar el informe diario del hogar');
+      if (err.name === 'AbortError') return;
+      setError(
+        err.name === 'TimeoutError'
+          ? 'El servidor tardó demasiado. Comprueba tu conexión.'
+          : (err.message || 'Error al generar el informe diario del hogar')
+      );
     } finally {
-      setLoading(false);
+      if (!signal?.aborted) setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    fetchBriefing();
+    const ctrl = new AbortController();
+    fetchBriefing(ctrl.signal);
+    return () => ctrl.abort();
   }, [fetchBriefing]);
 
-  return { loading, briefing, error, refetch: fetchBriefing };
+  return { loading, briefing, error, refetch: () => fetchBriefing() };
 }

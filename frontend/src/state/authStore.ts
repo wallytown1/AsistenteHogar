@@ -44,20 +44,31 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   setSession: async (session: TokenResponse) => {
+    // La sesión en memoria se actualiza primero; la persistencia es best-effort.
+    // SecureStore no está disponible en react-native-web: silenciamos el error
+    // para que el registro/login funcione igualmente (la sesión vive en memoria).
     set({ token: session.access_token, usuario: session.usuario, hogar: session.hogar });
-    await Promise.all([
-      SecureStore.setItemAsync(TOKEN_KEY, session.access_token),
-      SecureStore.setItemAsync(USUARIO_KEY, JSON.stringify(session.usuario)),
-      SecureStore.setItemAsync(HOGAR_KEY, JSON.stringify(session.hogar)),
-    ]);
+    try {
+      await Promise.all([
+        SecureStore.setItemAsync(TOKEN_KEY, session.access_token),
+        SecureStore.setItemAsync(USUARIO_KEY, JSON.stringify(session.usuario)),
+        SecureStore.setItemAsync(HOGAR_KEY, JSON.stringify(session.hogar)),
+      ]);
+    } catch {
+      // Plataforma sin SecureStore (web): sesión activa solo durante la sesión
+    }
   },
 
   logout: async () => {
     set({ token: null, usuario: null, hogar: null });
-    await Promise.all([
-      SecureStore.deleteItemAsync(TOKEN_KEY),
-      SecureStore.deleteItemAsync(USUARIO_KEY),
-      SecureStore.deleteItemAsync(HOGAR_KEY),
-    ]);
+    try {
+      await Promise.all([
+        SecureStore.deleteItemAsync(TOKEN_KEY),
+        SecureStore.deleteItemAsync(USUARIO_KEY),
+        SecureStore.deleteItemAsync(HOGAR_KEY),
+      ]);
+    } catch {
+      // Plataforma sin SecureStore (web): nada que limpiar
+    }
   },
 }));

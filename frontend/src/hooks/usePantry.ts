@@ -25,19 +25,24 @@ export function usePantry() {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchPantry = useCallback(async () => {
+  const fetchPantry = useCallback(async (signal?: AbortSignal) => {
     setIsLoading(true);
     setError(null);
     try {
-      const data = await apiRequest<PantryStockMetrics>('/pantry');
+      const data = await apiRequest<PantryStockMetrics>('/pantry', { signal });
       setItems(data.items || []);
       setPorcentajeStock(data.porcentaje_stock);
       setItemsDisponibles(data.items_disponibles);
       setAlertasCaducidad(data.alertas_caducidad || []);
     } catch (err: any) {
-      setError(err.message || 'Error al obtener los datos de la despensa');
+      if (err.name === 'AbortError') return;
+      setError(
+        err.name === 'TimeoutError'
+          ? 'El servidor tardó demasiado. Comprueba tu conexión.'
+          : (err.message || 'Error al obtener los datos de la despensa')
+      );
     } finally {
-      setIsLoading(false);
+      if (!signal?.aborted) setIsLoading(false);
     }
   }, []);
 
@@ -98,7 +103,9 @@ export function usePantry() {
   };
 
   useEffect(() => {
-    fetchPantry();
+    const ctrl = new AbortController();
+    fetchPantry(ctrl.signal);
+    return () => ctrl.abort();
   }, [fetchPantry]);
 
   return {
@@ -111,6 +118,6 @@ export function usePantry() {
     addItem,
     updateQuantity,
     deleteItem,
-    refetch: fetchPantry,
+    refetch: () => fetchPantry(),
   };
 }

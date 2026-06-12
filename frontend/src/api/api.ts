@@ -13,6 +13,8 @@ interface RequestOptions extends RequestInit {
  * local para devolver al usuario a la pantalla de acceso.
  */
 export async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
+  // AbortSignal.timeout lanza TimeoutError (no AbortError); propagamos para que el
+  // caller distinga entre cancelación intencional y timeout de red.
   if (!API_BASE_URL) {
     const errorMsg = 'La configuración de red del entorno no fue cargada adecuadamente. La variable EXPO_PUBLIC_API_URL no está definida.';
     Alert.alert('Error de Configuración', errorMsg);
@@ -35,6 +37,7 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
   const response = await fetch(url, {
     ...options,
     headers,
+    signal: options.signal ?? AbortSignal.timeout(15000),
   });
 
   if (!response.ok) {

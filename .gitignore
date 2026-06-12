@@ -1,5 +1,6 @@
-# Secrets y configuración local (usar backend/.env.example como plantilla)
+# Secrets y configuración local (nunca subir .env reales)
 backend/.env
+frontend/.env
 
 # Bases de datos locales
 *.db

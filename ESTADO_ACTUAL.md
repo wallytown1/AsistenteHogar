@@ -2,7 +2,7 @@
 
 ## ✅ Completado
 
-| Fase | Descrición | Archivos principales |
+| Fase | Descripción | Archivos principales |
 |------|-----------|----------------------|
 | F0 | MVP base (endpoints, BD, UI mock) | backend/app/main.py, frontend/App.tsx |
 | F1 | JWT + multi-tenant (hogar_id del token) | backend/app/{core/security.py, services/auth.py, api/routers/auth.py} |
@@ -11,12 +11,13 @@
 | F-IA | Gemini real (briefing + recetas + caché) | backend/app/services/llm.py, backend/app/api/routers/pantry.py |
 | F-HONESTA | Reenfoque agente personal (sin UI falsa) | frontend/src/screens/{DashboardScreen, PantryScreen, CalendarScreen}.tsx |
 | F-TEST | Suite de tests + corrección de 3 bugs + CRUD calendario | backend/smoke_test_*.py, frontend/src/screens/TasksScreen.tsx |
+| F-QA | Ciclo QA mobile: 2 críticos + 2 medios resueltos, 0 errores TS | frontend/src/{api,hooks,state}/ |
 
 ## 🧪 Sesión 2026-06-12 — Tests, bugs y consistencia
 
 **Frontend**
-- Nueva pantalla **TasksScreen** (gestión de tareas: crear, completar, eliminar, filtros). Faltaba UI pese a tener el CRUD en backend. Integrada como tab "Tareas".
-  - ⚠️ Pendiente: `npm run ts:check` (no se pudo verificar; sin Node en el entorno de la sesión).
+- Nueva pantalla **TasksScreen** (gestión de tareas: crear, completar, eliminar, filtros). Integrada como tab "Tareas".
+- `npm run ts:check` verificado: **0 errores** (Node.js v24.16.0 instalado).
 
 **Backend — suite de smoke tests (82 checks, todos en verde)**
 - `smoke_test_auth.py` (12) — autenticación + aislamiento.
@@ -37,6 +38,26 @@
 - `CLAUDE.md` — guía de trabajo para el repo.
 - `ENDPOINTS.md` — referencia completa de la API REST.
 - Eliminados docs obsoletos (CHANGELOG_ARCHIVE, ConversacionInicial, PROMPT_MAESTRO, .agents/rules/). Se conservó `01_CONTEXTO_Y_ARQUITECTURA_APP.md` como referencia del schema/contrato original.
+
+## 🔍 Sesión 2026-06-12 — Ciclo QA móvil (F-QA)
+
+Auditoría completa del frontend (`frontend/src/`) con foco en contratos de API, estado Zustand, red y seguridad.
+
+**2 críticos resueltos**
+
+1. **IP de backend obsoleta** (`frontend/.env.development`): apuntaba a `192.168.1.143` (red anterior); cambiada a `172.20.10.2` (IP LAN activa). Era la causa directa de que el registro/login fallase con error de red.
+2. **Secretos del backend en `frontend/.env`**: el archivo contenía `JWT_SECRET_KEY` + `DATABASE_URL` y no estaba en `.gitignore` (un `git add .` lo hubiera subido al repo). Eliminado y añadida regla `frontend/.env` al `.gitignore` raíz.
+
+**2 medios resueltos**
+
+3. **Crash silencioso en web al registrar** (`authStore.ts`): `expo-secure-store` no está disponible en `react-native-web`; `setSession`/`logout` lanzaban excepción que `AuthScreen` capturaba como "No se pudo crear el hogar" aunque la cuenta sí se había creado en el backend. Fix: persistencia en `try/catch`; la sesión en memoria queda activa aunque SecureStore no esté disponible.
+4. **Sin timeout ni cancelación en peticiones** (`api.ts` + 4 hooks): spinner infinito si el backend no responde; posible setState sobre componente desmontado. Fixes:
+   - `AbortSignal.timeout(15000)` como señal por defecto en `apiRequest`.
+   - `AbortController` + cleanup en `useEffect` de `useDashboard`, `useCalendar`, `usePantry` y `useTasks`.
+   - Mensajes de error diferenciados: `TimeoutError` vs error genérico de red.
+   - `refetch` expuesto como wrapper `() => fetchX()` para compatibilidad de tipos con `onPress`.
+
+**Verificación final**: `npm run ts:check` → **0 errores**.
 
 ## 🚀 Próximo paso: F4 — Freemium
 

@@ -11,16 +11,21 @@ export function useTasks() {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchTasks = useCallback(async () => {
+  const fetchTasks = useCallback(async (signal?: AbortSignal) => {
     setIsLoading(true);
     setError(null);
     try {
-      const data = await apiRequest<TareaItem[]>('/tasks');
+      const data = await apiRequest<TareaItem[]>('/tasks', { signal });
       setTasks(data);
     } catch (err: any) {
-      setError(err.message || 'Error al obtener la lista de tareas domésticas');
+      if (err.name === 'AbortError') return;
+      setError(
+        err.name === 'TimeoutError'
+          ? 'El servidor tardó demasiado. Comprueba tu conexión.'
+          : (err.message || 'Error al obtener la lista de tareas domésticas')
+      );
     } finally {
-      setIsLoading(false);
+      if (!signal?.aborted) setIsLoading(false);
     }
   }, []);
 
@@ -107,14 +112,16 @@ export function useTasks() {
   };
 
   useEffect(() => {
-    fetchTasks();
+    const ctrl = new AbortController();
+    fetchTasks(ctrl.signal);
+    return () => ctrl.abort();
   }, [fetchTasks]);
 
   return {
     tasks,
     isLoading,
     error,
-    refetch: fetchTasks,
+    refetch: () => fetchTasks(),
     addTask,
     toggleTaskStatus,
     deleteTask
