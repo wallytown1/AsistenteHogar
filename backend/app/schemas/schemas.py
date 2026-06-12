@@ -29,7 +29,20 @@ class RegistroRequest(BaseSchema):
     nombre_hogar: str = Field(..., min_length=2, max_length=100, description="Nombre del nuevo hogar (ej: Familia Navarro)")
     nombre: str = Field(..., min_length=2, max_length=100, description="Nombre del usuario que se registra")
     email: EmailStr = Field(..., max_length=255, description="Email único del usuario")
-    password: str = Field(..., min_length=8, max_length=72, description="Contraseña (mínimo 8 caracteres, máximo 72 por límite de bcrypt)")
+    password: str = Field(..., min_length=8, max_length=72, description="Contraseña (mínimo 8 caracteres, máximo 72 bytes por límite de bcrypt)")
+
+    @field_validator("password")
+    @classmethod
+    def validar_password_bytes(cls, v: str) -> str:
+        # bcrypt rechaza contraseñas de más de 72 bytes. max_length cuenta caracteres,
+        # así que validamos los bytes reales: 72 caracteres acentuados o con emojis
+        # superan el límite y, sin esta comprobación, provocarían un 500 al hashear.
+        if len(v.encode("utf-8")) > 72:
+            raise ValueError(
+                "La contraseña supera el límite de 72 bytes. Los caracteres acentuados "
+                "y los emojis ocupan más de un byte; usa una contraseña más corta."
+            )
+        return v
 
 class LoginRequest(BaseSchema):
     email: EmailStr = Field(..., max_length=255)

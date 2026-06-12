@@ -108,6 +108,22 @@ with TestClient(app) as client:
         r = client.get(ruta)
         check(f"GET {ruta} sin token devuelve 401", r.status_code == 401, f"(status={r.status_code})")
 
+    # ============ Límite de contraseña de bcrypt (72 bytes) -> 422 (no 500) ============
+    print("\n--- Límite de contraseña (bcrypt) ---")
+    # 72 caracteres acentuados = 144 bytes en UTF-8: bcrypt los rechaza.
+    r = client.post("/api/v1/auth/registro", json={
+        "nombre_hogar": "Hogar", "nombre": "Multi", "email": "multibyte@val.com",
+        "password": "á" * 72
+    })
+    check("Registro con contraseña > 72 bytes devuelve 422 (no 500)", r.status_code == 422, f"(status={r.status_code})")
+
+    # Caso límite válido: 72 bytes ASCII exactos deben registrar correctamente
+    r = client.post("/api/v1/auth/registro", json={
+        "nombre_hogar": "Hogar", "nombre": "Limite", "email": "limite72@val.com",
+        "password": "a" * 72
+    })
+    check("Registro con contraseña de 72 bytes ASCII exactos devuelve 201", r.status_code == 201, f"(status={r.status_code})")
+
 print()
 if fallos:
     print(f"RESULTADO: {len(fallos)} fallos -> {fallos}")
