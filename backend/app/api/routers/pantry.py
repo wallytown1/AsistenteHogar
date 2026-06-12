@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Path, status
+from fastapi import APIRouter, Depends, Path, HTTPException, status
 import uuid
 
 from app.api.deps import get_hogar_id, get_pantry_service
@@ -51,6 +51,8 @@ async def patch_pantry_item(
     """Actualiza parcialmente un producto de la despensa de manera interactiva (validando cantidad > 0 si se envía)."""
     # En FastAPI, para leer el body, especificamos el tipo del parámetro (que hereda de BaseModel) sin Depends
     # Pydantic v2 validará que la cantidad sea gt=0.0 si es enviada.
+    if not schema:
+        raise HTTPException(status_code=400, detail="Cuerpo de actualización vacío o no proporcionado.")
     return await pantry_service.update_item(alimento_id, hogar_id, schema)
 
 @router.delete("/pantry/{alimento_id}", response_model=InventarioAlimentoResponse)
