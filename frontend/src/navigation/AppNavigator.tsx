@@ -6,6 +6,7 @@ import { ActivityIndicator, Text, View } from 'react-native';
 import DashboardScreen from '../screens/DashboardScreen';
 import PantryScreen from '../screens/PantryScreen';
 import CalendarScreen from '../screens/CalendarScreen';
+import TasksScreen from '../screens/TasksScreen';
 import AuthScreen from '../screens/AuthScreen';
 import { useAuthStore } from '../state/authStore';
 
@@ -13,6 +14,7 @@ type RootTabParamList = {
   Inicio: undefined;
   Despensa: undefined;
   Calendario: undefined;
+  Tareas: undefined;
 };
 
 const Tab = createBottomTabNavigator<RootTabParamList>();
@@ -22,6 +24,7 @@ function TabIcon({ label, focused }: { label: string; focused: boolean }) {
     Inicio: '🏠',
     Despensa: '🥫',
     Calendario: '📅',
+    Tareas: '✅',
   };
   return (
     <View className="items-center justify-center">
@@ -80,6 +83,7 @@ export default function AppNavigator() {
       <Tab.Screen name="Inicio" component={DashboardScreen} />
       <Tab.Screen name="Despensa" component={PantryScreen} />
       <Tab.Screen name="Calendario" component={CalendarScreen} />
+      <Tab.Screen name="Tareas" component={TasksScreen} />
     </Tab.Navigator>
   );
 }
