@@ -35,8 +35,9 @@ alembic upgrade head
 alembic revision --autogenerate -m "description"
 
 # Smoke tests (each uses its own separate temp SQLite DB)
-python smoke_test_auth.py     # auth + multi-tenant isolation (12 checks)
-python smoke_test_modules.py  # pantry/calendar/tasks CRUD, validation, isolation (26 checks)
+python smoke_test_auth.py       # auth + multi-tenant isolation (12 checks)
+python smoke_test_modules.py    # pantry/calendar/tasks CRUD, validation, isolation (26 checks)
+python smoke_test_dashboard.py  # dashboard aggregation/filtering + isolation (20 checks)
 ```
 
 ### Frontend
@@ -62,8 +63,9 @@ npm run ts:check
 ```bash
 # Backend
 cd backend
-python smoke_test_auth.py      # 12/12 must pass
-python smoke_test_modules.py   # 26/26 must pass
+python smoke_test_auth.py        # 12/12 must pass
+python smoke_test_modules.py     # 26/26 must pass
+python smoke_test_dashboard.py   # 20/20 must pass
 
 # Frontend
 cd frontend && npm run ts:check           # 0 errors
