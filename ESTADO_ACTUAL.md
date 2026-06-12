@@ -1,4 +1,4 @@
-# ESTADO ACTUAL — AsistenteHogar (2026-06-11)
+# ESTADO ACTUAL — AsistenteHogar (2026-06-12)
 
 ## ✅ Completado
 
@@ -10,6 +10,33 @@
 | F3 | Hardening (rate limiting, CORS, logs) | backend/app/core/{rate_limit.py, logging_config.py} |
 | F-IA | Gemini real (briefing + recetas + caché) | backend/app/services/llm.py, backend/app/api/routers/pantry.py |
 | F-HONESTA | Reenfoque agente personal (sin UI falsa) | frontend/src/screens/{DashboardScreen, PantryScreen, CalendarScreen}.tsx |
+| F-TEST | Suite de tests + corrección de 3 bugs + CRUD calendario | backend/smoke_test_*.py, frontend/src/screens/TasksScreen.tsx |
+
+## 🧪 Sesión 2026-06-12 — Tests, bugs y consistencia
+
+**Frontend**
+- Nueva pantalla **TasksScreen** (gestión de tareas: crear, completar, eliminar, filtros). Faltaba UI pese a tener el CRUD en backend. Integrada como tab "Tareas".
+  - ⚠️ Pendiente: `npm run ts:check` (no se pudo verificar; sin Node en el entorno de la sesión).
+
+**Backend — suite de smoke tests (82 checks, todos en verde)**
+- `smoke_test_auth.py` (12) — autenticación + aislamiento.
+- `smoke_test_modules.py` (30) — CRUD pantry/calendar/tasks, validación, conflictos, multi-tenant.
+- `smoke_test_dashboard.py` (20) — agregación/filtrado por fecha y estado, fallback IA.
+- `smoke_test_validation.py` (20) — contrato de errores HTTP (400/401/404/422) e integridad de texto.
+- Ejecución: requieren `JWT_SECRET_KEY` en entorno y deps instaladas; cada uno usa su propia BD SQLite temporal.
+
+**Backend — 3 bugs reales corregidos (con test de regresión)**
+1. `PATCH /pantry/{id}` sin cuerpo → antes 500 (NoneType.model_dump), ahora **400**.
+2. Registro con contraseña > 72 bytes → antes 500 (bcrypt ValueError), ahora **422**. (login ya estaba a salvo).
+3. `sanitize_text` escapaba comillas/backslash y corrompía texto visible (doble escape en dashboard) → ahora solo `.strip()`.
+
+**Backend — consistencia de API**
+- Nuevo endpoint **`PATCH /calendar/{evento_id}`** para editar eventos (paridad con pantry/tasks; el servicio/repo ya existían).
+
+**Documentación**
+- `CLAUDE.md` — guía de trabajo para el repo.
+- `ENDPOINTS.md` — referencia completa de la API REST.
+- Eliminados docs obsoletos (CHANGELOG_ARCHIVE, ConversacionInicial, PROMPT_MAESTRO, .agents/rules/). Se conservó `01_CONTEXTO_Y_ARQUITECTURA_APP.md` como referencia del schema/contrato original.
 
 ## 🚀 Próximo paso: F4 — Freemium
 
@@ -51,9 +78,12 @@
 ## 🔧 Verificación mínima antes de cambios
 
 ```bash
-# Backend
+# Backend — suite completa (82 checks). Requiere JWT_SECRET_KEY en el entorno.
 cd backend
-python smoke_test_auth.py  # Debe pasar 12/12
+python smoke_test_auth.py        # 12/12
+python smoke_test_modules.py     # 30/30
+python smoke_test_dashboard.py   # 20/20
+python smoke_test_validation.py  # 20/20
 
 # Frontend
 cd frontend
@@ -71,16 +101,19 @@ npm run ts:check  # Debe retornar 0 errores
 - `backend/app/api/routers/` — endpoints auth, dashboard, pantry, calendar, tasks
 - `backend/alembic/versions/` — migraciones SQL
 
+- `backend/smoke_test_*.py` — suite de pruebas de humo (auth, modules, dashboard, validation)
+
 ### Frontend
-- `frontend/src/screens/` — DashboardScreen, PantryScreen, CalendarScreen (UI principal)
+- `frontend/src/screens/` — DashboardScreen, PantryScreen, CalendarScreen, TasksScreen (UI principal)
 - `frontend/src/state/authStore.ts` — Zustand (token, usuario, hogar)
 - `frontend/src/api/api.ts` — httpx client con Bearer token
 - `frontend/tailwind.config.js` — Tailwind config para NativeWind
 
 ### Documentación
-- `PROMPT_MAESTRO.md` — roadmap oficial + restricciones
+- `CLAUDE.md` — guía de trabajo del repo (comandos + arquitectura) para Claude Code
+- `ENDPOINTS.md` — referencia completa de la API REST
 - `CHANGELOG.md` — historial de todas las fases
-- `01_CONTEXTO_Y_ARQUITECTURA_APP.md` — schema BD, endpoints, arquitectura
+- `01_CONTEXTO_Y_ARQUITECTURA_APP.md` — schema BD, contrato API original, arquitectura
 - `ESTADO_ACTUAL.md` — este archivo
 
 ---
