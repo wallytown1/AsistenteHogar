@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Path, status
+from fastapi import APIRouter, Depends, Path, HTTPException, status
 import uuid
 
 from app.api.deps import get_hogar_id, get_calendar_service
@@ -7,6 +7,7 @@ from app.services.llm import interpret_event_text
 from app.schemas.schemas import (
     CalendarAgendaResponse,
     EventoCalendarioCreate,
+    EventoCalendarioUpdate,
     EventoCalendarioResponse,
     InterpretarEventoRequest,
     InterpretarEventoResponse
@@ -46,6 +47,23 @@ async def interpretar_evento(
     La dependencia de hogar_id solo exige autenticación.
     """
     return await interpret_event_text(schema.texto, schema.fecha_referencia)
+
+@router.patch("/calendar/{evento_id}", response_model=EventoCalendarioResponse)
+async def patch_calendar_event(
+    evento_id: uuid.UUID = Path(..., description="UUID del evento a actualizar"),
+    schema: EventoCalendarioUpdate = None,
+    hogar_id: uuid.UUID = Depends(get_hogar_id),
+    calendar_service: CalendarService = Depends(get_calendar_service)
+):
+    """Actualiza parcialmente un evento del calendario familiar (título, fechas, participantes).
+
+    Un evento inexistente o de otro hogar provoca EventoNotFoundError, que el
+    manejador global mapea a 404 (garantizando el aislamiento multi-tenant).
+    """
+    if not schema:
+        raise HTTPException(status_code=400, detail="Cuerpo de actualización vacío o no proporcionado.")
+    return await calendar_service.update_event(evento_id, hogar_id, schema)
+
 
 @router.delete("/calendar/{evento_id}", response_model=EventoCalendarioResponse)
 async def delete_calendar_event(

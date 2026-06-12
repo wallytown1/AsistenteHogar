@@ -153,12 +153,30 @@ with TestClient(app) as client:
     conflictos = r.json().get("conflictos", [])
     check("Detección de conflicto de solapamiento", len(conflictos) >= 1, f"(conflictos={len(conflictos)})")
 
+    # PATCH: actualización parcial del evento (título)
+    r = client.patch(f"/api/v1/calendar/{evento_id}", headers=h1, json={"titulo": "Reunión Reprogramada"})
+    check("PATCH /calendar actualiza el título (200)", r.status_code == 200 and r.json().get("titulo") == "Reunión Reprogramada",
+          f"(status={r.status_code})")
+
+    # PATCH con fin <= inicio (ambas fechas) debe rechazarse
+    r = client.patch(f"/api/v1/calendar/{evento_id}", headers=h1, json={
+        "fecha_inicio": iso(futuro, 15), "fecha_fin": iso(futuro, 14)
+    })
+    check("PATCH /calendar rechaza fin <= inicio (422)", r.status_code == 422, f"(status={r.status_code})")
+
+    # PATCH sin cuerpo debe devolver 400 (no 500)
+    r = client.patch(f"/api/v1/calendar/{evento_id}", headers=h1)
+    check("PATCH /calendar sin cuerpo devuelve 400", r.status_code == 400, f"(status={r.status_code})")
+
     # Aislamiento: el hogar 2 no ve los eventos del hogar 1
     r = client.get("/api/v1/calendar", headers=h2)
     eventos_h2 = r.json().get("eventos", [])
     check("Aislamiento calendario: hogar 2 no ve eventos del hogar 1", len(eventos_h2) == 0, f"(eventos={len(eventos_h2)})")
 
-    # Cross-tenant: el hogar 2 no puede borrar el evento del hogar 1
+    # Cross-tenant: el hogar 2 no puede modificar ni borrar el evento del hogar 1
+    r = client.patch(f"/api/v1/calendar/{evento_id}", headers=h2, json={"titulo": "Hackeado"})
+    check("Cross-tenant: PATCH evento ajeno devuelve 404", r.status_code == 404, f"(status={r.status_code})")
+
     r = client.delete(f"/api/v1/calendar/{evento_id}", headers=h2)
     check("Cross-tenant: DELETE evento ajeno devuelve 404", r.status_code == 404, f"(status={r.status_code})")
 
