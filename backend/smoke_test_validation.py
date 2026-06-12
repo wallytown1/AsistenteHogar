@@ -124,6 +124,21 @@ with TestClient(app) as client:
     })
     check("Registro con contraseña de 72 bytes ASCII exactos devuelve 201", r.status_code == 201, f"(status={r.status_code})")
 
+    # ============ Integridad de texto: las comillas no se corrompen ============
+    print("\n--- Integridad de texto (sanitización) ---")
+    # sanitize_text antes escapaba comillas/backslash, corrompiendo el texto visible.
+    nombre_con_comillas = 'Comprar "leche" y pan'
+    r = client.post("/api/v1/tasks", headers=h, json={
+        "nombre": nombre_con_comillas, "frecuencia": "diaria", "prioridad": "alta"
+    })
+    check("Tarea con comillas se guarda sin corromper", r.json().get("nombre") == nombre_con_comillas,
+          f"(guardado={r.json().get('nombre')!r})")
+
+    data = client.get("/api/v1/dashboard", headers=h).json()
+    nombres_dash = [t["nombre"] for t in data["tareas_pendientes"]]
+    check("Tarea con comillas intacta en el dashboard (sin doble escape)", nombre_con_comillas in nombres_dash,
+          f"(dashboard={nombres_dash!r})")
+
 print()
 if fallos:
     print(f"RESULTADO: {len(fallos)} fallos -> {fallos}")
