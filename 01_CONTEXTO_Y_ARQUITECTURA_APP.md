@@ -33,12 +33,15 @@ AsistenteHogar/
 │   ├── src/
 │   │   ├── api/                   # api.ts — cliente fetch con Bearer token + timeout 15s
 │   │   ├── components/            # AIDisclaimerBanner.tsx (transparencia IA, AI Act art. 50)
+│   │   │   └── ui/                # [rama redesign] librería de componentes (Card, Button, Screen...)
 │   │   ├── config/                # config.ts — lee EXPO_PUBLIC_API_URL
 │   │   ├── hooks/                 # useDashboard, usePantry, useCalendar, useTasks
+│   │   ├── lib/                   # [rama redesign] haptics.ts, categoria.ts
 │   │   ├── navigation/            # AppNavigator.tsx (tabs + auth gate)
 │   │   ├── screens/               # Auth, Dashboard, Pantry, Calendar, Tasks
 │   │   │   └── SettingsScreen.tsx # F-LEGAL: ajustes + eliminación de cuenta (zona de peligro)
 │   │   ├── state/                 # authStore.ts (Zustand + expo-secure-store)
+│   │   ├── theme/                 # [rama redesign] tokens.ts — color/tipografía/espaciado
 │   │   └── types/                 # types.ts — tipos compartidos del contrato API
 │   ├── .env.development           # EXPO_PUBLIC_API_URL (sin secretos; gitignored)
 │   ├── tailwind.config.js         # NativeWind v4

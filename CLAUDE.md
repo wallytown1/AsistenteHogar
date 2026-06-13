@@ -115,6 +115,16 @@ All schemas extend `BaseSchema` which enforces `extra='forbid'` globally. The pa
 - **API calls**: `src/api/api.ts` — adds `Authorization: Bearer <token>` to every request automatically.
 - **Feature hooks**: `src/hooks/use{Dashboard,Pantry,Calendar}.ts` — fetch data and expose loading/error state to screens.
 
+### Frontend design system (branch `redesign/native-ui`)
+
+> Aplicado en la rama `redesign/native-ui` (no en `main` todavía). Rediseño visual completo para un look nativo iOS/Android.
+
+- **Tokens**: `src/theme/tokens.ts` — única fuente de color, tipografía, espaciado, radios y sombras. Marca índigo `#6366F1`; acentos por módulo (despensa verde, calendario índigo, tareas ámbar). No hardcodear valores en componentes/pantallas.
+- **Componentes UI**: `src/components/ui/` (barrel en `index.ts`): `Screen` (safe-area + pull-to-refresh), `Card`, `Button`, `IconButton`, `Chip`, `StatCard`, `SectionHeader`, `Fab`, `Badge`, `EmptyState`, `Field`, `AppText`, `Icon`/`FoodIcon`, `LoadingView`/`ErrorView`.
+- **Iconos**: vectoriales vía `@expo/vector-icons` (Ionicons + MaterialCommunityIcons para comida). Sin emoji en la UI.
+- **Haptics**: `src/lib/haptics.ts` — wrapper seguro sobre `expo-haptics` (no-op en web).
+- **Importante**: la UI ya **no usa NativeWind `className`**; todo es StyleSheet + tokens. NativeWind sigue instalado (babel preset + `global.css`) pero no se usa para estilar. No reintroducir `className` en pantallas.
+
 ### AI passive rule
 
 The AI (Gemini) **only suggests; it never writes to the database**. The `interpret_event_text` function returns a proposed event that the user must confirm in the UI before a `POST /api/v1/calendar/eventos` is made. Do not add any LLM call that directly mutates data.

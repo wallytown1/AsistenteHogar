@@ -1,18 +1,26 @@
 import React from 'react';
-import {
-  View,
-  Text,
-  ActivityIndicator,
-  TouchableOpacity,
-  ScrollView,
-  Alert
-} from 'react-native';
+import { View, Alert, Pressable } from 'react-native';
 import { useDashboard } from '../hooks/useDashboard';
 import { useTasks } from '../hooks/useTasks';
 import { TareaItem } from '../types/types';
 import { getDiasParaCaducar } from '../hooks/usePantry';
 import { useAuthStore } from '../state/authStore';
 import AIDisclaimerBanner from '../components/AIDisclaimerBanner';
+import { colors, radius, spacing } from '../theme/tokens';
+import {
+  Screen,
+  Card,
+  IconButton,
+  Badge,
+  AppText,
+  Icon,
+  FoodIcon,
+  Button,
+  LoadingView,
+  ErrorView,
+} from '../components/ui';
+import { getCategoriaIcon } from '../lib/categoria';
+import { haptics } from '../lib/haptics';
 
 function formatHora(iso: string): string {
   if (!iso) return '';
@@ -32,14 +40,10 @@ export default function DashboardScreen() {
   const logout = useAuthStore((s) => s.logout);
 
   const handleLogout = () => {
-    Alert.alert(
-      'Cerrar sesión',
-      '¿Deseas cerrar la sesión en este dispositivo?',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        { text: 'Cerrar sesión', style: 'destructive', onPress: () => { logout(); } },
-      ]
-    );
+    Alert.alert('Cerrar sesión', '¿Deseas cerrar la sesión en este dispositivo?', [
+      { text: 'Cancelar', style: 'cancel' },
+      { text: 'Cerrar sesión', style: 'destructive', onPress: () => { logout(); } },
+    ]);
   };
 
   const refetch = () => {
@@ -47,210 +51,153 @@ export default function DashboardScreen() {
     refetchTasks();
   };
 
-  if (loading) {
-    return (
-      <View className="flex-1 bg-[#fafafa] justify-center items-center">
-        <ActivityIndicator size="large" color="#000000" />
-        <Text className="text-gray-500 mt-4 text-sm font-medium">Generando briefing del hogar...</Text>
-      </View>
-    );
-  }
-
-  if (error) {
-    return (
-      <View className="flex-1 bg-[#fafafa] justify-center items-center px-6">
-        <Text className="text-red-500 text-center text-base mb-4 font-semibold">{error}</Text>
-        <TouchableOpacity
-          className="bg-black rounded-full px-6 py-3"
-          onPress={refetch}
-          accessibilityLabel="Reintentar carga del briefing"
-        >
-          <Text className="text-white font-bold">Reintentar</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
+  if (loading) return <LoadingView message="Generando briefing del hogar..." />;
+  if (error) return <ErrorView message={error} onRetry={refetch} />;
 
   const handleToggleTask = (tarea: TareaItem) => {
-    Alert.alert(
-      "Confirmar tarea",
-      `¿Deseas marcar la tarea "${tarea.nombre}" como completada?`,
-      [
-        { text: "Cancelar", style: "cancel" },
-        {
-          text: "Confirmar",
-          onPress: async () => {
-            try {
-              await toggleTaskStatus(tarea.id, tarea.estado);
-            } catch (err: any) {
-              Alert.alert(
-                "Error de Sincronización",
-                err.message || "No se pudo actualizar el estado de la tarea."
-              );
-            }
+    Alert.alert('Confirmar tarea', `¿Deseas marcar la tarea "${tarea.nombre}" como completada?`, [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Confirmar',
+        onPress: async () => {
+          try {
+            haptics.success();
+            await toggleTaskStatus(tarea.id, tarea.estado);
+          } catch (err: any) {
+            Alert.alert('Error de Sincronización', err.message || 'No se pudo actualizar el estado de la tarea.');
           }
-        }
-      ]
-    );
+        },
+      },
+    ]);
   };
 
+  const eventos = briefing?.eventos_hoy ?? [];
+  const pendientes = tasks.filter((t) => t.estado === 'pendiente');
+  const alertas = briefing?.alertas_despensa?.alertas_caducidad ?? [];
+
   return (
-    <ScrollView className="flex-1 bg-[#fafafa]" contentContainerStyle={{ paddingBottom: 100 }}>
-      <View className="px-5 pt-14 pb-6">
-
-        {/* Header */}
-        <View className="flex-row justify-between items-center mb-6">
-          <View className="flex-row items-center gap-2">
-            <View className="bg-black rounded-full p-2">
-              <Text className="text-white text-base">🏠</Text>
-            </View>
-            <View>
-              <Text className="text-gray-400 text-xs font-semibold">Buenos días,</Text>
-              <Text className="text-black text-xl font-bold">{usuario?.nombre || 'Hogar'}</Text>
-            </View>
+    <Screen refreshing={loading} onRefresh={refetch}>
+      {/* Header */}
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.xl }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
+          <View style={{ width: 44, height: 44, borderRadius: radius.lg, backgroundColor: colors.brand, alignItems: 'center', justifyContent: 'center' }}>
+            <Icon name="home" size={22} color={colors.white} />
           </View>
-          <TouchableOpacity
-            className="bg-gray-100 rounded-full w-10 h-10 items-center justify-center"
-            onPress={handleLogout}
-            accessibilityLabel="Cerrar sesión"
-          >
-            <Text className="text-base">👤</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Tarjeta: Informe de la Mañana */}
-        <View className="bg-white border border-gray-100 rounded-3xl p-5 mb-4 shadow-sm">
-          <View className="flex-row justify-between items-center mb-3">
-            <Text className="text-black text-lg font-bold">Informe de la Mañana</Text>
-            <Text className="text-gray-400 text-xs font-medium capitalize">{formatFechaCorta(briefing?.fecha)}</Text>
-          </View>
-          <Text className="text-gray-400 text-xs mb-4">Resumen rápido de tu hogar para hoy</Text>
-          {briefing?.briefing_texto ? (
-            <View className="mb-4">
-              <Text className="text-gray-700 text-xs leading-5 p-4 bg-[#f8fafc] rounded-2xl border border-gray-100 font-medium mb-2">
-                {briefing.briefing_texto}
-              </Text>
-              {/* Transparencia IA (EU AI Act): solo si el texto proviene del modelo, no del fallback */}
-              {briefing.briefing_generado_por_ia ? <AIDisclaimerBanner /> : null}
-            </View>
-          ) : null}
-
-          {/* Eventos del día */}
-          <View className="mb-2">
-            <View className="flex-row justify-between items-center mb-3">
-              <Text className="text-black text-sm font-semibold">Eventos hoy</Text>
-              <Text className="text-gray-400 text-xs">
-                {briefing?.eventos_hoy?.length || 0} evento(s)
-              </Text>
-            </View>
-
-            <View className="space-y-3">
-              {briefing?.eventos_hoy && briefing.eventos_hoy.length > 0 ? (
-                briefing.eventos_hoy.map((evento) => (
-                  <View key={evento.id} className="flex-row items-start mb-2">
-                    <Text className="text-gray-400 text-xs font-bold w-12 pt-0.5">
-                      {formatHora(evento.fecha_inicio)}
-                    </Text>
-                    <View className="w-1.5 h-1.5 rounded-full bg-black mt-2 mr-3" />
-                    <View className="flex-1">
-                      <Text className="text-black text-xs font-bold">{evento.titulo}</Text>
-                      <Text className="text-gray-500 text-[10px]">
-                        {evento.descripcion || 'Sin descripción'}
-                      </Text>
-                    </View>
-                  </View>
-                ))
-              ) : (
-                <Text className="text-gray-400 text-xs py-2">No hay eventos programados para hoy.</Text>
-              )}
-            </View>
+          <View>
+            <AppText variant="caption" color={colors.inkMuted}>Hola,</AppText>
+            <AppText variant="h2">{usuario?.nombre || 'Hogar'}</AppText>
           </View>
         </View>
-
-        {/* Tarjeta: Tareas Pendientes */}
-        <View className="bg-[#fffbeb] border border-[#fde68a] rounded-3xl p-4 mb-4">
-          <Text className="text-[#b45309] font-bold text-xs mb-2">⚡ Tareas pendientes</Text>
-          {tasksError && (
-            <Text className="text-red-700 text-[10px] mb-2 font-medium font-semibold">⚠️ {tasksError}</Text>
-          )}
-          {tasksLoading && tasks.length === 0 ? (
-            <ActivityIndicator size="small" color="#b45309" />
-          ) : tasks.filter(t => t.estado === 'pendiente').length > 0 ? (
-            tasks.filter(t => t.estado === 'pendiente').map((tarea) => (
-              <TouchableOpacity
-                key={tarea.id}
-                className="flex-row items-center justify-between mb-2"
-                onPress={() => handleToggleTask(tarea)}
-                accessibilityRole="checkbox"
-                accessibilityState={{ checked: false }}
-                accessibilityLabel={`Marcar tarea ${tarea.nombre} como completada`}
-              >
-                <Text className="text-[#92400e] text-[11px] leading-4 flex-1 mr-1">
-                  • {tarea.nombre} {tarea.asignado_a ? `(${tarea.asignado_a})` : ''}
-                </Text>
-                <View className="w-4.5 h-4.5 rounded border border-[#fde68a] items-center justify-center bg-white shadow-sm">
-                  <Text className="text-[#b45309] text-[9px] font-bold">☐</Text>
-                </View>
-              </TouchableOpacity>
-            ))
-          ) : (
-            <Text className="text-[#92400e] text-[11px]">No hay tareas pendientes.</Text>
-          )}
-        </View>
-
-        {/* Tarjeta: Alertas de la Despensa */}
-        <View className="bg-white border border-gray-100 rounded-3xl p-5 shadow-sm">
-          <View className="flex-row justify-between items-center mb-3">
-            <Text className="text-black text-base font-bold">Alertas de la despensa</Text>
-            <Text className="text-gray-400 text-xs">
-              {briefing?.alertas_despensa?.alertas_caducidad?.length || 0} artículos
-            </Text>
-          </View>
-
-          <View className="space-y-4">
-            {briefing?.alertas_despensa?.alertas_caducidad && briefing.alertas_despensa.alertas_caducidad.length > 0 ? (
-              briefing.alertas_despensa.alertas_caducidad.map((item) => {
-                const dias = getDiasParaCaducar(item.fecha_caducidad);
-                const isUrgent = dias !== null && dias <= 2;
-                return (
-                  <View key={item.id} className="flex-row items-center justify-between mb-3">
-                    <View className="flex-row items-center flex-1">
-                      <View className="w-10 h-10 rounded-xl overflow-hidden mr-3 bg-gray-100 items-center justify-center">
-                        <Text className="text-lg">
-                          {item.categoria === 'Lácteos' ? '🥛' : item.categoria === 'Carnes' ? '🥩' : '🥫'}
-                        </Text>
-                      </View>
-                      <View className="flex-1">
-                        <Text className="text-black text-xs font-bold">{item.nombre}</Text>
-                        <Text className="text-gray-400 text-[10px]">
-                          {dias !== null ? `Caduca en ${dias} día(s)` : 'Sin caducidad'} · Cantidad: {item.cantidad} {item.unidad}
-                        </Text>
-                      </View>
-                    </View>
-                    {isUrgent ? (
-                      <View className="rounded-full px-3 py-1 bg-black">
-                        <Text className="text-[10px] font-bold text-white">Usar pronto</Text>
-                      </View>
-                    ) : null}
-                  </View>
-                );
-              })
-            ) : (
-              <Text className="text-gray-400 text-xs py-2">No hay alertas de caducidad en la despensa.</Text>
-            )}
-          </View>
-        </View>
-
-        {/* Botón de recarga general */}
-        <TouchableOpacity
-          className="mt-6 flex-row items-center justify-center bg-black rounded-full py-4 shadow-sm"
-          onPress={refetch}
-          accessibilityLabel="Actualizar briefing"
-        >
-          <Text className="text-white font-bold text-sm">↻  Actualizar briefing</Text>
-        </TouchableOpacity>
-
+        <IconButton name="person-circle-outline" size={26} color={colors.inkMuted} bg={colors.card} diameter={44} onPress={handleLogout} accessibilityLabel="Cerrar sesión" />
       </View>
-    </ScrollView>
+
+      {/* Briefing */}
+      <Card style={{ marginBottom: spacing.lg }}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.xs }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <Icon name="sunny" size={18} color={colors.warning} />
+            <AppText variant="h2">Informe de la mañana</AppText>
+          </View>
+        </View>
+        <AppText variant="micro" color={colors.inkFaint} style={{ textTransform: 'capitalize', marginBottom: spacing.md }}>
+          {formatFechaCorta(briefing?.fecha)}
+        </AppText>
+
+        {briefing?.briefing_texto ? (
+          <View style={{ marginBottom: spacing.md }}>
+            <View style={{ backgroundColor: colors.cardAlt, borderWidth: 1, borderColor: colors.border, borderRadius: radius.lg, padding: spacing.lg, marginBottom: spacing.sm }}>
+              <AppText variant="caption" color={colors.ink} style={{ lineHeight: 20 }}>{briefing.briefing_texto}</AppText>
+            </View>
+            {/* Transparencia IA (EU AI Act): solo si el texto proviene del modelo, no del fallback */}
+            {briefing.briefing_generado_por_ia ? <AIDisclaimerBanner /> : null}
+          </View>
+        ) : null}
+
+        {/* Eventos de hoy */}
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm }}>
+          <AppText variant="captionStrong">Eventos hoy</AppText>
+          <Badge label={`${eventos.length}`} icon="calendar-outline" color={colors.calendar} bg={colors.calendarSoft} />
+        </View>
+        {eventos.length > 0 ? (
+          eventos.map((evento) => (
+            <View key={evento.id} style={{ flexDirection: 'row', alignItems: 'flex-start', marginTop: spacing.sm }}>
+              <AppText variant="captionStrong" color={colors.calendar} style={{ width: 44, paddingTop: 1 }}>{formatHora(evento.fecha_inicio)}</AppText>
+              <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: colors.calendar, marginTop: 5, marginRight: spacing.md }} />
+              <View style={{ flex: 1 }}>
+                <AppText variant="captionStrong" numberOfLines={1}>{evento.titulo}</AppText>
+                <AppText variant="micro" color={colors.inkMuted} numberOfLines={1}>{evento.descripcion || 'Sin descripción'}</AppText>
+              </View>
+            </View>
+          ))
+        ) : (
+          <AppText variant="caption" color={colors.inkFaint} style={{ paddingVertical: spacing.sm }}>No hay eventos programados para hoy.</AppText>
+        )}
+      </Card>
+
+      {/* Tareas pendientes */}
+      <Card tint={colors.tasksSoft} borderColor="#FBE7BE" style={{ marginBottom: spacing.lg }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: spacing.md }}>
+          <Icon name="flash" size={16} color={colors.tasks} />
+          <AppText variant="captionStrong" color="#B45309">Tareas pendientes</AppText>
+        </View>
+        {tasksError ? <AppText variant="micro" color={colors.danger} style={{ marginBottom: spacing.sm }}>{tasksError}</AppText> : null}
+        {pendientes.length > 0 ? (
+          pendientes.map((tarea) => (
+            <Pressable
+              key={tarea.id}
+              onPress={() => handleToggleTask(tarea)}
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: false }}
+              accessibilityLabel={`Marcar tarea ${tarea.nombre} como completada`}
+              style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 6 }}
+            >
+              <AppText variant="caption" color="#92400E" style={{ flex: 1, marginRight: spacing.sm }} numberOfLines={1}>
+                {tarea.nombre}{tarea.asignado_a ? ` · ${tarea.asignado_a}` : ''}
+              </AppText>
+              <View style={{ width: 22, height: 22, borderRadius: radius.pill, borderWidth: 2, borderColor: '#FBD38D', backgroundColor: colors.white, alignItems: 'center', justifyContent: 'center' }} />
+            </Pressable>
+          ))
+        ) : (
+          <AppText variant="caption" color="#92400E">No hay tareas pendientes. ¡Buen trabajo!</AppText>
+        )}
+      </Card>
+
+      {/* Alertas de la despensa */}
+      <Card>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <Icon name="alert-circle" size={16} color={colors.pantry} />
+            <AppText variant="h2">Despensa</AppText>
+          </View>
+          <Badge label={`${alertas.length}`} color={colors.pantry} bg={colors.pantrySoft} />
+        </View>
+        {alertas.length > 0 ? (
+          alertas.map((item) => {
+            const dias = getDiasParaCaducar(item.fecha_caducidad);
+            const isUrgent = dias !== null && dias <= 2;
+            return (
+              <View key={item.id} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 6 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, gap: spacing.md }}>
+                  <View style={{ width: 38, height: 38, borderRadius: radius.md, backgroundColor: colors.pantrySoft, alignItems: 'center', justifyContent: 'center' }}>
+                    <FoodIcon name={getCategoriaIcon(item.categoria)} size={20} color={colors.pantry} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <AppText variant="captionStrong" numberOfLines={1}>{item.nombre}</AppText>
+                    <AppText variant="micro" color={colors.inkMuted}>
+                      {dias !== null ? `Caduca en ${dias} día(s)` : 'Sin caducidad'} · {item.cantidad} {item.unidad}
+                    </AppText>
+                  </View>
+                </View>
+                {isUrgent ? <Badge label="Usar pronto" color={colors.danger} bg={colors.dangerSoft} icon="time-outline" /> : null}
+              </View>
+            );
+          })
+        ) : (
+          <AppText variant="caption" color={colors.inkFaint} style={{ paddingVertical: spacing.sm }}>No hay alertas de caducidad en la despensa.</AppText>
+        )}
+      </Card>
+
+      <Button label="Actualizar briefing" icon="refresh" variant="secondary" onPress={refetch} style={{ marginTop: spacing.xl }} />
+    </Screen>
   );
 }

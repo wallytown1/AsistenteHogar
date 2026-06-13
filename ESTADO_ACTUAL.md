@@ -14,6 +14,34 @@
 | F-QA | Ciclo QA mobile: 2 críticos + 2 medios resueltos, 0 errores TS | frontend/src/{api,hooks,state}/ |
 | F-LEGAL | Compliance RGPD/AI Act/stores: purga física, DELETE /auth/cuenta, anonimización LLM, banner IA, SettingsScreen | backend/app/jobs/purge.py, backend/app/services/privacy.py, frontend/src/screens/SettingsScreen.tsx |
 | F-AUDIT | Auditoría post-F-LEGAL: 7 bugs corregidos (B1–B7) + alineación de cifras de tests | backend/app/services/calendar.py, frontend/src/screens/CalendarScreen.tsx, frontend/src/hooks/{useTasks,usePantry}.ts |
+| F-UI 🎨 | Rediseño visual nativo iOS/Android (rama `redesign/native-ui`, NO en main) | frontend/src/theme/, frontend/src/components/ui/, frontend/src/lib/, las 6 pantallas |
+
+## 🎨 Sesión 2026-06-13 — Rediseño visual nativo (rama `redesign/native-ui`)
+
+Rediseño completo del frontend con un **lenguaje visual nuevo (con color)** para que la app
+se sienta nativa en iOS y Android. Hecho en la rama `redesign/native-ui` para poder comparar
+contra `main` antes de fusionar. Lógica de negocio preservada al 100%.
+
+**Sistema de diseño nuevo**
+- `src/theme/tokens.ts` — fuente única de color, tipografía, espaciado, radios y sombras (por plataforma). Marca índigo `#6366F1` + acentos por módulo (despensa verde, calendario índigo, tareas ámbar).
+- `src/components/ui/` — 14 componentes reutilizables: `Screen`, `Card`, `Button`, `IconButton`, `Chip`, `StatCard`, `SectionHeader`, `Fab`, `Badge`, `EmptyState`, `Field`, `AppText`, `Icon`/`FoodIcon`, `LoadingView`/`ErrorView`.
+- `src/lib/haptics.ts` — wrapper seguro sobre `expo-haptics`; `src/lib/categoria.ts` — iconos de comida por categoría.
+
+**Mejoras de nativismo**
+1. Iconos vectoriales (`@expo/vector-icons`: Ionicons + MaterialCommunityIcons) — **cero emoji** en la UI; tab bar con iconos relleno/contorno.
+2. Safe areas reales (`Screen` + `useSafeAreaInsets`) — fin de los `paddingTop` hardcodeados; FAB y tab bar respetan el inset inferior.
+3. Sabor de plataforma: ripple Material en Android, `Switch` nativo, sombras iOS vs elevación Android.
+4. Feedback háptico en crear/borrar/confirmar/toggles.
+5. Tipografía con escala definida.
+6. Pull-to-refresh nativo en Dashboard, Despensa, Calendario y Tareas.
+
+**Decisión técnica**: la UI deja de usar NativeWind `className` y pasa a StyleSheet + tokens
+(tipado robusto, control fino). NativeWind queda instalado pero sin uso de estilo.
+
+**Dependencia añadida**: `expo-haptics` (vía `expo install`).
+
+**Verificación**: `npm run ts:check` → 0 errores · 0 referencias a `className` en `src/`.
+Pendiente: validación visual en dispositivo antes de fusionar a `main`.
 
 ## 🐞 Sesión 2026-06-13 — Auditoría y corrección de bugs (B1–B7)
 

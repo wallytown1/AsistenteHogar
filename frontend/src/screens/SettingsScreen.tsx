@@ -1,13 +1,16 @@
 import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  ScrollView,
-  ActivityIndicator,
-} from 'react-native';
+import { View } from 'react-native';
 import { useAuthStore } from '../state/authStore';
+import { colors, radius, spacing } from '../theme/tokens';
+import {
+  Screen,
+  Card,
+  Button,
+  Field,
+  AppText,
+  Icon,
+} from '../components/ui';
+import { haptics } from '../lib/haptics';
 
 /**
  * Pantalla de ajustes: datos de la cuenta, cierre de sesión y zona de peligro
@@ -41,113 +44,107 @@ export default function SettingsScreen() {
     setError(null);
     try {
       await deleteAccount(password);
+      haptics.success();
       // Éxito: el store queda vacío y AppNavigator navega solo al Login.
     } catch (err: any) {
+      haptics.error();
       setError(err.message || 'No se pudo eliminar la cuenta. Inténtalo de nuevo.');
       setBorrando(false);
     }
   };
 
+  const filas: { label: string; value: string; icon: React.ComponentProps<typeof Icon>['name'] }[] = [
+    { label: 'Nombre', value: usuario?.nombre || '—', icon: 'person-outline' },
+    { label: 'Email', value: usuario?.email || '—', icon: 'mail-outline' },
+    { label: 'Hogar', value: hogar?.nombre || '—', icon: 'home-outline' },
+  ];
+
   return (
-    <ScrollView className="flex-1 bg-[#fafafa]" contentContainerStyle={{ paddingBottom: 100 }}>
-      <View className="px-5 pt-14 pb-6">
+    <Screen>
+      <AppText variant="display" style={{ marginBottom: spacing.xl }}>Ajustes</AppText>
 
-        {/* Cabecera */}
-        <Text className="text-black text-2xl font-bold mb-6">Ajustes</Text>
-
-        {/* Tarjeta: Cuenta */}
-        <View className="bg-white border border-gray-100 rounded-3xl p-5 mb-4 shadow-sm">
-          <Text className="text-black text-sm font-bold mb-3">Cuenta</Text>
-          <View className="mb-2">
-            <Text className="text-gray-400 text-[10px] font-semibold">Nombre</Text>
-            <Text className="text-black text-xs font-medium">{usuario?.nombre || '—'}</Text>
-          </View>
-          <View className="mb-2">
-            <Text className="text-gray-400 text-[10px] font-semibold">Email</Text>
-            <Text className="text-black text-xs font-medium">{usuario?.email || '—'}</Text>
-          </View>
-          <View>
-            <Text className="text-gray-400 text-[10px] font-semibold">Hogar</Text>
-            <Text className="text-black text-xs font-medium">{hogar?.nombre || '—'}</Text>
-          </View>
-        </View>
-
-        {/* Tarjeta: Sesión */}
-        <View className="bg-white border border-gray-100 rounded-3xl p-5 mb-4 shadow-sm">
-          <Text className="text-black text-sm font-bold mb-3">Sesión</Text>
-          <TouchableOpacity
-            className="bg-gray-100 rounded-full py-3 items-center"
-            onPress={() => { logout(); }}
-            accessibilityLabel="Cerrar sesión en este dispositivo"
+      {/* Tarjeta: Cuenta */}
+      <Card style={{ marginBottom: spacing.lg }}>
+        <AppText variant="h2" style={{ marginBottom: spacing.md }}>Cuenta</AppText>
+        {filas.map((f, i) => (
+          <View
+            key={f.label}
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: spacing.md,
+              paddingVertical: spacing.sm + 2,
+              borderTopWidth: i === 0 ? 0 : 1,
+              borderTopColor: colors.border,
+            }}
           >
-            <Text className="text-black text-xs font-bold">Cerrar sesión</Text>
-          </TouchableOpacity>
-          <Text className="text-gray-400 text-[10px] mt-2 text-center">
-            Tus datos se conservan; podrás volver a entrar cuando quieras.
-          </Text>
-        </View>
-
-        {/* Tarjeta: Zona de peligro */}
-        <View className="bg-white border border-red-200 rounded-3xl p-5 shadow-sm">
-          <Text className="text-red-600 text-sm font-bold mb-2">Zona de peligro</Text>
-          <Text className="text-gray-500 text-[11px] leading-4 mb-4">
-            Al eliminar la cuenta se destruyen de forma permanente el hogar y todos sus
-            datos: usuarios, despensa, tareas y calendario. Esta acción no se puede deshacer.
-          </Text>
-
-          {!confirmando ? (
-            <TouchableOpacity
-              className="border border-red-300 rounded-full py-3 items-center"
-              onPress={() => setConfirmando(true)}
-              accessibilityLabel="Eliminar cuenta permanentemente"
-            >
-              <Text className="text-red-600 text-xs font-bold">Eliminar cuenta permanentemente</Text>
-            </TouchableOpacity>
-          ) : (
-            <View className="bg-red-50 border border-red-200 rounded-2xl p-4">
-              <Text className="text-red-700 text-[11px] font-bold mb-3">
-                ⚠️ Confirmación irreversible: introduce tu contraseña para eliminar
-                definitivamente la cuenta y todos los datos del hogar.
-              </Text>
-              <TextInput
-                className="bg-white border border-red-200 rounded-xl px-4 py-3 text-xs text-black mb-3"
-                placeholder="Contraseña actual"
-                placeholderTextColor="#9ca3af"
-                secureTextEntry
-                autoCapitalize="none"
-                value={password}
-                onChangeText={(t: string) => { setPassword(t); setError(null); }}
-                editable={!borrando}
-                accessibilityLabel="Contraseña actual para confirmar la eliminación"
-              />
-              {error && (
-                <Text className="text-red-600 text-[10px] font-semibold mb-3">{error}</Text>
-              )}
-              <TouchableOpacity
-                className={`rounded-full py-3 items-center mb-2 ${password && !borrando ? 'bg-red-600' : 'bg-red-300'}`}
-                onPress={handleEliminarCuenta}
-                disabled={!password || borrando}
-                accessibilityLabel="Confirmar eliminación definitiva de la cuenta"
-              >
-                {borrando ? (
-                  <ActivityIndicator size="small" color="#ffffff" />
-                ) : (
-                  <Text className="text-white text-xs font-bold">Confirmar eliminación definitiva</Text>
-                )}
-              </TouchableOpacity>
-              <TouchableOpacity
-                className="rounded-full py-3 items-center"
-                onPress={cancelarEliminacion}
-                disabled={borrando}
-                accessibilityLabel="Cancelar la eliminación de la cuenta"
-              >
-                <Text className="text-gray-500 text-xs font-bold">Cancelar</Text>
-              </TouchableOpacity>
+            <View style={{ width: 34, height: 34, borderRadius: radius.pill, backgroundColor: colors.brandSoft, alignItems: 'center', justifyContent: 'center' }}>
+              <Icon name={f.icon} size={17} color={colors.brand} />
             </View>
-          )}
-        </View>
+            <View style={{ flex: 1 }}>
+              <AppText variant="label" color={colors.inkFaint}>{f.label}</AppText>
+              <AppText variant="body" numberOfLines={1}>{f.value}</AppText>
+            </View>
+          </View>
+        ))}
+      </Card>
 
-      </View>
-    </ScrollView>
+      {/* Tarjeta: Sesión */}
+      <Card style={{ marginBottom: spacing.lg }}>
+        <AppText variant="h2" style={{ marginBottom: spacing.md }}>Sesión</AppText>
+        <Button label="Cerrar sesión" icon="log-out-outline" variant="secondary" onPress={() => { haptics.light(); logout(); }} />
+        <AppText variant="micro" color={colors.inkMuted} center style={{ marginTop: spacing.sm }}>
+          Tus datos se conservan; podrás volver a entrar cuando quieras.
+        </AppText>
+      </Card>
+
+      {/* Tarjeta: Zona de peligro */}
+      <Card borderColor={colors.dangerSoft} tint={colors.card}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: spacing.sm }}>
+          <Icon name="warning-outline" size={18} color={colors.danger} />
+          <AppText variant="h2" color={colors.danger}>Zona de peligro</AppText>
+        </View>
+        <AppText variant="caption" color={colors.inkMuted} style={{ lineHeight: 18, marginBottom: spacing.lg }}>
+          Al eliminar la cuenta se destruyen de forma permanente el hogar y todos sus datos:
+          usuarios, despensa, tareas y calendario. Esta acción no se puede deshacer.
+        </AppText>
+
+        {!confirmando ? (
+          <Button
+            label="Eliminar cuenta permanentemente"
+            variant="ghost"
+            icon="trash-outline"
+            onPress={() => { haptics.warning(); setConfirmando(true); }}
+            style={{ borderColor: colors.danger }}
+          />
+        ) : (
+          <View style={{ backgroundColor: colors.dangerSoft, borderWidth: 1, borderColor: colors.dangerSoft, borderRadius: radius.lg, padding: spacing.lg }}>
+            <AppText variant="captionStrong" color={colors.danger} style={{ marginBottom: spacing.md, lineHeight: 17 }}>
+              Confirmación irreversible: introduce tu contraseña para eliminar definitivamente la cuenta y todos los datos del hogar.
+            </AppText>
+            <Field
+              placeholder="Contraseña actual"
+              secureTextEntry
+              autoCapitalize="none"
+              value={password}
+              onChangeText={(t: string) => { setPassword(t); setError(null); }}
+              editable={!borrando}
+              accessibilityLabel="Contraseña actual para confirmar la eliminación"
+              inputStyle={{ backgroundColor: colors.white, borderColor: '#F3C8C8' }}
+            />
+            {error ? <AppText variant="micro" color={colors.danger} style={{ marginBottom: spacing.sm }}>{error}</AppText> : null}
+            <Button
+              label="Confirmar eliminación definitiva"
+              variant="danger"
+              loading={borrando}
+              disabled={!password}
+              onPress={handleEliminarCuenta}
+              style={{ marginBottom: spacing.sm }}
+            />
+            <Button label="Cancelar" variant="ghost" onPress={cancelarEliminacion} disabled={borrando} />
+          </View>
+        )}
+      </Card>
+    </Screen>
   );
 }
