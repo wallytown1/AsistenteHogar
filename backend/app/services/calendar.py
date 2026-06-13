@@ -15,11 +15,6 @@ class CalendarService:
     def __init__(self, calendar_repo: CalendarRepository):
         self.calendar_repo = calendar_repo
 
-    async def get_event(self, evento_id: uuid.UUID, hogar_id: uuid.UUID) -> EventoCalendarioResponse:
-        """Obtiene un evento por su ID."""
-        evento = await self.calendar_repo.get_by_id(evento_id, hogar_id)
-        return EventoCalendarioResponse.model_validate(evento)
-
     async def add_event(self, hogar_id: uuid.UUID, schema: EventoCalendarioCreate) -> EventoCalendarioResponse:
         """Registra un nuevo evento en el calendario familiar."""
         # Nota: La validación de solapamiento a nivel de base de datos se realiza en el repositorio si es crítica,

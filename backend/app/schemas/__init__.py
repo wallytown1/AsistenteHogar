@@ -1,5 +1,5 @@
 from app.schemas.schemas import (
-    HogarCreate, HogarUpdate, HogarResponse,
+    HogarResponse,
     InventarioAlimentoCreate, InventarioAlimentoUpdate, InventarioAlimentoResponse,
     TareaHogarCreate, TareaHogarUpdate, TareaHogarResponse,
     EventoCalendarioCreate, EventoCalendarioUpdate, EventoCalendarioResponse,
@@ -7,7 +7,7 @@ from app.schemas.schemas import (
 )
 
 __all__ = [
-    "HogarCreate", "HogarUpdate", "HogarResponse",
+    "HogarResponse",
     "InventarioAlimentoCreate", "InventarioAlimentoUpdate", "InventarioAlimentoResponse",
     "TareaHogarCreate", "TareaHogarUpdate", "TareaHogarResponse",
     "EventoCalendarioCreate", "EventoCalendarioUpdate", "EventoCalendarioResponse",

@@ -4,12 +4,6 @@ class RepositoryError(Exception):
         self.message = message
         super().__init__(self.message)
 
-class HogarNotFoundError(RepositoryError):
-    """Raised when a specific Hogar does not exist in the database."""
-    def __init__(self, hogar_id: str):
-        self.hogar_id = hogar_id
-        super().__init__(f"No se ha encontrado ningún hogar registrado con el ID: {hogar_id}")
-
 class ItemNotFoundError(RepositoryError):
     """Raised when an inventory item does not exist or does not belong to the Hogar."""
     def __init__(self, item_id: str, hogar_id: str):

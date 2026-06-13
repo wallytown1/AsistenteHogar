@@ -11,12 +11,6 @@ class BaseSchema(BaseModel):
     )
 
 # --- HOGAR ---
-class HogarCreate(BaseSchema):
-    nombre: str = Field(..., min_length=2, max_length=100, description="Nombre descriptivo del núcleo familiar")
-
-class HogarUpdate(BaseSchema):
-    nombre: Optional[str] = Field(None, min_length=2, max_length=100)
-
 class HogarResponse(BaseSchema):
     id: UUID
     nombre: str

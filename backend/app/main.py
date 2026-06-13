@@ -21,7 +21,6 @@ from app.api.routers import auth, dashboard, pantry, calendar, tasks
 # Importar excepciones de negocio
 from app.repositories.exceptions import (
     RepositoryError,
-    HogarNotFoundError,
     ItemNotFoundError,
     EventoNotFoundError,
     DatabaseIntegrityError,
@@ -124,14 +123,6 @@ async def item_not_found_exception_handler(request: Request, exc: ItemNotFoundEr
 @app.exception_handler(EventoNotFoundError)
 async def evento_not_found_exception_handler(request: Request, exc: EventoNotFoundError):
     """Mapea EventoNotFoundError a HTTP 404 Not Found."""
-    return JSONResponse(
-        status_code=404,
-        content={"detail": exc.message}
-    )
-
-@app.exception_handler(HogarNotFoundError)
-async def hogar_not_found_exception_handler(request: Request, exc: HogarNotFoundError):
-    """Mapea HogarNotFoundError a HTTP 404 Not Found."""
     return JSONResponse(
         status_code=404,
         content={"detail": exc.message}

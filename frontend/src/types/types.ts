@@ -103,12 +103,6 @@ export interface InterpretarEventoResponse {
   mensaje: string | null;
 }
 
-export interface BriefingData {
-  hogar_id: string;
-  fecha: string;
-  briefing: string;
-}
-
 export interface Usuario {
   id: string;
   hogar_id: string;

@@ -30,6 +30,11 @@ Auditoría completa de código tras F-LEGAL. 7 bugs detectados y corregidos, con
 - **B6 (BAJA) — `numberOfLines` ausente.** Añadido a títulos/descripciones largos en calendario, despensa y tareas para evitar desbordes.
 - **B7 (MUY BAJA) — Keys duplicadas de participantes en calendario.** Key compuesta `${evento.id}-${nombre}-${idx}`.
 
+**Limpieza de código muerto (sin cambios de comportamiento)**
+- Backend: eliminados `DashboardRepository` (no inyectado en ningún servicio), schemas `HogarCreate`/`HogarUpdate`, excepción `HogarNotFoundError` (nunca lanzada) + su handler, y métodos de servicio sin uso `PantryService.get_item`/`list_items` y `CalendarService.get_event`. Imports huérfanos asociados retirados (`RepositoryError` en pantry, `date`/`typing` sin uso).
+- Frontend: eliminado tipo `BriefingData` (sin referencias) y dependencia `react-native-svg` (no importada en `src/`).
+- `psycopg2-binary` se **mantiene** deliberadamente: aunque el runtime usa `asyncpg`, se conserva como driver síncrono de respaldo para herramientas/migraciones. Verificación: 111 checks backend + 0 errores TS tras la limpieza.
+
 ## 🧪 Sesión 2026-06-12 — Tests, bugs y consistencia
 
 **Frontend**
@@ -200,7 +205,6 @@ npm run ts:check  # Debe retornar 0 errores
 |----------|-----------|--------|----------|
 | Caché en memoria | backend/app/services/llm.py | Medium si escala | Migrar a Redis (F5) |
 | Rate limit en memoria | backend/app/core/rate_limit.py | Medium si escala | Migrar a Redis (F5) |
-| react-native-svg sin usar | frontend/package.json | Bajo (+50KB) | npm uninstall |
 | Fotos unsplash de URLs | frontend/src/screens/ | Bajo (RN cachea) | Mover a assets/ |
 
 Ver [[technical_debt]] en memoria para detalles.

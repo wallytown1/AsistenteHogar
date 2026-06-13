@@ -1,29 +1,17 @@
 import uuid
-from datetime import datetime, date, timedelta, timezone
-from typing import List, Optional
+from datetime import datetime, timedelta, timezone
 
 from app.repositories.pantry import PantryRepository
 from app.schemas.schemas import (
-    InventarioAlimentoCreate, 
-    InventarioAlimentoUpdate, 
-    InventarioAlimentoResponse, 
+    InventarioAlimentoCreate,
+    InventarioAlimentoUpdate,
+    InventarioAlimentoResponse,
     PantryStockMetrics
 )
-from app.repositories.exceptions import RepositoryError
 
 class PantryService:
     def __init__(self, pantry_repo: PantryRepository):
         self.pantry_repo = pantry_repo
-
-    async def get_item(self, item_id: uuid.UUID, hogar_id: uuid.UUID) -> InventarioAlimentoResponse:
-        """Obtiene un alimento por su ID."""
-        item = await self.pantry_repo.get_by_id(item_id, hogar_id)
-        return InventarioAlimentoResponse.model_validate(item)
-
-    async def list_items(self, hogar_id: uuid.UUID) -> List[InventarioAlimentoResponse]:
-        """Lista todos los alimentos activos de un hogar."""
-        items = await self.pantry_repo.get_all(hogar_id)
-        return [InventarioAlimentoResponse.model_validate(item) for item in items]
 
     async def add_item(self, hogar_id: uuid.UUID, schema: InventarioAlimentoCreate) -> InventarioAlimentoResponse:
         """Crea un nuevo alimento en la despensa."""
