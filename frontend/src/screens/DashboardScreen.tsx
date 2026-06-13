@@ -12,6 +12,7 @@ import { useTasks } from '../hooks/useTasks';
 import { TareaItem } from '../types/types';
 import { getDiasParaCaducar } from '../hooks/usePantry';
 import { useAuthStore } from '../state/authStore';
+import AIDisclaimerBanner from '../components/AIDisclaimerBanner';
 
 function formatHora(iso: string): string {
   if (!iso) return '';
@@ -125,9 +126,13 @@ export default function DashboardScreen() {
           </View>
           <Text className="text-gray-400 text-xs mb-4">Resumen rápido de tu hogar para hoy</Text>
           {briefing?.briefing_texto ? (
-            <Text className="text-gray-700 text-xs leading-5 mb-4 p-4 bg-[#f8fafc] rounded-2xl border border-gray-100 font-medium">
-              {briefing.briefing_texto}
-            </Text>
+            <View className="mb-4">
+              <Text className="text-gray-700 text-xs leading-5 p-4 bg-[#f8fafc] rounded-2xl border border-gray-100 font-medium mb-2">
+                {briefing.briefing_texto}
+              </Text>
+              {/* Transparencia IA (EU AI Act): solo si el texto proviene del modelo, no del fallback */}
+              {briefing.briefing_generado_por_ia ? <AIDisclaimerBanner /> : null}
+            </View>
           ) : null}
 
           {/* Eventos del día */}

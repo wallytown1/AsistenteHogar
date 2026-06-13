@@ -5,7 +5,7 @@ from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import IntegrityError
 
-from app.models.models import Hogar, Usuario
+from app.models.models import Hogar, Usuario, RegistroBorrado
 from app.repositories.exceptions import DatabaseIntegrityError
 
 
@@ -66,3 +66,43 @@ class UserRepository:
             await self.session.rollback()
             raise
         return usuario, hogar
+
+    async def delete_hogar_fisico(self, hogar_id: uuid.UUID) -> int:
+        """Destrucción FÍSICA y definitiva del hogar y todos sus datos vinculados
+        (usuarios, inventario, tareas, eventos — incluidos los soft-deleted).
+
+        RGPD art. 17 + requisito de eliminación de cuenta de App Store/Google Play.
+        Se borra vía ORM (cascade="all, delete-orphan") y no con DELETE directo:
+        SQLite no aplica ON DELETE CASCADE sin PRAGMA foreign_keys, y el cascade
+        en Python funciona igual en ambos motores. Borrado + auditoría agregada
+        (sin datos personales) se confirman en una única transacción."""
+        stmt = select(Hogar).where(Hogar.id == hogar_id).options(
+            selectinload(Hogar.usuarios),
+            selectinload(Hogar.alimentos),
+            selectinload(Hogar.tareas),
+            selectinload(Hogar.eventos),
+        )
+        result = await self.session.execute(stmt)
+        hogar = result.scalar_one_or_none()
+        if hogar is None:
+            return 0
+
+        afectados = (
+            1
+            + len(hogar.usuarios)
+            + len(hogar.alimentos)
+            + len(hogar.tareas)
+            + len(hogar.eventos)
+        )
+        try:
+            await self.session.delete(hogar)
+            self.session.add(RegistroBorrado(
+                tipo_evento="eliminacion_cuenta",
+                motivo="solicitud_usuario",
+                registros_afectados=afectados,
+            ))
+            await self.session.commit()
+        except Exception:
+            await self.session.rollback()
+            raise
+        return afectados

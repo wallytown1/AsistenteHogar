@@ -94,7 +94,9 @@ class DashboardService:
             conflictos_agenda=conflictos_hoy
         )
 
-        # Generar briefing de texto con IA (Gemini) o fallback de contingencia ante fallos
-        context.briefing_texto = await generate_morning_briefing(context)
+        # Generar briefing de texto con IA (Gemini) o fallback de contingencia ante fallos.
+        # El flag briefing_generado_por_ia activa el aviso de transparencia (EU AI Act art. 50)
+        # en el cliente solo cuando el texto proviene realmente del modelo.
+        context.briefing_texto, context.briefing_generado_por_ia = await generate_morning_briefing(context)
 
         return context

@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import * as SecureStore from 'expo-secure-store';
-import { TokenResponse, Usuario, Hogar } from '../types/types';
+import { TokenResponse, Usuario, Hogar, CuentaEliminadaResponse } from '../types/types';
+import { apiRequest } from '../api/api';
 
 const TOKEN_KEY = 'asistente_hogar_token';
 const USUARIO_KEY = 'asistente_hogar_usuario';
@@ -16,6 +17,12 @@ interface AuthState {
   hydrate: () => Promise<void>;
   setSession: (session: TokenResponse) => Promise<void>;
   logout: () => Promise<void>;
+  /**
+   * Destrucción definitiva de la cuenta y todos los datos del hogar (RGPD art. 17).
+   * Exige la contraseña actual (re-autenticación en el backend). Si la petición
+   * falla (contraseña errónea, red), lanza el error y NO cierra la sesión local.
+   */
+  deleteAccount: (password: string) => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -60,6 +67,27 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   logout: async () => {
+    set({ token: null, usuario: null, hogar: null });
+    try {
+      await Promise.all([
+        SecureStore.deleteItemAsync(TOKEN_KEY),
+        SecureStore.deleteItemAsync(USUARIO_KEY),
+        SecureStore.deleteItemAsync(HOGAR_KEY),
+      ]);
+    } catch {
+      // Plataforma sin SecureStore (web): nada que limpiar
+    }
+  },
+
+  deleteAccount: async (password: string) => {
+    // El backend re-autentica con la contraseña y borra físicamente el hogar
+    // (cascade a usuarios, despensa, tareas y eventos). Un 401 aquí significa
+    // contraseña incorrecta: se propaga sin tocar la sesión local.
+    await apiRequest<CuentaEliminadaResponse>('/auth/cuenta', {
+      method: 'DELETE',
+      json: { password },
+    });
+    // Éxito: misma limpieza que logout. El gate de AppNavigator volverá al Login.
     set({ token: null, usuario: null, hogar: null });
     try {
       await Promise.all([

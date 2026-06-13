@@ -81,6 +81,13 @@ export interface DashboardData {
   tareas_pendientes: TareaItem[];
   conflictos_agenda: ConflictoDetalle[];
   briefing_texto?: string;
+  /** True si el briefing proviene del LLM: obliga a mostrar el aviso de transparencia IA */
+  briefing_generado_por_ia?: boolean;
+}
+
+export interface CuentaEliminadaResponse {
+  success: boolean;
+  message: string;
 }
 
 export interface EventoInterpretado {

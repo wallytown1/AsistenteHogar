@@ -43,3 +43,5 @@ class RateLimiter:
 # Límites para endpoints de autenticación (protección contra fuerza bruta)
 login_rate_limiter = RateLimiter(max_requests=10, window_seconds=300)      # 10 intentos / 5 min
 registro_rate_limiter = RateLimiter(max_requests=10, window_seconds=3600)  # 10 registros / hora
+# Eliminación de cuenta: re-autentica con contraseña, así que también es fuerza bruta posible
+cuenta_eliminar_rate_limiter = RateLimiter(max_requests=5, window_seconds=3600)  # 5 intentos / hora

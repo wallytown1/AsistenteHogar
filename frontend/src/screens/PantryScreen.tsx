@@ -12,6 +12,7 @@ import {
 import { usePantry, getDiasParaCaducar } from '../hooks/usePantry';
 import { AlimentoItem, RecetaSugerida, RecetasSugeridasResponse } from '../types/types';
 import { apiRequest } from '../api/api';
+import AIDisclaimerBanner from '../components/AIDisclaimerBanner';
 
 const UMBRAL_BAJO_STOCK = 1;
 
@@ -66,6 +67,7 @@ export default function PantryScreen() {
   const [recetas, setRecetas] = useState<RecetaSugerida[]>([]);
   const [recetasMensaje, setRecetasMensaje] = useState<string | null>(null);
   const [recetasLoading, setRecetasLoading] = useState(false);
+  const [recetasGeneradasPorIA, setRecetasGeneradasPorIA] = useState(false);
 
   const fetchRecetas = async () => {
     setRecetasLoading(true);
@@ -73,11 +75,13 @@ export default function PantryScreen() {
     try {
       const res = await apiRequest<RecetasSugeridasResponse>('/pantry/recetas');
       setRecetas(res.recetas);
+      setRecetasGeneradasPorIA(res.generado_por_ia);
       if (res.recetas.length === 0) {
         setRecetasMensaje(res.mensaje || 'No hay sugerencias disponibles en este momento.');
       }
     } catch (err: any) {
       setRecetas([]);
+      setRecetasGeneradasPorIA(false);
       setRecetasMensaje(err.message || 'No se pudieron generar las recetas.');
     } finally {
       setRecetasLoading(false);
@@ -442,6 +446,11 @@ export default function PantryScreen() {
             <Text className="text-gray-400 text-xs text-center py-3 font-medium">
               Pulsa "Sugerir con IA" para recibir recetas que aprovechen tu despensa, priorizando lo que caduca pronto.
             </Text>
+          )}
+
+          {/* Transparencia IA (EU AI Act): solo cuando las recetas provienen del modelo */}
+          {!recetasLoading && recetas.length > 0 && recetasGeneradasPorIA && (
+            <AIDisclaimerBanner texto="Estas recetas han sido generadas por IA y pueden contener imprecisiones." />
           )}
 
           {!recetasLoading && recetas.map((receta, idx) => (

@@ -1,6 +1,7 @@
 import uuid
+from datetime import datetime, timedelta, timezone
 from typing import List, Optional
-from sqlalchemy import select
+from sqlalchemy import select, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import IntegrityError
 
@@ -82,7 +83,7 @@ class PantryRepository:
         """Elimina de forma lógica (soft delete) un producto de la despensa."""
         db_item = await self.get_by_id(item_id, hogar_id, lock=True)
         db_item.is_deleted = True
-        
+
         try:
             await self.session.commit()
             await self.session.refresh(db_item)
@@ -90,3 +91,19 @@ class PantryRepository:
             await self.session.rollback()
             raise DatabaseIntegrityError(str(e.orig))
         return db_item
+
+    async def purge_expired(self, retention_days: int = 30) -> int:
+        """Borrado FÍSICO de los productos con is_deleted=true cuya última
+        modificación supera el plazo de retención (RGPD art. 5.1.e).
+
+        Operación de mantenimiento cross-tenant: es la única excepción
+        autorizada a las reglas 'todo método lleva hogar_id' y 'sin hard
+        deletes' (ver 01_CONTEXTO_Y_ARQUITECTURA_APP.md §3.3). No hace commit:
+        el PurgeService agrupa las tres tablas en una sola transacción."""
+        cutoff = datetime.now(timezone.utc) - timedelta(days=retention_days)
+        stmt = delete(InventarioAlimento).where(
+            InventarioAlimento.is_deleted == True,
+            InventarioAlimento.updated_at < cutoff
+        )
+        result = await self.session.execute(stmt)
+        return result.rowcount or 0

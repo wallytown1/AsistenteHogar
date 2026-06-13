@@ -7,6 +7,7 @@ import DashboardScreen from '../screens/DashboardScreen';
 import PantryScreen from '../screens/PantryScreen';
 import CalendarScreen from '../screens/CalendarScreen';
 import TasksScreen from '../screens/TasksScreen';
+import SettingsScreen from '../screens/SettingsScreen';
 import AuthScreen from '../screens/AuthScreen';
 import { useAuthStore } from '../state/authStore';
 
@@ -15,6 +16,7 @@ type RootTabParamList = {
   Despensa: undefined;
   Calendario: undefined;
   Tareas: undefined;
+  Ajustes: undefined;
 };
 
 const Tab = createBottomTabNavigator<RootTabParamList>();
@@ -25,6 +27,7 @@ function TabIcon({ label, focused }: { label: string; focused: boolean }) {
     Despensa: '🥫',
     Calendario: '📅',
     Tareas: '✅',
+    Ajustes: '⚙️',
   };
   return (
     <View className="items-center justify-center">
@@ -84,6 +87,7 @@ export default function AppNavigator() {
       <Tab.Screen name="Despensa" component={PantryScreen} />
       <Tab.Screen name="Calendario" component={CalendarScreen} />
       <Tab.Screen name="Tareas" component={TasksScreen} />
+      <Tab.Screen name="Ajustes" component={SettingsScreen} />
     </Tab.Navigator>
   );
 }

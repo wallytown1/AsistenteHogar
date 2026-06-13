@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, date, timezone
 from typing import List, Optional
-from sqlalchemy import String, Numeric, Boolean, DateTime, Date, ForeignKey, JSON, UUID as SQL_UUID, TypeDecorator
+from sqlalchemy import String, Numeric, Boolean, DateTime, Date, ForeignKey, Integer, JSON, UUID as SQL_UUID, TypeDecorator
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.sql import expression
@@ -168,6 +168,24 @@ class TareaHogar(Base):
 
     # Relaciones
     hogar: Mapped["Hogar"] = relationship("Hogar", back_populates="tareas")
+
+
+class RegistroBorrado(Base):
+    """Auditoría de supresión (RGPD art. 5.2 y 17). Deliberadamente sin datos
+    personales ni hogar_id: solo acredita que el mecanismo de borrado se ejecutó,
+    cuándo y cuántas filas eliminó. Identificar al usuario suprimido violaría
+    la propia supresión."""
+    __tablename__ = "registros_borrado"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID_TYPE, primary_key=True, default=uuid.uuid4)
+    tipo_evento: Mapped[str] = mapped_column(String(30), nullable=False)  # 'purga_programada' | 'eliminacion_cuenta'
+    motivo: Mapped[str] = mapped_column(String(100), nullable=False)      # 'retencion_30_dias' | 'solicitud_usuario'
+    registros_afectados: Mapped[int] = mapped_column(Integer, nullable=False)
+    ejecutado_en: Mapped[datetime] = mapped_column(
+        TZDateTime,
+        nullable=False,
+        server_default=utcnow()
+    )
 
 
 class EventoCalendario(Base):

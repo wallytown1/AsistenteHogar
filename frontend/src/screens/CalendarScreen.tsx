@@ -167,7 +167,9 @@ export default function CalendarScreen() {
         `📅 ${formatFechaLarga(inicio)}\n` +
         `🕐 ${formatHora(ev.fecha_inicio)} – ${formatHora(ev.fecha_fin)}` +
         (ev.participantes && ev.participantes.length > 0 ? `\n👥 ${ev.participantes.join(', ')}` : '') +
-        (ev.descripcion ? `\n📝 ${ev.descripcion}` : '');
+        (ev.descripcion ? `\n📝 ${ev.descripcion}` : '') +
+        // Transparencia IA (EU AI Act): la propuesta proviene del modelo
+        `\n\n🤖 Propuesta generada por IA — revísala antes de confirmar.`;
 
       Alert.alert(
         `Crear "${ev.titulo}"`,

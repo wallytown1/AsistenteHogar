@@ -1,6 +1,7 @@
 import uuid
+from datetime import datetime, timedelta, timezone
 from typing import List
-from sqlalchemy import select
+from sqlalchemy import select, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import IntegrityError
 
@@ -90,7 +91,7 @@ class TaskRepository:
         """Elimina de forma lógica una tarea."""
         db_task = await self.get_by_id(task_id, hogar_id, lock=True)
         db_task.is_deleted = True
-        
+
         try:
             await self.session.commit()
             await self.session.refresh(db_task)
@@ -98,3 +99,17 @@ class TaskRepository:
             await self.session.rollback()
             raise DatabaseIntegrityError(str(e.orig))
         return db_task
+
+    async def purge_expired(self, retention_days: int = 30) -> int:
+        """Borrado FÍSICO de tareas con is_deleted=true más antiguas que el plazo
+        de retención (RGPD art. 5.1.e). Operación de mantenimiento cross-tenant:
+        única excepción autorizada al hogar_id obligatorio y al soft delete
+        (ver 01_CONTEXTO_Y_ARQUITECTURA_APP.md §3.3). Sin commit: lo agrupa el
+        PurgeService en una transacción única."""
+        cutoff = datetime.now(timezone.utc) - timedelta(days=retention_days)
+        stmt = delete(TareaHogar).where(
+            TareaHogar.is_deleted == True,
+            TareaHogar.updated_at < cutoff
+        )
+        result = await self.session.execute(stmt)
+        return result.rowcount or 0

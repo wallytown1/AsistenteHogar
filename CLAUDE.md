@@ -39,6 +39,10 @@ python smoke_test_auth.py       # auth + multi-tenant isolation (12 checks)
 python smoke_test_modules.py    # pantry/calendar/tasks CRUD, validation, isolation (30 checks)
 python smoke_test_dashboard.py  # dashboard aggregation/filtering + isolation (20 checks)
 python smoke_test_validation.py # endpoint error contract: 400/401/404/422 (16 checks)
+python smoke_test_legal.py      # GDPR purge, account deletion, LLM anonymization (26 checks)
+
+# Manual GDPR purge pass (also runs automatically every 24h from the app lifespan)
+python -m app.jobs.purge
 ```
 
 ### Frontend
@@ -68,6 +72,7 @@ python smoke_test_auth.py        # 12/12 must pass
 python smoke_test_modules.py     # 30/30 must pass
 python smoke_test_dashboard.py   # 20/20 must pass
 python smoke_test_validation.py  # 16/16 must pass
+python smoke_test_legal.py       # 26/26 must pass
 
 # Frontend
 cd frontend && npm run ts:check           # 0 errors
@@ -97,6 +102,8 @@ Dependency injection is done via FastAPI `Depends()` chains defined in `api/deps
 ### LLM integration (`services/llm.py`)
 
 Three Gemini functions: `generate_morning_briefing`, `generate_recipe_suggestions`, `interpret_event_text`. All use temperature=0 and thinkingBudget=0. Results are cached in-process with TTL (30 min briefing, 60 min recipes). Each cache key is a SHA-256 hash of the prompt data, so any real data change invalidates the entry automatically. When `GEMINI_API_KEY` is absent, all three functions return static fallback responses — the app works without a key.
+
+**LLM anonymization (`services/privacy.py`)**: family names (from structured fields `asignado_a`/`participantes`) are replaced with `Familiar_N` tokens before the briefing prompt leaves for Gemini, and restored in the response. Critical ordering: the cache key is hashed over the *anonymized* prompt and the cached value is the *anonymized* response — reversal always happens after the cache. `generate_morning_briefing` returns `(text, generado_por_ia)`; the flag drives the AI transparency banner (`AIDisclaimerBanner`) in the frontend, which must never label the static fallback as AI.
 
 ### Pydantic schemas (`schemas/schemas.py`)
 
@@ -144,7 +151,7 @@ Generate a `JWT_SECRET_KEY`: `python -c "import secrets; print(secrets.token_hex
 - Dev/test: SQLite (default `DATABASE_URL` in `.env.example`)
 - Production: PostgreSQL 16 via `docker-compose.yml` in `backend/`
 - Migrations: Alembic in `backend/alembic/versions/`
-- All tables use soft deletes (`is_deleted = TRUE`), no hard deletes
+- Business tables use soft deletes (`is_deleted = TRUE`). **Only two authorized hard-delete paths** (GDPR art. 17): the scheduled purge in `app/jobs/purge.py` (physically deletes `is_deleted=true` rows older than 30 days, daily from the FastAPI lifespan) and `DELETE /api/v1/auth/cuenta` (destroys the JWT-derived hogar + all linked data via ORM cascade, requires password re-auth). Both log aggregate evidence (no personal data) to `registros_borrado`. No other code may issue physical DELETEs.
 - All timestamps stored as `TIMESTAMPTZ` (UTC)
 
 ---

@@ -54,6 +54,17 @@ El mensaje de error no distingue entre email inexistente y contraseña errónea
 Devuelve el perfil del usuario autenticado.
 **200** → `UsuarioResponse` · **401** sin token.
 
+### `DELETE /api/v1/auth/cuenta` 🔒
+Destrucción **física y definitiva** de la cuenta: elimina el hogar derivado del JWT
+y todos sus datos vinculados (usuarios, despensa, tareas, eventos — incluidos los
+soft-deleted). RGPD art. 17 + App Store 5.1.1(v) / Google Play. Irreversible.
+Requiere re-autenticación con la contraseña actual (un token activo no basta).
+Deja evidencia agregada sin datos personales en `registros_borrado`.
+Rate limit: 5 intentos/hora por IP.
+
+**Body** (`CuentaEliminarRequest`): `{ "password": "contrasena_actual" }`
+**200** → `{ "success": true, "message": "Cuenta y datos del hogar eliminados permanentemente." }` · **401** token inválido o contraseña incorrecta (la cuenta no se borra) · **422** validación · **429** rate limit.
+
 ---
 
 ## Dashboard
@@ -71,9 +82,15 @@ forma concurrente, filtra eventos/conflictos a **hoy (UTC)** y tareas a estado
   "alertas_despensa": { "porcentaje_stock": 80.0, "items_disponibles": 5, "alertas_caducidad": [], "items": [] },
   "tareas_pendientes": [ /* TareaHogarOut */ ],
   "conflictos_agenda": [ /* ConflictoDetalle */ ],
-  "briefing_texto": "Buenos días..."
+  "briefing_texto": "Buenos días...",
+  "briefing_generado_por_ia": false
 }
 ```
+
+`briefing_generado_por_ia` es `true` solo cuando el texto proviene del modelo
+(obliga al cliente a mostrar el aviso de transparencia de IA); `false` con el
+fallback estático. Los nombres de la familia se anonimizan (`Familiar_N`) antes
+de enviarse a Gemini y se restauran en la respuesta.
 
 ---
 

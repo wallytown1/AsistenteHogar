@@ -1,7 +1,7 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from typing import List, Optional
-from sqlalchemy import select, and_, or_
+from sqlalchemy import select, and_, or_, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import IntegrityError
 
@@ -103,7 +103,7 @@ class CalendarRepository:
         """Elimina de forma lógica un evento de calendario."""
         db_evento = await self.get_by_id(evento_id, hogar_id, lock=True)
         db_evento.is_deleted = True
-        
+
         try:
             await self.session.commit()
             await self.session.refresh(db_evento)
@@ -111,3 +111,17 @@ class CalendarRepository:
             await self.session.rollback()
             raise DatabaseIntegrityError(str(e.orig))
         return db_evento
+
+    async def purge_expired(self, retention_days: int = 30) -> int:
+        """Borrado FÍSICO de eventos con is_deleted=true más antiguos que el plazo
+        de retención (RGPD art. 5.1.e). Operación de mantenimiento cross-tenant:
+        única excepción autorizada al hogar_id obligatorio y al soft delete
+        (ver 01_CONTEXTO_Y_ARQUITECTURA_APP.md §3.3). Sin commit: lo agrupa el
+        PurgeService en una transacción única."""
+        cutoff = datetime.now(timezone.utc) - timedelta(days=retention_days)
+        stmt = delete(EventoCalendario).where(
+            EventoCalendario.is_deleted == True,
+            EventoCalendario.updated_at < cutoff
+        )
+        result = await self.session.execute(stmt)
+        return result.rowcount or 0

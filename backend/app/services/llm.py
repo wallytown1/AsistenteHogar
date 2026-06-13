@@ -8,6 +8,7 @@ from typing import Any, List, Optional
 import httpx
 
 from app.core.config import GEMINI_API_KEY, GEMINI_MODEL
+from app.services.privacy import AnonimizadorLLM
 from app.schemas.schemas import (
     DashboardUnifiedContext,
     EventoInterpretado,
@@ -160,11 +161,21 @@ def generate_fallback_briefing(context: DashboardUnifiedContext) -> str:
     return "\n".join(lines)
 
 
-async def generate_morning_briefing(context: DashboardUnifiedContext) -> str:
+async def generate_morning_briefing(context: DashboardUnifiedContext) -> tuple[str, bool]:
     """Genera el resumen personalizado del hogar con Gemini, con caché TTL y
-    fallback estático en caso de error de API o red."""
+    fallback estático en caso de error de API o red.
+    Devuelve (texto, generado_por_ia): el flag permite al cliente mostrar el
+    aviso de transparencia de IA solo cuando el texto proviene del modelo."""
     if not GEMINI_API_KEY:
-        return generate_fallback_briefing(context)
+        return generate_fallback_briefing(context), False
+
+    # Minimización de datos (RGPD): los nombres propios de la familia se
+    # sustituyen por tokens Familiar_N antes de salir hacia Gemini. El
+    # diccionario de alias se construye solo desde los campos estructurados.
+    nombres: list[Optional[str]] = [t.asignado_a for t in context.tareas_pendientes]
+    for ev in context.eventos_hoy:
+        nombres.extend(ev.participantes or [])
+    anonimizador = AnonimizadorLLM(nombres)
 
     # Optimización de tokens para el payload del prompt (enviando solo campos esenciales)
     resumen_eventos = [
@@ -194,18 +205,21 @@ async def generate_morning_briefing(context: DashboardUnifiedContext) -> str:
         for a in context.alertas_despensa.alertas_caducidad
     ]
 
-    prompt_usuario = (
+    prompt_usuario = anonimizador.anonimizar(
         f"Fecha: {context.fecha}\n"
         f"Eventos programados para hoy: {resumen_eventos}\n"
         f"Tareas pendientes de hoy: {resumen_tareas}\n"
         f"Alimentos que vencen pronto en despensa: {resumen_alimentos}\n"
     )
 
-    # Caché: si los datos del hogar no cambiaron, reutilizar el briefing reciente
+    # Caché: si los datos del hogar no cambiaron, reutilizar el briefing reciente.
+    # Orden crítico: la clave se calcula sobre el prompt YA anonimizado y la
+    # entrada cacheada es la respuesta AÚN anonimizada (la reversión va después),
+    # de modo que la caché nunca contiene datos personales.
     cache_key = _hash_key("briefing", prompt_usuario)
     cached = _cache_get(cache_key)
     if cached is not None:
-        return cached
+        return anonimizador.revertir(cached), True
 
     system_instruction = (
         "Eres el asistente inteligente oficial de un núcleo familiar en España. "
@@ -224,10 +238,10 @@ async def generate_morning_briefing(context: DashboardUnifiedContext) -> str:
 
     texto = await _call_gemini(system_instruction, prompt_usuario, max_output_tokens=400)
     if texto is None:
-        return generate_fallback_briefing(context)
+        return generate_fallback_briefing(context), False
 
     _cache_set(cache_key, texto, BRIEFING_CACHE_TTL)
-    return texto
+    return anonimizador.revertir(texto), True
 
 
 # --- Sugerencias de recetas -----------------------------------------------------

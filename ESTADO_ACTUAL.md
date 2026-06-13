@@ -12,6 +12,7 @@
 | F-HONESTA | Reenfoque agente personal (sin UI falsa) | frontend/src/screens/{DashboardScreen, PantryScreen, CalendarScreen}.tsx |
 | F-TEST | Suite de tests + corrección de 3 bugs + CRUD calendario | backend/smoke_test_*.py, frontend/src/screens/TasksScreen.tsx |
 | F-QA | Ciclo QA mobile: 2 críticos + 2 medios resueltos, 0 errores TS | frontend/src/{api,hooks,state}/ |
+| F-LEGAL | Compliance RGPD/AI Act/stores: purga física, DELETE /auth/cuenta, anonimización LLM, banner IA, SettingsScreen | backend/app/jobs/purge.py, backend/app/services/privacy.py, frontend/src/screens/SettingsScreen.tsx |
 
 ## 🧪 Sesión 2026-06-12 — Tests, bugs y consistencia
 
@@ -59,6 +60,43 @@ Auditoría completa del frontend (`frontend/src/`) con foco en contratos de API,
 
 **Verificación final**: `npm run ts:check` → **0 errores**.
 
+## ⚖️ Sesión 2026-06-12 — Fase F-LEGAL (compliance RGPD / EU AI Act / stores)
+
+Antes de implementar se reescribió `01_CONTEXTO_Y_ARQUITECTURA_APP.md` (v2.x): el
+documento describía el contrato antiguo con `{hogar_id}` en las URLs (propenso a
+IDOR) y se actualizó al diseño real (tenant del JWT) + la arquitectura de compliance.
+
+**Backend**
+- **Purga física programada (RGPD art. 5.1.e):** `purge_expired()` en los repos de
+  pantry/tasks/calendar + `PurgeService` en `app/jobs/purge.py`. Borra físicamente
+  filas con `is_deleted=true` y `updated_at` > 30 días. Corre cada 24 h desde el
+  `lifespan` de FastAPI y manualmente con `python -m app.jobs.purge`.
+- **`DELETE /api/v1/auth/cuenta` (RGPD art. 17 + App Store 5.1.1(v) / Google Play):**
+  destrucción física del hogar del JWT y todos sus datos vía cascade ORM. Exige
+  re-autenticación con contraseña (401 si es errónea, sin borrar). Rate limit 5/h.
+- **Tabla `registros_borrado`** (migración `b7d4e9a2c1f8`): auditoría agregada de
+  cada supresión — tipo, motivo, recuento, timestamp — sin ningún dato personal.
+- **Anonimización LLM (RGPD art. 5.1.c):** `AnonimizadorLLM` en `services/privacy.py`
+  sustituye nombres (de `asignado_a`/`participantes`) por `Familiar_N` antes de enviar
+  el briefing a Gemini y los restaura en la respuesta. La clave de caché se calcula
+  sobre el prompt ya anonimizado y la caché guarda la respuesta anonimizada.
+- **Flag `briefing_generado_por_ia`** en el dashboard (el fallback estático no se
+  etiqueta como IA). `generate_morning_briefing` devuelve ahora `(texto, flag)`.
+
+**Frontend**
+- **`AIDisclaimerBanner`** (EU AI Act art. 50): «Este resumen ha sido generado por IA
+  y puede contener imprecisiones.» — en Dashboard (briefing), Pantry (recetas) y en
+  el diálogo de confirmación de la propuesta IA del Calendario. Solo aparece si el
+  contenido proviene realmente del modelo.
+- **`SettingsScreen`** (pestaña Ajustes ⚙️): datos de cuenta, cerrar sesión y zona de
+  peligro con eliminación de cuenta — confirmación inline en dos pasos con campo de
+  contraseña (sin Alert nativo: funciona también en web).
+- **`deleteAccount(password)`** en el authStore: llama al DELETE, limpia estado y
+  SecureStore solo si el backend confirma; un 401 muestra error sin cerrar sesión.
+
+**Verificación**: `smoke_test_legal.py` nuevo (**26/26**), suite completa anterior
+(12+30+20+20) en verde, `npm run ts:check` → **0 errores**.
+
 ## 🚀 Próximo paso: F4 — Freemium
 
 **Descripción:** Integración RevenueCat (IAP iOS/Android) + límites free vs premium en backend.
@@ -99,12 +137,13 @@ Auditoría completa del frontend (`frontend/src/`) con foco en contratos de API,
 ## 🔧 Verificación mínima antes de cambios
 
 ```bash
-# Backend — suite completa (82 checks). Requiere JWT_SECRET_KEY en el entorno.
+# Backend — suite completa (108 checks). Requiere JWT_SECRET_KEY en el entorno.
 cd backend
 python smoke_test_auth.py        # 12/12
 python smoke_test_modules.py     # 30/30
 python smoke_test_dashboard.py   # 20/20
 python smoke_test_validation.py  # 20/20
+python smoke_test_legal.py       # 26/26
 
 # Frontend
 cd frontend

@@ -63,6 +63,15 @@ class TokenResponse(BaseSchema):
     usuario: UsuarioResponse
     hogar: HogarResponse
 
+class CuentaEliminarRequest(BaseSchema):
+    # Re-autenticación obligatoria: un JWT activo en un dispositivo no basta
+    # para destruir los datos de toda la familia (RGPD art. 17 + App Store 5.1.1(v))
+    password: str = Field(..., min_length=1, max_length=72, description="Contraseña actual para confirmar la eliminación definitiva")
+
+class CuentaEliminadaResponse(BaseSchema):
+    success: bool = Field(..., description="True si la cuenta y sus datos fueron destruidos")
+    message: str = Field(..., description="Confirmación de la eliminación")
+
 
 # --- INVENTARIO ALIMENTOS ---
 class InventarioAlimentoCreate(BaseSchema):
@@ -266,6 +275,7 @@ class DashboardUnifiedContext(BaseSchema):
     tareas_pendientes: List[TareaHogarResponse] = Field(default_factory=list, description="Lista de tareas del hogar con estado pendiente")
     conflictos_agenda: List[ConflictoDetalle] = Field(default_factory=list, description="Lista de conflictos de solapamiento horario de hoy")
     briefing_texto: Optional[str] = Field(None, description="Resumen ejecutivo amigable generado por IA")
+    briefing_generado_por_ia: bool = Field(False, description="True si el briefing proviene del modelo de IA (obliga a mostrar el aviso de transparencia); False si es el fallback estático")
 
 class CalendarAgendaResponse(BaseSchema):
     eventos: List[EventoCalendarioResponse] = Field(default_factory=list, description="Eventos del hogar")

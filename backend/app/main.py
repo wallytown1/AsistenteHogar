@@ -34,7 +34,9 @@ access_logger = logging.getLogger("app.acceso")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    import asyncio
     from sqlalchemy import select
+    from app.jobs.purge import purge_scheduler
 
     # Validar la conexión con la base de datos antes de aceptar tráfico
     try:
@@ -45,7 +47,17 @@ async def lifespan(app: FastAPI):
         sys.exit(1)
 
     logger.info("Conexión a la base de datos verificada. API lista para aceptar tráfico.")
-    yield
+
+    # Purga física programada (RGPD): una pasada al arrancar y luego cada 24 h
+    purge_task = asyncio.create_task(purge_scheduler())
+    try:
+        yield
+    finally:
+        purge_task.cancel()
+        try:
+            await purge_task
+        except asyncio.CancelledError:
+            pass
 
 
 app = FastAPI(

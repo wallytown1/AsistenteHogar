@@ -2,7 +2,15 @@ from fastapi import HTTPException, status
 
 from app.core.security import hash_password, verify_password, create_access_token
 from app.repositories.user import UserRepository
-from app.schemas.schemas import RegistroRequest, LoginRequest, TokenResponse, UsuarioResponse, HogarResponse
+from app.schemas.schemas import (
+    RegistroRequest,
+    LoginRequest,
+    TokenResponse,
+    UsuarioResponse,
+    HogarResponse,
+    CuentaEliminarRequest,
+    CuentaEliminadaResponse,
+)
 
 
 class AuthService:
@@ -39,6 +47,23 @@ class AuthService:
             )
         # usuario.hogar viene cargado eager desde el repositorio (selectinload)
         return self._build_token_response(usuario, usuario.hogar)
+
+    async def eliminar_cuenta(self, usuario, schema: CuentaEliminarRequest) -> CuentaEliminadaResponse:
+        """Destruye física y definitivamente el hogar del usuario autenticado y
+        todos sus datos (RGPD art. 17 / App Store 5.1.1(v)). Exige re-autenticación
+        con la contraseña actual: un token JWT robado u olvidado en un dispositivo
+        no debe bastar para borrar los datos de toda la familia."""
+        if not verify_password(schema.password, usuario.hashed_password):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="La contraseña no es correcta. La cuenta no ha sido eliminada.",
+                headers={"WWW-Authenticate": "Bearer"}
+            )
+        await self.user_repo.delete_hogar_fisico(usuario.hogar_id)
+        return CuentaEliminadaResponse(
+            success=True,
+            message="Cuenta y datos del hogar eliminados permanentemente."
+        )
 
     def _build_token_response(self, usuario, hogar) -> TokenResponse:
         token = create_access_token(usuario_id=usuario.id, hogar_id=usuario.hogar_id)
