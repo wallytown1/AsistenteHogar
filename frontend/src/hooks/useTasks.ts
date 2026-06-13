@@ -61,8 +61,10 @@ export function useTasks() {
     const nuevoEstado = estadoActual === 'pendiente' ? 'completado' : 'pendiente';
     const ultimoCompletado = nuevoEstado === 'completado' ? new Date().toISOString() : null;
 
-    // Respaldo de seguridad del estado previo para rollback
-    const previousTasks = [...tasks];
+    // Snapshot SOLO del item afectado para poder revertirlo de forma aislada.
+    // Restaurar el array completo (snapshot global) pisaría cambios optimistas concurrentes
+    // de otras tareas que estuvieran en vuelo (B5: stale-closure rollback).
+    const tareaPrevia = tasks.find(t => t.id === id);
 
     // Actualización optimista de 0ms en local
     setTasks(prev =>
@@ -82,8 +84,10 @@ export function useTasks() {
         }
       });
     } catch (err: any) {
-      // Reversión del estado ante fallos del servidor o red
-      setTasks(previousTasks);
+      // Reversión SOLO del item afectado, preservando cambios concurrentes en otras tareas
+      if (tareaPrevia) {
+        setTasks(prev => prev.map(t => (t.id === id ? tareaPrevia : t)));
+      }
       const errMsg = err.message || 'Error al actualizar el estado de la tarea';
       setError(errMsg);
       throw new Error(errMsg);
@@ -92,8 +96,10 @@ export function useTasks() {
 
   const deleteTask = async (id: string) => {
     setError(null);
-    // Respaldo de seguridad del estado previo para rollback
-    const previousTasks = [...tasks];
+    // Snapshot del item borrado y su posición, para reinsertarlo de forma aislada si falla.
+    // Evita restaurar el array completo (que pisaría cambios concurrentes — B5).
+    const tareaPrevia = tasks.find(t => t.id === id);
+    const indicePrevio = tasks.findIndex(t => t.id === id);
 
     // Remoción lógica optimista de 0ms en local
     setTasks(prev => prev.filter(t => t.id !== id));
@@ -103,8 +109,15 @@ export function useTasks() {
         method: 'DELETE'
       });
     } catch (err: any) {
-      // Reversión ante fallos del servidor o red
-      setTasks(previousTasks);
+      // Reversión: reinsertar SOLO la tarea borrada en su posición original
+      if (tareaPrevia) {
+        setTasks(prev => {
+          if (prev.some(t => t.id === id)) return prev; // ya presente, nada que hacer
+          const copia = [...prev];
+          copia.splice(Math.min(indicePrevio, copia.length), 0, tareaPrevia);
+          return copia;
+        });
+      }
       const errMsg = err.message || 'Error al eliminar la tarea doméstica';
       setError(errMsg);
       throw new Error(errMsg);

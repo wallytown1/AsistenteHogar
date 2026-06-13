@@ -3,10 +3,11 @@ from datetime import datetime
 from typing import List, Tuple
 
 from app.repositories.calendar import CalendarRepository
+from app.repositories.exceptions import ReglaNegocioError
 from app.schemas.schemas import (
-    EventoCalendarioCreate, 
-    EventoCalendarioUpdate, 
-    EventoCalendarioResponse, 
+    EventoCalendarioCreate,
+    EventoCalendarioUpdate,
+    EventoCalendarioResponse,
     ConflictoDetalle
 )
 
@@ -27,7 +28,20 @@ class CalendarService:
         return EventoCalendarioResponse.model_validate(evento)
 
     async def update_event(self, evento_id: uuid.UUID, hogar_id: uuid.UUID, schema: EventoCalendarioUpdate) -> EventoCalendarioResponse:
-        """Actualiza un evento existente."""
+        """Actualiza un evento existente.
+
+        El validador del schema solo compara fecha_inicio/fecha_fin cuando AMBAS llegan en
+        el PATCH. Si solo llega una, hay que validar la consistencia contra el valor ya
+        persistido (estado resultante = evento actual + campos del PATCH). De lo contrario
+        un PATCH parcial podría dejar fecha_fin <= fecha_inicio."""
+        cambios = schema.model_dump(exclude_unset=True)
+        if "fecha_inicio" in cambios or "fecha_fin" in cambios:
+            actual = await self.calendar_repo.get_by_id(evento_id, hogar_id)
+            nuevo_inicio = cambios.get("fecha_inicio", actual.fecha_inicio)
+            nuevo_fin = cambios.get("fecha_fin", actual.fecha_fin)
+            if nuevo_fin <= nuevo_inicio:
+                raise ReglaNegocioError("La fecha de fin debe ser posterior a la fecha de inicio")
+
         evento = await self.calendar_repo.update(evento_id, hogar_id, schema)
         return EventoCalendarioResponse.model_validate(evento)
 

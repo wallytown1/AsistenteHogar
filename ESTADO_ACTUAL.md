@@ -13,6 +13,22 @@
 | F-TEST | Suite de tests + corrección de 3 bugs + CRUD calendario | backend/smoke_test_*.py, frontend/src/screens/TasksScreen.tsx |
 | F-QA | Ciclo QA mobile: 2 críticos + 2 medios resueltos, 0 errores TS | frontend/src/{api,hooks,state}/ |
 | F-LEGAL | Compliance RGPD/AI Act/stores: purga física, DELETE /auth/cuenta, anonimización LLM, banner IA, SettingsScreen | backend/app/jobs/purge.py, backend/app/services/privacy.py, frontend/src/screens/SettingsScreen.tsx |
+| F-AUDIT | Auditoría post-F-LEGAL: 7 bugs corregidos (B1–B7) + alineación de cifras de tests | backend/app/services/calendar.py, frontend/src/screens/CalendarScreen.tsx, frontend/src/hooks/{useTasks,usePantry}.ts |
+
+## 🐞 Sesión 2026-06-13 — Auditoría y corrección de bugs (B1–B7)
+
+Auditoría completa de código tras F-LEGAL. 7 bugs detectados y corregidos, con tests de regresión donde aplica. Verificación: **111 checks** backend en verde, **0 errores** TS.
+
+**Backend**
+- **B1 (MEDIA-ALTA) — PATCH calendario, validación parcial de fechas.** El validador del schema solo comparaba `fecha_inicio`/`fecha_fin` cuando llegaban AMBAS. Un PATCH parcial (solo una fecha) podía dejar `fecha_fin <= fecha_inicio`. Ahora `CalendarService.update_event` fusiona los campos del PATCH con el evento persistido y valida el estado resultante, lanzando `ReglaNegocioError` → **HTTP 422** (nuevo handler en `main.py`). +3 checks en `smoke_test_modules.py`.
+
+**Frontend**
+- **B2 (MEDIA) — Calendario mostraba solo el primer evento por hora.** `eventos.find()` → `eventos.filter()`; se renderizan todos los eventos de cada franja (tarjeta extraída a `renderEventoCard`).
+- **B3 (MEDIA-BAJA) — Eventos fuera de 07:00–22:00 invisibles.** Nueva sección "Fuera de horario" que lista los eventos cuya hora de inicio cae fuera del eje.
+- **B4 (BAJA-MEDIA) — `getDiasParaCaducar` desfase UTC.** `new Date("YYYY-MM-DD")` se interpretaba como medianoche UTC y `setHours` lo corría un día en husos negativos (off-by-one). Ahora se construye la fecha con componentes Y-M-D en hora local.
+- **B5 (BAJA) — `useTasks` rollback con stale-closure.** El rollback restauraba un snapshot global del array, pisando cambios optimistas concurrentes. Ahora revierte solo el item afectado mediante updates funcionales.
+- **B6 (BAJA) — `numberOfLines` ausente.** Añadido a títulos/descripciones largos en calendario, despensa y tareas para evitar desbordes.
+- **B7 (MUY BAJA) — Keys duplicadas de participantes en calendario.** Key compuesta `${evento.id}-${nombre}-${idx}`.
 
 ## 🧪 Sesión 2026-06-12 — Tests, bugs y consistencia
 
@@ -137,11 +153,11 @@ IDOR) y se actualizó al diseño real (tenant del JWT) + la arquitectura de comp
 ## 🔧 Verificación mínima antes de cambios
 
 ```bash
-# Backend — suite completa (108 checks). Requiere JWT_SECRET_KEY en el entorno.
+# Backend — suite completa (111 checks). Requiere JWT_SECRET_KEY en el entorno.
 cd backend
 python smoke_test_auth.py        # 12/12
-python smoke_test_modules.py     # 30/30
-python smoke_test_dashboard.py   # 20/20
+python smoke_test_modules.py     # 34/34
+python smoke_test_dashboard.py   # 19/19
 python smoke_test_validation.py  # 20/20
 python smoke_test_legal.py       # 26/26
 

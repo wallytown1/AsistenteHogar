@@ -330,7 +330,7 @@ export default function PantryScreen() {
 
                   {/* Detalles */}
                   <View className="flex-1 mr-2">
-                    <Text className="text-black text-xs font-bold">{item.nombre}</Text>
+                    <Text className="text-black text-xs font-bold" numberOfLines={1}>{item.nombre}</Text>
                     <Text className="text-gray-500 text-[10px] mt-0.5">
                       Cantidad: {item.cantidad} {item.unidad} · {item.categoria}
                     </Text>

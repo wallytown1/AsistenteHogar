@@ -195,6 +195,100 @@ export default function CalendarScreen() {
     }
   };
 
+  // Predicado de filtrado por miembro seleccionado (reutilizado en el eje horario y en "fuera de horario")
+  const pasaFiltroMiembro = (e: EventoItem): boolean => {
+    if (selectedMembers.length === 0) return true;
+    if (!e.participantes || e.participantes.length === 0) return true;
+    return e.participantes.some(p => selectedMembers.includes(p));
+  };
+
+  // Render de una tarjeta de evento. Extraído para poder pintar VARIOS eventos por hora (B2)
+  // y reutilizarlo en la sección "Fuera de horario" (B3).
+  const renderEventoCard = (evento: EventoItem) => {
+    const hasConflict = conflictos.some(
+      (c) => c.evento_a.id === evento.id || c.evento_b.id === evento.id
+    );
+    const tituloLower = evento.titulo.toLowerCase();
+    const isHealth = tituloLower.includes('médico') || tituloLower.includes('dentista') || tituloLower.includes('pediatra');
+    const isTask = tituloLower.includes('tarea') || tituloLower.includes('basura') || tituloLower.includes('limpiar');
+
+    const cardBg = hasConflict
+      ? 'bg-[#fee2e2] border-[#fecaca]'
+      : isHealth
+      ? 'bg-[#e0f2fe] border-[#bae6fd]'
+      : isTask
+      ? 'bg-[#d1fae5] border-[#a7f3d0]'
+      : 'bg-[#fef3c7] border-[#fde68a]';
+
+    const textColor = hasConflict
+      ? 'text-[#b91c1c]'
+      : isHealth
+      ? 'text-[#0369a1]'
+      : isTask
+      ? 'text-[#047857]'
+      : 'text-[#b45309]';
+
+    return (
+      <View key={evento.id} className={`rounded-3xl p-4 border relative ${cardBg}`}>
+        {/* Iniciales de los participantes */}
+        <View className="absolute right-4 top-4 flex-row gap-1">
+          {evento.participantes?.map((partName, idx) => (
+            <View
+              key={`${evento.id}-${partName}-${idx}`}
+              className="w-6 h-6 rounded-full border border-white bg-white/70 items-center justify-center"
+            >
+              <Text className="text-[8px] font-bold text-black">{getInitials(partName)}</Text>
+            </View>
+          ))}
+        </View>
+
+        <View className="pr-12">
+          <Text className={`font-bold text-xs ${textColor}`} numberOfLines={1}>
+            {evento.titulo}
+          </Text>
+          <Text className="text-gray-500 text-[10px] mt-0.5 font-semibold">
+            {formatHora(evento.fecha_inicio)} – {formatHora(evento.fecha_fin)}
+          </Text>
+          <Text className="text-gray-400 text-[9px] mt-1 font-medium" numberOfLines={2}>
+            {evento.descripcion || 'Sin descripción'}
+          </Text>
+        </View>
+
+        {hasConflict && (
+          <Text className="text-red-600 text-[9px] mt-2 font-bold leading-4">
+            Conflicto detectado: Colisión horaria en la agenda. Revisa las alertas abajo.
+          </Text>
+        )}
+
+        {/* Botón rápido para borrar */}
+        <TouchableOpacity
+          onPress={() => {
+            Alert.alert(
+              "Confirmar eliminación",
+              `¿Deseas eliminar "${evento.titulo}" del calendario?`,
+              [
+                { text: "No", style: "cancel" },
+                { text: "Sí", onPress: () => deleteEvento(evento.id) }
+              ]
+            );
+          }}
+          className="absolute right-4 bottom-4 bg-white/80 rounded-full w-6 h-6 items-center justify-center border border-gray-100"
+        >
+          <Text className="text-[10px]">🗑️</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  };
+
+  // B3: eventos cuya hora de inicio cae fuera del eje 07:00–22:00 (madrugada o noche).
+  // Sin esta sección serían invisibles en la agenda.
+  const eventosFueraHorario = eventos
+    .filter((e) => {
+      const h = new Date(e.fecha_inicio).getHours();
+      return (h < 7 || h > 22) && pasaFiltroMiembro(e);
+    })
+    .sort((a, b) => new Date(a.fecha_inicio).getTime() - new Date(b.fecha_inicio).getTime());
+
   return (
     <View className="flex-1 bg-[#fafafa]">
       <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 56, paddingBottom: 120 }}>
@@ -244,38 +338,11 @@ export default function CalendarScreen() {
           {HOURS.map((hour) => {
             const hourNumber = parseInt(hour.split(':')[0], 10);
 
-            // Buscar eventos que comiencen en esta hora y que tengan algún participante seleccionado
-            const eventAtHour = eventos.find((e) => {
-              const d = new Date(e.fecha_inicio);
-              if (d.getHours() !== hourNumber) return false;
-
-              if (selectedMembers.length === 0) return true;
-              if (!e.participantes || e.participantes.length === 0) return true;
-
-              return e.participantes.some(p => selectedMembers.includes(p));
-            });
-
-            const hasConflict = eventAtHour && conflictos.some(
-              (c) => c.evento_a.id === eventAtHour.id || c.evento_b.id === eventAtHour.id
-            );
-            const isHealth = eventAtHour && (eventAtHour.titulo.toLowerCase().includes('médico') || eventAtHour.titulo.toLowerCase().includes('dentista') || eventAtHour.titulo.toLowerCase().includes('pediatra'));
-            const isTask = eventAtHour && (eventAtHour.titulo.toLowerCase().includes('tarea') || eventAtHour.titulo.toLowerCase().includes('basura') || eventAtHour.titulo.toLowerCase().includes('limpiar'));
-
-            const cardBg = hasConflict
-              ? 'bg-[#fee2e2] border-[#fecaca]'
-              : isHealth
-              ? 'bg-[#e0f2fe] border-[#bae6fd]'
-              : isTask
-              ? 'bg-[#d1fae5] border-[#a7f3d0]'
-              : 'bg-[#fef3c7] border-[#fde68a]';
-
-            const textColor = hasConflict
-              ? 'text-[#b91c1c]'
-              : isHealth
-              ? 'text-[#0369a1]'
-              : isTask
-              ? 'text-[#047857]'
-              : 'text-[#b45309]';
+            // B2: TODOS los eventos que comienzan en esta hora (con filtro de miembro aplicado),
+            // no solo el primero. Ordenados por minuto de inicio.
+            const eventosHora = eventos
+              .filter((e) => new Date(e.fecha_inicio).getHours() === hourNumber && pasaFiltroMiembro(e))
+              .sort((a, b) => new Date(a.fecha_inicio).getTime() - new Date(b.fecha_inicio).getTime());
 
             return (
               <View key={hour} className="flex-row mb-4 min-h-[70px]">
@@ -284,56 +351,11 @@ export default function CalendarScreen() {
                   <Text className="text-gray-400 text-xs font-bold">{hour}</Text>
                 </View>
 
-                {/* Evento flotando al lado derecho */}
+                {/* Eventos de esta hora apilados al lado derecho */}
                 <View className="flex-1">
-                  {eventAtHour ? (
-                    <View className={`rounded-3xl p-4 border relative ${cardBg}`}>
-                      {/* Iniciales de los participantes */}
-                      <View className="absolute right-4 top-4 flex-row gap-1">
-                        {eventAtHour.participantes?.map((partName) => (
-                          <View
-                            key={partName}
-                            className="w-6 h-6 rounded-full border border-white bg-white/70 items-center justify-center"
-                          >
-                            <Text className="text-[8px] font-bold text-black">{getInitials(partName)}</Text>
-                          </View>
-                        ))}
-                      </View>
-
-                      <View className="pr-12">
-                        <Text className={`font-bold text-xs ${textColor}`}>
-                          {eventAtHour.titulo}
-                        </Text>
-                        <Text className="text-gray-500 text-[10px] mt-0.5 font-semibold">
-                          {formatHora(eventAtHour.fecha_inicio)} – {formatHora(eventAtHour.fecha_fin)}
-                        </Text>
-                        <Text className="text-gray-400 text-[9px] mt-1 font-medium">
-                          {eventAtHour.descripcion || 'Sin descripción'}
-                        </Text>
-                      </View>
-
-                      {hasConflict && (
-                        <Text className="text-red-600 text-[9px] mt-2 font-bold leading-4">
-                          Conflicto detectado: Colisión horaria en la agenda. Revisa las alertas abajo.
-                        </Text>
-                      )}
-
-                      {/* Botón rápido para borrar */}
-                      <TouchableOpacity
-                        onPress={() => {
-                          Alert.alert(
-                            "Confirmar eliminación",
-                            `¿Deseas eliminar "${eventAtHour.titulo}" del calendario?`,
-                            [
-                              { text: "No", style: "cancel" },
-                              { text: "Sí", onPress: () => deleteEvento(eventAtHour.id) }
-                            ]
-                          );
-                        }}
-                        className="absolute right-4 bottom-4 bg-white/80 rounded-full w-6 h-6 items-center justify-center border border-gray-100"
-                      >
-                        <Text className="text-[10px]">🗑️</Text>
-                      </TouchableOpacity>
+                  {eventosHora.length > 0 ? (
+                    <View className="gap-3">
+                      {eventosHora.map((ev) => renderEventoCard(ev))}
                     </View>
                   ) : (
                     // Línea horizontal guía
@@ -344,6 +366,18 @@ export default function CalendarScreen() {
             );
           })}
         </View>
+
+        {/* B3: Eventos fuera del eje 07:00–22:00 (no caben en la rejilla horaria) */}
+        {eventosFueraHorario.length > 0 && (
+          <View className="mb-6">
+            <Text className="text-gray-400 text-[10px] font-bold uppercase mb-2 ml-1">
+              Fuera de horario ({eventosFueraHorario.length})
+            </Text>
+            <View className="gap-3">
+              {eventosFueraHorario.map((ev) => renderEventoCard(ev))}
+            </View>
+          </View>
+        )}
 
         {/* Sección: Alertas de Conflicto */}
         <View className="bg-white border border-gray-100 rounded-3xl p-5 mb-5 shadow-sm">

@@ -36,3 +36,10 @@ class DatabaseIntegrityError(RepositoryError):
     def __init__(self, detail: str):
         self.detail = detail
         super().__init__(f"Error de integridad en base de datos: {detail}")
+
+class ReglaNegocioError(RepositoryError):
+    """Raised when a domain invariant is violated (e.g., inconsistent event dates on
+    a PATCH where the schema validator cannot see the persisted value). Maps to HTTP 422
+    to match the schema-level validation contract."""
+    def __init__(self, message: str):
+        super().__init__(message)

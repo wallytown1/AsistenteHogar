@@ -9,8 +9,12 @@ export function getDiasParaCaducar(fechaCaducidad: string | null): number | null
   if (!fechaCaducidad) return null;
   const hoy = new Date();
   hoy.setHours(0, 0, 0, 0);
-  const fecha = new Date(fechaCaducidad);
-  fecha.setHours(0, 0, 0, 0);
+  // fecha_caducidad llega como "YYYY-MM-DD" (date-only). `new Date(str)` lo interpretaría
+  // como medianoche UTC, lo que en husos horarios negativos lo desplaza al día anterior
+  // (off-by-one). Construimos la fecha con los componentes Y-M-D en hora LOCAL para evitarlo.
+  const [y, m, d] = fechaCaducidad.slice(0, 10).split('-').map(Number);
+  if (!y || !m || !d) return null;
+  const fecha = new Date(y, m - 1, d);
   return Math.ceil((fecha.getTime() - hoy.getTime()) / 86400000);
 }
 

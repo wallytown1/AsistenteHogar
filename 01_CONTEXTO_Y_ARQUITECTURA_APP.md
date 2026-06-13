@@ -25,7 +25,7 @@ AsistenteHogar/
 │   │   ├── database.py            # Engine async + Base declarativa
 │   │   └── main.py                # Entrada FastAPI + exception handlers globales
 │   ├── alembic/versions/          # Migraciones Alembic
-│   ├── smoke_test_*.py            # Suite de pruebas de humo (108 checks, incl. smoke_test_legal.py)
+│   ├── smoke_test_*.py            # Suite de pruebas de humo (111 checks, incl. smoke_test_legal.py)
 │   ├── docker-compose.yml         # PostgreSQL 16 (producción/local opcional)
 │   ├── requirements.txt
 │   └── .env.example

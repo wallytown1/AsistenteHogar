@@ -164,6 +164,19 @@ with TestClient(app) as client:
     })
     check("PATCH /calendar rechaza fin <= inicio (422)", r.status_code == 422, f"(status={r.status_code})")
 
+    # B1: PATCH parcial — solo fecha_fin anterior al inicio persistido (evento actual 10-12)
+    # debe validarse contra el valor en BD, no omitirse por ausencia de fecha_inicio.
+    r = client.patch(f"/api/v1/calendar/{evento_id}", headers=h1, json={"fecha_fin": iso(futuro, 8)})
+    check("PATCH /calendar parcial rechaza fecha_fin < inicio persistido (422)", r.status_code == 422, f"(status={r.status_code})")
+
+    # B1: PATCH parcial — solo fecha_inicio posterior al fin persistido debe rechazarse igual.
+    r = client.patch(f"/api/v1/calendar/{evento_id}", headers=h1, json={"fecha_inicio": iso(futuro, 14)})
+    check("PATCH /calendar parcial rechaza fecha_inicio > fin persistido (422)", r.status_code == 422, f"(status={r.status_code})")
+
+    # B1 (control): PATCH parcial válido — solo fecha_fin posterior al inicio persistido se acepta.
+    r = client.patch(f"/api/v1/calendar/{evento_id}", headers=h1, json={"fecha_fin": iso(futuro, 13)})
+    check("PATCH /calendar parcial acepta fecha_fin > inicio persistido (200)", r.status_code == 200, f"(status={r.status_code})")
+
     # PATCH sin cuerpo debe devolver 400 (no 500)
     r = client.patch(f"/api/v1/calendar/{evento_id}", headers=h1)
     check("PATCH /calendar sin cuerpo devuelve 400", r.status_code == 400, f"(status={r.status_code})")

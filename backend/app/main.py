@@ -24,7 +24,8 @@ from app.repositories.exceptions import (
     HogarNotFoundError,
     ItemNotFoundError,
     EventoNotFoundError,
-    DatabaseIntegrityError
+    DatabaseIntegrityError,
+    ReglaNegocioError
 )
 
 setup_logging()
@@ -141,6 +142,15 @@ async def database_integrity_exception_handler(request: Request, exc: DatabaseIn
     """Mapea DatabaseIntegrityError a HTTP 400 Bad Request."""
     return JSONResponse(
         status_code=400,
+        content={"detail": exc.message}
+    )
+
+@app.exception_handler(ReglaNegocioError)
+async def regla_negocio_exception_handler(request: Request, exc: ReglaNegocioError):
+    """Mapea ReglaNegocioError a HTTP 422 Unprocessable Entity, alineado con el contrato
+    de validación de los schemas (p. ej. PATCH de eventos con fechas inconsistentes)."""
+    return JSONResponse(
+        status_code=422,
         content={"detail": exc.message}
     )
 

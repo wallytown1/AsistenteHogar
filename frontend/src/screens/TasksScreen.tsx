@@ -235,7 +235,7 @@ export default function TasksScreen() {
 
                 {/* Detalles */}
                 <View className="flex-1 mr-2">
-                  <Text className={`text-xs font-bold ${completada ? 'text-gray-400 line-through' : 'text-black'}`}>
+                  <Text className={`text-xs font-bold ${completada ? 'text-gray-400 line-through' : 'text-black'}`} numberOfLines={2}>
                     {item.nombre}
                   </Text>
                   <View className="flex-row items-center mt-1">

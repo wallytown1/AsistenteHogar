@@ -36,9 +36,9 @@ alembic revision --autogenerate -m "description"
 
 # Smoke tests (each uses its own separate temp SQLite DB)
 python smoke_test_auth.py       # auth + multi-tenant isolation (12 checks)
-python smoke_test_modules.py    # pantry/calendar/tasks CRUD, validation, isolation (30 checks)
-python smoke_test_dashboard.py  # dashboard aggregation/filtering + isolation (20 checks)
-python smoke_test_validation.py # endpoint error contract: 400/401/404/422 (16 checks)
+python smoke_test_modules.py    # pantry/calendar/tasks CRUD, validation, isolation (34 checks)
+python smoke_test_dashboard.py  # dashboard aggregation/filtering + isolation (19 checks)
+python smoke_test_validation.py # endpoint error contract: 400/401/404/422 (20 checks)
 python smoke_test_legal.py      # GDPR purge, account deletion, LLM anonymization (26 checks)
 
 # Manual GDPR purge pass (also runs automatically every 24h from the app lifespan)
@@ -69,9 +69,9 @@ npm run ts:check
 # Backend
 cd backend
 python smoke_test_auth.py        # 12/12 must pass
-python smoke_test_modules.py     # 30/30 must pass
-python smoke_test_dashboard.py   # 20/20 must pass
-python smoke_test_validation.py  # 16/16 must pass
+python smoke_test_modules.py     # 34/34 must pass
+python smoke_test_dashboard.py   # 19/19 must pass
+python smoke_test_validation.py  # 20/20 must pass
 python smoke_test_legal.py       # 26/26 must pass
 
 # Frontend
