@@ -37,6 +37,7 @@ async def lifespan(app: FastAPI):
     import asyncio
     from sqlalchemy import select
     from app.jobs.purge import purge_scheduler
+    from app.services.llm import aclose_http_client
 
     # Validar la conexión con la base de datos antes de aceptar tráfico
     try:
@@ -58,6 +59,8 @@ async def lifespan(app: FastAPI):
             await purge_task
         except asyncio.CancelledError:
             pass
+        # Cerrar el cliente HTTP compartido de Gemini (libera conexiones keep-alive)
+        await aclose_http_client()
 
 
 app = FastAPI(

@@ -1,3 +1,4 @@
+import asyncio
 import hashlib
 import json
 import logging
@@ -62,15 +63,46 @@ def _hash_key(prefix: str, data: str) -> str:
     return f"{prefix}:{hashlib.sha256(data.encode('utf-8')).hexdigest()}"
 
 
+# --- Cliente HTTP compartido --------------------------------------------------
+# Un único AsyncClient para todo el proceso: reutiliza conexiones (keep-alive) y
+# evita el coste del handshake TLS en cada llamada. Se crea perezosamente y se
+# cierra en el lifespan de la app (main.py) vía aclose_http_client().
+_http_client: Optional[httpx.AsyncClient] = None
+
+
+def _get_http_client() -> httpx.AsyncClient:
+    global _http_client
+    if _http_client is None or _http_client.is_closed:
+        _http_client = httpx.AsyncClient(
+            timeout=httpx.Timeout(15.0, connect=5.0),
+            limits=httpx.Limits(max_keepalive_connections=10, max_connections=20),
+        )
+    return _http_client
+
+
+async def aclose_http_client() -> None:
+    """Cierra el cliente HTTP compartido. Llamado desde el shutdown del lifespan."""
+    global _http_client
+    if _http_client is not None and not _http_client.is_closed:
+        await _http_client.aclose()
+    _http_client = None
+
+
 # --- Llamada genérica a Gemini ------------------------------------------------
+
+_RETRYABLE_STATUS = {429, 500, 502, 503, 504}
+_MAX_ATTEMPTS = 2  # 1 reintento ante fallos transitorios
+
 
 async def _call_gemini(
     system_instruction: str,
     user_prompt: str,
     max_output_tokens: int = 400,
     response_schema: Optional[dict] = None,
+    timeout: float = 15.0,
 ) -> Optional[str]:
-    """Llamada única a la API de Gemini. Devuelve el texto generado o None si falla.
+    """Llamada a la API de Gemini con reintento acotado ante fallos transitorios.
+    Devuelve el texto generado o None si falla definitivamente.
     thinkingBudget=0 desactiva el razonamiento interno del modelo: innecesario para
     estas tareas y reduce latencia y coste."""
     generation_config: dict[str, Any] = {
@@ -87,30 +119,71 @@ async def _call_gemini(
         "generationConfig": generation_config,
         "systemInstruction": {"parts": [{"text": system_instruction}]},
     }
+    client = _get_http_client()
 
-    try:
-        # La clave va en header x-goog-api-key (no en URL) para evitar que aparezca en logs.
-        async with httpx.AsyncClient() as client:
+    for attempt in range(1, _MAX_ATTEMPTS + 1):
+        try:
+            # La clave va en header x-goog-api-key (no en URL) para no exponerla en logs.
             response = await client.post(
                 GEMINI_URL,
                 json=payload,
                 headers={"x-goog-api-key": GEMINI_API_KEY},
-                timeout=15.0,
+                timeout=timeout,
             )
-        if response.status_code == 200:
-            data = response.json()
-            return data["candidates"][0]["content"]["parts"][0]["text"].strip()
-        logger.error(
-            f"La API de Gemini retornó un código de estado {response.status_code}. "
-            f"Detalle: {response.text[:500]}"
-        )
-    except httpx.RequestError as e:
-        logger.error(f"Error de red/petición al conectar con la API de Gemini: {type(e).__name__}")
-    except (KeyError, IndexError) as e:
-        logger.error(f"Error al parsear el JSON retornado por la API de Gemini (estructura inesperada): {e}")
-    except Exception as e:
-        logger.error(f"Error inesperado al llamar a la API de Gemini: {e}")
+
+            if response.status_code == 200:
+                return _extract_text(response.json())
+
+            # Reintentar solo ante errores transitorios y si quedan intentos
+            if response.status_code in _RETRYABLE_STATUS and attempt < _MAX_ATTEMPTS:
+                await asyncio.sleep(0.6 * attempt)
+                continue
+
+            logger.error(
+                f"La API de Gemini retornó un código de estado {response.status_code}. "
+                f"Detalle: {response.text[:300]}"
+            )
+            return None
+
+        except httpx.RequestError as e:
+            if attempt < _MAX_ATTEMPTS:
+                await asyncio.sleep(0.6 * attempt)
+                continue
+            logger.error(f"Error de red/petición al conectar con la API de Gemini: {type(e).__name__}")
+            return None
+        except Exception as e:
+            logger.error(f"Error inesperado al llamar a la API de Gemini: {e}")
+            return None
+
     return None
+
+
+def _extract_text(data: dict) -> Optional[str]:
+    """Extrae el texto de la respuesta de Gemini, distinguiendo causas de fallo
+    (bloqueo de seguridad, sin candidatos, truncado) para diagnóstico."""
+    candidates = data.get("candidates") or []
+    if not candidates:
+        # Sin candidatos suele ser un bloqueo por filtros de seguridad del prompt.
+        feedback = data.get("promptFeedback", {})
+        logger.error(f"Gemini no devolvió candidatos (posible bloqueo de seguridad). promptFeedback={feedback}")
+        return None
+
+    candidate = candidates[0]
+    finish = candidate.get("finishReason")
+    if finish and finish not in ("STOP", "MAX_TOKENS"):
+        logger.error(f"Gemini terminó con finishReason inesperado: {finish}")
+        return None
+
+    parts = (candidate.get("content") or {}).get("parts") or []
+    if not parts:
+        logger.error(f"Gemini devolvió un candidato sin contenido (finishReason={finish}).")
+        return None
+
+    if finish == "MAX_TOKENS":
+        logger.warning("Gemini truncó la respuesta (MAX_TOKENS); puede invalidar el JSON estructurado.")
+
+    texto = (parts[0].get("text") or "").strip()
+    return texto or None
 
 
 # --- Briefing matutino ----------------------------------------------------------

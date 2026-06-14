@@ -45,3 +45,9 @@ login_rate_limiter = RateLimiter(max_requests=10, window_seconds=300)      # 10 
 registro_rate_limiter = RateLimiter(max_requests=10, window_seconds=3600)  # 10 registros / hora
 # Eliminación de cuenta: re-autentica con contraseña, así que también es fuerza bruta posible
 cuenta_eliminar_rate_limiter = RateLimiter(max_requests=5, window_seconds=3600)  # 5 intentos / hora
+
+# Endpoints de IA (control de coste/abuso de la API de Gemini). Cada llamada a
+# /calendar/interpretar va directa al LLM (sin caché), de ahí el límite más estricto;
+# /pantry/recetas tiene caché de 1 h, el límite cubre los fallos de caché.
+interpretar_rate_limiter = RateLimiter(max_requests=20, window_seconds=300)   # 20 / 5 min
+recetas_rate_limiter = RateLimiter(max_requests=20, window_seconds=3600)      # 20 / hora

@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, Path, HTTPException, status
 import uuid
 
 from app.api.deps import get_hogar_id, get_calendar_service
+from app.core.rate_limit import interpretar_rate_limiter
 from app.services.calendar import CalendarService
 from app.services.llm import interpret_event_text
 from app.schemas.schemas import (
@@ -36,7 +37,11 @@ async def create_calendar_event(
     """Crea un nuevo evento en el calendario familiar."""
     return await calendar_service.add_event(hogar_id, schema)
 
-@router.post("/calendar/interpretar", response_model=InterpretarEventoResponse)
+@router.post(
+    "/calendar/interpretar",
+    response_model=InterpretarEventoResponse,
+    dependencies=[Depends(interpretar_rate_limiter)],
+)
 async def interpretar_evento(
     schema: InterpretarEventoRequest,
     hogar_id: uuid.UUID = Depends(get_hogar_id),

@@ -15,6 +15,9 @@ from datetime import datetime, date, timedelta, timezone, time as dtime
 
 TEST_DB = "smoke_test_modules.db"
 os.environ["DATABASE_URL"] = f"sqlite+aiosqlite:///./{TEST_DB}"
+# Hermético: forzar el modo de contingencia del LLM (sin red ni llamadas reales a Gemini),
+# independientemente de lo que haya en .env.
+os.environ["GEMINI_API_KEY"] = ""
 
 if os.path.exists(TEST_DB):
     os.remove(TEST_DB)

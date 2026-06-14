@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, Path, HTTPException, status
 import uuid
 
 from app.api.deps import get_hogar_id, get_pantry_service
+from app.core.rate_limit import recetas_rate_limiter
 from app.services.pantry import PantryService
 from app.services.llm import generate_recipe_suggestions
 from app.schemas.schemas import (
@@ -22,7 +23,11 @@ async def get_pantry_metrics(
     """Obtiene el inventario de despensa y sus métricas de stock asociadas al Hogar."""
     return await pantry_service.get_stock_metrics(hogar_id)
 
-@router.get("/pantry/recetas", response_model=RecetasSugeridasResponse)
+@router.get(
+    "/pantry/recetas",
+    response_model=RecetasSugeridasResponse,
+    dependencies=[Depends(recetas_rate_limiter)],
+)
 async def get_recetas_sugeridas(
     hogar_id: uuid.UUID = Depends(get_hogar_id),
     pantry_service: PantryService = Depends(get_pantry_service)
