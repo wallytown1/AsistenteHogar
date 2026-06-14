@@ -63,8 +63,9 @@ export default function TasksScreen() {
     setPrioridad('media');
   };
 
-  if (isLoading) return <LoadingView message="Cargando tareas del hogar..." />;
-  if (error) return <ErrorView message={error} onRetry={refetch} />;
+  // Loader completo solo en carga inicial; en refrescos se usa el spinner nativo.
+  if (isLoading && tasks.length === 0) return <LoadingView message="Cargando tareas del hogar..." />;
+  if (error && tasks.length === 0) return <ErrorView message={error} onRetry={refetch} />;
 
   const handleAdd = () => {
     if (nombre.trim().length < 2) {
@@ -219,7 +220,7 @@ export default function TasksScreen() {
       {/* Modal Añadir Tarea */}
       <Modal visible={modalVisible} transparent animationType="slide" onRequestClose={() => setModalVisible(false)}>
         <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: colors.overlay }}>
-          <View style={{ backgroundColor: colors.card, borderTopLeftRadius: radius.xxl, borderTopRightRadius: radius.xxl, padding: spacing.xl, paddingBottom: spacing.xxxl }}>
+          <View style={{ backgroundColor: colors.card, borderTopLeftRadius: radius.xxl, borderTopRightRadius: radius.xxl, padding: spacing.xl, paddingBottom: spacing.xxxl, maxHeight: '88%' }}>
             <View style={{ alignItems: 'center', marginBottom: spacing.md }}>
               <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: colors.borderStrong }} />
             </View>

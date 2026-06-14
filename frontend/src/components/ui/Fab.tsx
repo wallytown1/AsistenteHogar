@@ -1,7 +1,6 @@
 import React from 'react';
 import { Pressable } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, radius, shadow } from '../../theme/tokens';
+import { colors, radius, spacing, shadow } from '../../theme/tokens';
 import { Icon, IconName } from './Icon';
 import { haptics } from '../../lib/haptics';
 
@@ -10,14 +9,16 @@ export type FabProps = {
   onPress: () => void;
   accessibilityLabel?: string;
   color?: string;
+  /** Distancia al borde inferior del área de contenido. Por defecto flota justo
+   *  encima de la barra de pestañas (el área de la pantalla ya excluye la tab bar
+   *  y su safe-area, así que NO hay que sumar insets aquí). */
+  bottom?: number;
 };
 
 /**
- * Botón de acción flotante. Se posiciona sobre la barra de pestañas respetando
- * la safe area inferior. Elevación + ripple le dan sabor Material en Android.
+ * Botón de acción flotante. Elevación + ripple le dan sabor Material en Android.
  */
-export function Fab({ icon = 'add', onPress, accessibilityLabel, color = colors.brand }: FabProps) {
-  const insets = useSafeAreaInsets();
+export function Fab({ icon = 'add', onPress, accessibilityLabel, color = colors.brand, bottom = spacing.xl }: FabProps) {
   return (
     <Pressable
       onPress={() => { haptics.medium(); onPress(); }}
@@ -28,7 +29,7 @@ export function Fab({ icon = 'add', onPress, accessibilityLabel, color = colors.
         {
           position: 'absolute',
           right: 20,
-          bottom: insets.bottom + 78,
+          bottom,
           width: 58,
           height: 58,
           borderRadius: radius.pill,

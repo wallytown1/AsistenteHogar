@@ -16,7 +16,6 @@ import {
   AppText,
   Icon,
   FoodIcon,
-  Badge,
   EmptyState,
   LoadingView,
   ErrorView,
@@ -84,8 +83,9 @@ export default function PantryScreen() {
     }
   };
 
-  if (isLoading) return <LoadingView message="Cargando inventario de la despensa..." />;
-  if (error) return <ErrorView message={error} onRetry={refetch} />;
+  // Loader completo solo en carga inicial; en refrescos se usa el spinner nativo.
+  if (isLoading && items.length === 0) return <LoadingView message="Cargando inventario de la despensa..." />;
+  if (error && items.length === 0) return <ErrorView message={error} onRetry={refetch} />;
 
   const toggleSelectProduct = (id: string) => {
     haptics.selection();

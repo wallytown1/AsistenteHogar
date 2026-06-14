@@ -35,7 +35,7 @@ function formatFechaCorta(iso?: string): string {
 
 export default function DashboardScreen() {
   const { loading, briefing, error, refetch: refetchDashboard } = useDashboard();
-  const { tasks, isLoading: tasksLoading, error: tasksError, toggleTaskStatus, refetch: refetchTasks } = useTasks();
+  const { tasks, error: tasksError, toggleTaskStatus, refetch: refetchTasks } = useTasks();
   const usuario = useAuthStore((s) => s.usuario);
   const logout = useAuthStore((s) => s.logout);
 
@@ -51,8 +51,10 @@ export default function DashboardScreen() {
     refetchTasks();
   };
 
-  if (loading) return <LoadingView message="Generando briefing del hogar..." />;
-  if (error) return <ErrorView message={error} onRetry={refetch} />;
+  // Loader a pantalla completa solo en la carga inicial; en refrescos posteriores
+  // se mantiene el contenido y actúa el spinner nativo del pull-to-refresh.
+  if (loading && !briefing) return <LoadingView message="Generando briefing del hogar..." />;
+  if (error && !briefing) return <ErrorView message={error} onRetry={refetch} />;
 
   const handleToggleTask = (tarea: TareaItem) => {
     Alert.alert('Confirmar tarea', `¿Deseas marcar la tarea "${tarea.nombre}" como completada?`, [

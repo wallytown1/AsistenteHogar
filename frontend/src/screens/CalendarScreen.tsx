@@ -71,8 +71,9 @@ export default function CalendarScreen() {
     setSelectedMembers((prev) => (prev.includes(member) ? prev.filter((m) => m !== member) : [...prev, member]));
   };
 
-  if (isLoading) return <LoadingView message="Cargando agenda familiar..." />;
-  if (error) return <ErrorView message={error} onRetry={refetch} />;
+  // Loader completo solo en carga inicial; en refrescos se usa el spinner nativo.
+  if (isLoading && eventos.length === 0) return <LoadingView message="Cargando agenda familiar..." />;
+  if (error && eventos.length === 0) return <ErrorView message={error} onRetry={refetch} />;
 
   const crearEvento = (
     evento: Omit<EventoItem, 'id' | 'is_deleted' | 'hogar_id' | 'created_at' | 'updated_at'>,

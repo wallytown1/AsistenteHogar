@@ -40,7 +40,16 @@ contra `main` antes de fusionar. Lógica de negocio preservada al 100%.
 
 **Dependencia añadida**: `expo-haptics` (vía `expo install`).
 
-**Verificación**: `npm run ts:check` → 0 errores · 0 referencias a `className` en `src/`.
+**Verificación**: `npm run ts:check` → 0 errores · 0 referencias a `className` en `src/` ·
+`expo export` (bundle Metro) OK sin errores de imports/runtime.
+
+**Revisión post-rediseño (5 correcciones aplicadas)**
+1. **FAB demasiado alto** — `Fab` sumaba `insets.bottom + 78`, pero el área de la pantalla ya excluye la tab bar y su safe-area; ahora flota a `bottom: 20` justo sobre la barra.
+2. **Flash de loader en pull-to-refresh** — las 4 pantallas con datos hacían `if (isLoading) return <LoadingView/>`; ahora el loader completo solo aparece en la carga inicial (sin datos) y los refrescos usan el spinner nativo.
+3. **Botones en `loading` se veían grises** — `Button` aplicaba aspecto deshabilitado durante la carga; ahora mantiene su color con spinner del color correcto (`busy` accesible).
+4. **Imports/variables sin usar** — retirados (`Badge` en Pantry, `tasksLoading` en Dashboard); `tsc --noUnusedLocals` limpio en el código nuevo.
+5. **Modal de Tareas sin `maxHeight`** — añadido `88%` para evitar corte con el teclado en pantallas pequeñas (igual que Despensa/Calendario).
+
 Pendiente: validación visual en dispositivo antes de fusionar a `main`.
 
 ## 🐞 Sesión 2026-06-13 — Auditoría y corrección de bugs (B1–B7)

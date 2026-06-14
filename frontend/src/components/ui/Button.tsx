@@ -47,11 +47,12 @@ export function Button({
 }: ButtonProps) {
   const p = palette[variant];
   const s = sizing[size];
-  const isDisabled = disabled || loading;
-  const fg = isDisabled ? colors.inkFaint : p.fg;
+  const blocked = disabled || loading;          // impide el press (carga o deshabilitado)
+  const dimmed = !!disabled && !loading;        // aspecto deshabilitado SOLO si no es carga
+  const fg = dimmed ? colors.inkFaint : p.fg;
 
   const base: ViewStyle = {
-    backgroundColor: isDisabled ? colors.track : p.bg,
+    backgroundColor: dimmed ? colors.track : p.bg,
     borderRadius: radius.pill,
     paddingVertical: s.pv,
     paddingHorizontal: spacing.xl,
@@ -66,12 +67,13 @@ export function Button({
 
   return (
     <Pressable
-      onPress={isDisabled ? undefined : () => { haptics.light(); onPress?.(); }}
+      onPress={blocked ? undefined : () => { haptics.light(); onPress?.(); }}
       android_ripple={{ color: p.ripple }}
-      disabled={isDisabled}
+      disabled={blocked}
       accessibilityRole="button"
       accessibilityLabel={label}
-      style={({ pressed }) => [base, pressed && !isDisabled ? { opacity: 0.9 } : null, style]}
+      accessibilityState={{ disabled: blocked, busy: loading }}
+      style={({ pressed }) => [base, pressed && !blocked ? { opacity: 0.9 } : null, style]}
     >
       {loading ? (
         <ActivityIndicator size="small" color={fg} />
