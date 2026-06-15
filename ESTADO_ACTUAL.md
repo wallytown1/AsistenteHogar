@@ -17,6 +17,17 @@
 | F-IA-2 | Optimización del flujo Gemini + 4 funciones de IA nuevas (tareas/despensa NL, metadata, plan de comidas) | backend/app/services/llm.py, backend/app/api/routers/{tasks,pantry}.py, backend/app/core/rate_limit.py |
 | F-UI 🎨 | Rediseño visual nativo iOS/Android | frontend/src/theme/, frontend/src/components/ui/, frontend/src/lib/, las 6 pantallas |
 
+## 🔀 Sesión 2026-06-15 — Integración de ramas + tooling + rescate de features
+
+Fusión de las dos ramas de trabajo (`chore/backend-typing-shield` = tipado/IA/escudo, `redesign/native-ui` = UI nativa) en la rama `integracion/merge-all` (**futuro `main`**). Único conflicto: una tabla en este archivo (resuelto conservando ambas secciones).
+
+- **Verificación post-merge:** backend **122 smoke checks** verde, frontend **0 errores TS** (solo hubo que `npm install` por `expo-haptics`, ya en el lockfile).
+- **graphify activado:** knowledge graph del código (`uv tool install graphifyy`, skill project-scoped en `.claude/`, hooks PreToolUse). `graphify-out/` gitignorado → regenerar con `graphify update .` (AST local, sin coste). Ver [[tooling_dev]] en memoria.
+- **Rescate de 2 features huérfanas** (eran archivos untracked solo en el PC viejo; el rediseño se construyó sin verlos):
+  - `useExpiryNotifications.ts` — notificaciones locales de caducidad (≤3 días, aviso 9:00). Dep `expo-notifications` añadida; cableado en `PantryScreen`.
+  - `OnboardingScreen.tsx` — **reescrito al nuevo sistema de diseño** (tokens + iconos vectoriales, sin emoji ni paleta vieja); gate `hasSeenOnboarding` recableado en `AppNavigator`.
+- **Pendiente del usuario:** `uv run pre-commit install` (escudo backend, hoy bloquea commits) · plugin `expo-notifications` en `app.json` antes del build de producción (F6) · descartar `stash@{0}` (sus únicos archivos únicos ya están rescatados).
+
 ## 🤖 Sesión 2026-06-15 — Optimización de IA + nuevas funciones (backend)
 
 Trabajo de IA en `main` (backend). Lógica de negocio intacta, IA pasiva en todo (propone, el usuario confirma).
@@ -37,11 +48,10 @@ Trabajo de IA en `main` (backend). Lógica de negocio intacta, IA pasiva en todo
 
 **Verificación**: 122 smoke checks (modules 34→43, validation 20→22) + las 4 funciones probadas con Gemini real. **Pendiente**: cableado de UI de las nuevas funciones (irá en la rama del rediseño).
 
-## 🎨 Sesión 2026-06-13 — Rediseño visual nativo (rama `redesign/native-ui`)
+## 🎨 Sesión 2026-06-13 — Rediseño visual nativo
 
 Rediseño completo del frontend con un **lenguaje visual nuevo (con color)** para que la app
-se sienta nativa en iOS y Android. Hecho en la rama `redesign/native-ui` para poder comparar
-contra `main` antes de fusionar. Lógica de negocio preservada al 100%.
+se sienta nativa en iOS y Android. Lógica de negocio preservada al 100%.
 
 **Sistema de diseño nuevo**
 - `src/theme/tokens.ts` — fuente única de color, tipografía, espaciado, radios y sombras (por plataforma). Marca índigo `#6366F1` + acentos por módulo (despensa verde, calendario índigo, tareas ámbar).
@@ -71,7 +81,7 @@ contra `main` antes de fusionar. Lógica de negocio preservada al 100%.
 4. **Imports/variables sin usar** — retirados (`Badge` en Pantry, `tasksLoading` en Dashboard); `tsc --noUnusedLocals` limpio en el código nuevo.
 5. **Modal de Tareas sin `maxHeight`** — añadido `88%` para evitar corte con el teclado en pantallas pequeñas (igual que Despensa/Calendario).
 
-Pendiente: validación visual en dispositivo antes de fusionar a `main`.
+Pendiente: validación visual en dispositivo real.
 
 ## 🐞 Sesión 2026-06-13 — Auditoría y corrección de bugs (B1–B7)
 

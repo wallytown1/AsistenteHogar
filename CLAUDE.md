@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Asistente del Hogar IA** — a family household management app with an AI assistant (Gemini 2.5-flash). Single family account model (multi-tenant isolation by `hogar_id` derived from JWT). Language: Spanish throughout (UI, logs, AI responses).
 
-Stack: React Native (Expo SDK 54) + NativeWind v4 frontend, FastAPI + SQLAlchemy 2.0 async backend, PostgreSQL (SQLite for dev/tests).
+Stack: React Native (Expo SDK 54) frontend (UI styled with StyleSheet + design tokens; NativeWind v4 still installed but no longer used for styling), FastAPI + SQLAlchemy 2.0 async backend, PostgreSQL (SQLite for dev/tests).
 
 ---
 
@@ -62,6 +62,24 @@ npm run ios
 # TypeScript check (must return 0 errors before committing)
 npm run ts:check
 ```
+
+### Quality shield (runs automatically on every commit via husky)
+
+```bash
+# One-time setup (backend shield): installs pre-commit into the repo's git hooks.
+# pre-commit lives in the project venv; activate it once per clone:
+uv run pre-commit install
+
+# Backend — Ruff (lint+format) + Mypy strict, scoped to backend/app/ (config in backend/pyproject.toml)
+uv run pre-commit run --all-files     # run the full backend shield manually
+
+# Frontend — husky + lint-staged run TypeScript + ESLint + Prettier on staged files at commit time.
+cd frontend && npx lint-staged        # run the frontend shield manually
+```
+
+The husky pre-commit hook (`.husky/pre-commit`) orchestrates both: it runs `lint-staged` for the
+frontend and `pre-commit` for the backend. If `pre-commit` is not installed, the hook fails the commit
+with instructions instead of silently skipping the shield.
 
 ### Verification before any change
 
@@ -132,9 +150,9 @@ All schemas extend `BaseSchema` which enforces `extra='forbid'` globally. The pa
 - **API calls**: `src/api/api.ts` — adds `Authorization: Bearer <token>` to every request automatically.
 - **Feature hooks**: `src/hooks/use{Dashboard,Pantry,Calendar}.ts` — fetch data and expose loading/error state to screens.
 
-### Frontend design system (branch `redesign/native-ui`)
+### Frontend design system
 
-> Aplicado en la rama `redesign/native-ui` (no en `main` todavía). Rediseño visual completo para un look nativo iOS/Android.
+> Rediseño visual completo para un look nativo iOS/Android.
 
 - **Tokens**: `src/theme/tokens.ts` — única fuente de color, tipografía, espaciado, radios y sombras. Marca índigo `#6366F1`; acentos por módulo (despensa verde, calendario índigo, tareas ámbar). No hardcodear valores en componentes/pantallas.
 - **Componentes UI**: `src/components/ui/` (barrel en `index.ts`): `Screen` (safe-area + pull-to-refresh), `Card`, `Button`, `IconButton`, `Chip`, `StatCard`, `SectionHeader`, `Fab`, `Badge`, `EmptyState`, `Field`, `AppText`, `Icon`/`FoodIcon`, `LoadingView`/`ErrorView`.
@@ -186,3 +204,13 @@ Generate a `JWT_SECRET_KEY`: `python -c "import secrets; print(secrets.token_hex
 ## Next planned phase
 
 **F4 — Freemium**: RevenueCat IAP integration (iOS/Android) + free vs premium limits in the backend. Not started. See `ESTADO_ACTUAL.md` for full phase history.
+
+## graphify
+
+This project has a knowledge graph at graphify-out/ with god nodes, community structure, and cross-file relationships.
+
+Rules:
+- For codebase questions, first run `graphify query "<question>"` when graphify-out/graph.json exists. Use `graphify path "<A>" "<B>"` for relationships and `graphify explain "<concept>"` for focused concepts. These return a scoped subgraph, usually much smaller than GRAPH_REPORT.md or raw grep output.
+- If graphify-out/wiki/index.md exists, use it for broad navigation instead of raw source browsing.
+- Read graphify-out/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context.
+- After modifying code, run `graphify update .` to keep the graph current (AST-only, no API cost).
