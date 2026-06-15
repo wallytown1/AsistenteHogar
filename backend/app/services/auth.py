@@ -1,15 +1,16 @@
 from fastapi import HTTPException, status
 
-from app.core.security import hash_password, verify_password, create_access_token
+from app.core.security import create_access_token, hash_password, verify_password
+from app.models import Hogar, Usuario
 from app.repositories.user import UserRepository
 from app.schemas.schemas import (
-    RegistroRequest,
+    CuentaEliminadaResponse,
+    CuentaEliminarRequest,
+    HogarResponse,
     LoginRequest,
+    RegistroRequest,
     TokenResponse,
     UsuarioResponse,
-    HogarResponse,
-    CuentaEliminarRequest,
-    CuentaEliminadaResponse,
 )
 
 
@@ -23,14 +24,14 @@ class AuthService:
         if existente:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail="El email indicado ya está registrado. Inicia sesión o usa otro email."
+                detail="El email indicado ya está registrado. Inicia sesión o usa otro email.",
             )
 
         usuario, hogar = await self.user_repo.create_with_hogar(
             nombre_hogar=schema.nombre_hogar,
             nombre=schema.nombre,
             email=schema.email,
-            hashed_password=hash_password(schema.password)
+            hashed_password=hash_password(schema.password),
         )
         return self._build_token_response(usuario, hogar)
 
@@ -43,12 +44,14 @@ class AuthService:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Email o contraseña incorrectos.",
-                headers={"WWW-Authenticate": "Bearer"}
+                headers={"WWW-Authenticate": "Bearer"},
             )
         # usuario.hogar viene cargado eager desde el repositorio (selectinload)
         return self._build_token_response(usuario, usuario.hogar)
 
-    async def eliminar_cuenta(self, usuario, schema: CuentaEliminarRequest) -> CuentaEliminadaResponse:
+    async def eliminar_cuenta(
+        self, usuario: Usuario, schema: CuentaEliminarRequest
+    ) -> CuentaEliminadaResponse:
         """Destruye física y definitivamente el hogar del usuario autenticado y
         todos sus datos (RGPD art. 17 / App Store 5.1.1(v)). Exige re-autenticación
         con la contraseña actual: un token JWT robado u olvidado en un dispositivo
@@ -57,19 +60,18 @@ class AuthService:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="La contraseña no es correcta. La cuenta no ha sido eliminada.",
-                headers={"WWW-Authenticate": "Bearer"}
+                headers={"WWW-Authenticate": "Bearer"},
             )
         await self.user_repo.delete_hogar_fisico(usuario.hogar_id)
         return CuentaEliminadaResponse(
-            success=True,
-            message="Cuenta y datos del hogar eliminados permanentemente."
+            success=True, message="Cuenta y datos del hogar eliminados permanentemente."
         )
 
-    def _build_token_response(self, usuario, hogar) -> TokenResponse:
+    def _build_token_response(self, usuario: Usuario, hogar: Hogar) -> TokenResponse:
         token = create_access_token(usuario_id=usuario.id, hogar_id=usuario.hogar_id)
         return TokenResponse(
             access_token=token,
             token_type="bearer",
             usuario=UsuarioResponse.model_validate(usuario),
-            hogar=HogarResponse.model_validate(hogar)
+            hogar=HogarResponse.model_validate(hogar),
         )

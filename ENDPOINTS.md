@@ -105,6 +105,32 @@ Inventario activo y métricas de stock.
 Sugerencias de recetas por IA a partir del inventario (prioriza lo que caduca).
 IA pasiva: solo sugiere. Sin API key devuelve lista vacía con mensaje.
 **200** → `RecetasSugeridasResponse` `{ recetas[], generado_por_ia, mensaje }`.
+Rate limit: 20/hora por IP (**429** al exceder). Cacheado 1 h.
+
+### `GET /api/v1/pantry/plan-comidas` 🔒
+Plan de comidas semanal (comida + cena, 7 días) por IA a partir de la despensa,
+priorizando lo que caduca. IA pasiva: solo sugiere.
+**200** → `PlanComidasResponse` `{ dias[] {dia, comida, cena}, generado_por_ia, mensaje }`.
+Rate limit: 10/hora por IP. Cacheado 2 h.
+
+### `POST /api/v1/pantry/interpretar` 🔒
+Interpreta lenguaje natural y devuelve **propuestas** de uno o varios productos
+(IA pasiva: nunca los añade; el cliente confirma y llama a `POST /pantry` por cada uno).
+**Body** (`InterpretarDespensaRequest`):
+```json
+{ "texto": "compré 6 huevos y leche que caduca el viernes", "fecha_referencia": "2026-06-14" }
+```
+**200** → `InterpretarDespensaResponse` `{ alimentos[], mensaje }` (`alimentos` vacío si no se pudo interpretar o sin API key).
+Rate limit: 20/5 min por IP (compartido con los demás `/interpretar`).
+
+### `POST /api/v1/pantry/sugerir-metadata` 🔒
+Sugiere categoría y caducidad estimada para un alimento dado su nombre (ayuda de formulario).
+**Body** (`SugerirMetadataRequest`):
+```json
+{ "nombre": "Yogur natural", "fecha_referencia": "2026-06-14" }
+```
+**200** → `SugerenciaMetadataResponse` `{ categoria, dias_estimados, fecha_caducidad_estimada, generado_por_ia, mensaje }`.
+Rate limit: 40/5 min por IP.
 
 ### `POST /api/v1/pantry` 🔒
 **Body** (`InventarioAlimentoCreate`):
@@ -157,6 +183,7 @@ nunca lo crea; el cliente confirma y llama a `POST /calendar`).
 { "texto": "dentista mañana a las 10 con papá", "fecha_referencia": "2026-06-12T08:00:00+00:00" }
 ```
 **200** → `InterpretarEventoResponse` `{ evento, mensaje }` (`evento` es null si no se pudo interpretar o sin API key).
+Rate limit: 20/5 min por IP (compartido con los demás `/interpretar`).
 
 ### `PATCH /api/v1/calendar/{evento_id}` 🔒
 Actualización parcial (`EventoCalendarioUpdate`, campos opcionales).
@@ -185,6 +212,16 @@ Borrado lógico.
 }
 ```
 **201** → `TareaHogarOut` · **422** validación (prioridad/estado inválidos).
+
+### `POST /api/v1/tasks/interpretar` 🔒
+Interpreta lenguaje natural y devuelve una **propuesta** de tarea (IA pasiva:
+nunca la crea; el cliente confirma y llama a `POST /tasks`).
+**Body** (`InterpretarTareaRequest`):
+```json
+{ "texto": "poner la lavadora cada martes, le toca a papá" }
+```
+**200** → `InterpretarTareaResponse` `{ tarea {nombre, asignado_a, frecuencia, prioridad}, mensaje }` (`tarea` es null si no se pudo interpretar o sin API key).
+Rate limit: 20/5 min por IP (compartido con los demás `/interpretar`).
 
 ### `PATCH /api/v1/tasks/{tarea_id}` 🔒
 Actualización parcial (`TareaHogarUpdate`). Uso típico: cambiar `estado` o `prioridad`.

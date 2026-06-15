@@ -15,7 +15,7 @@ class RateLimiter:
     def __init__(self, max_requests: int, window_seconds: int):
         self.max_requests = max_requests
         self.window_seconds = window_seconds
-        self._hits: dict[str, deque] = defaultdict(deque)
+        self._hits: dict[str, deque[float]] = defaultdict(deque)
 
     async def __call__(self, request: Request) -> None:
         ip = request.client.host if request.client else "desconocida"
@@ -29,25 +29,43 @@ class RateLimiter:
         if len(hits) >= self.max_requests:
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                detail="Demasiados intentos desde esta dirección. Espera unos minutos y vuelve a intentarlo."
+                detail="Demasiados intentos desde esta dirección. Espera unos minutos y vuelve a intentarlo.",
             )
         hits.append(now)
 
         # Purga periódica: evitar crecimiento indefinido del diccionario de IPs
         if len(self._hits) > 10_000:
-            inactivas = [k for k, v in self._hits.items() if not v or now - v[-1] > self.window_seconds]
+            inactivas = [
+                k
+                for k, v in self._hits.items()
+                if not v or now - v[-1] > self.window_seconds
+            ]
             for k in inactivas:
                 del self._hits[k]
 
 
 # Límites para endpoints de autenticación (protección contra fuerza bruta)
-login_rate_limiter = RateLimiter(max_requests=10, window_seconds=300)      # 10 intentos / 5 min
-registro_rate_limiter = RateLimiter(max_requests=10, window_seconds=3600)  # 10 registros / hora
+login_rate_limiter = RateLimiter(
+    max_requests=10, window_seconds=300
+)  # 10 intentos / 5 min
+registro_rate_limiter = RateLimiter(
+    max_requests=10, window_seconds=3600
+)  # 10 registros / hora
 # Eliminación de cuenta: re-autentica con contraseña, así que también es fuerza bruta posible
-cuenta_eliminar_rate_limiter = RateLimiter(max_requests=5, window_seconds=3600)  # 5 intentos / hora
+cuenta_eliminar_rate_limiter = RateLimiter(
+    max_requests=5, window_seconds=3600
+)  # 5 intentos / hora
 
 # Endpoints de IA (control de coste/abuso de la API de Gemini). Cada llamada a
 # /calendar/interpretar va directa al LLM (sin caché), de ahí el límite más estricto;
 # /pantry/recetas tiene caché de 1 h, el límite cubre los fallos de caché.
-interpretar_rate_limiter = RateLimiter(max_requests=20, window_seconds=300)   # 20 / 5 min
-recetas_rate_limiter = RateLimiter(max_requests=20, window_seconds=3600)      # 20 / hora
+interpretar_rate_limiter = RateLimiter(
+    max_requests=20, window_seconds=300
+)  # 20 / 5 min
+recetas_rate_limiter = RateLimiter(max_requests=20, window_seconds=3600)  # 20 / hora
+# Sugerencia de metadatos: ligera y puede dispararse al teclear cada producto.
+metadata_rate_limiter = RateLimiter(max_requests=40, window_seconds=300)  # 40 / 5 min
+# Plan de comidas: prompt grande y cacheado 2 h; uso poco frecuente.
+plan_comidas_rate_limiter = RateLimiter(
+    max_requests=10, window_seconds=3600
+)  # 10 / hora

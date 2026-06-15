@@ -36,7 +36,7 @@ alembic revision --autogenerate -m "description"
 
 # Smoke tests (each uses its own separate temp SQLite DB)
 python smoke_test_auth.py       # auth + multi-tenant isolation (12 checks)
-python smoke_test_modules.py    # pantry/calendar/tasks CRUD, validation, isolation (34 checks)
+python smoke_test_modules.py    # pantry/calendar/tasks CRUD + AI endpoints, validation, isolation (43 checks)
 python smoke_test_dashboard.py  # dashboard aggregation/filtering + isolation (19 checks)
 python smoke_test_validation.py # endpoint error contract: 400/401/404/422 (20 checks)
 python smoke_test_legal.py      # GDPR purge, account deletion, LLM anonymization (26 checks)
@@ -69,7 +69,7 @@ npm run ts:check
 # Backend
 cd backend
 python smoke_test_auth.py        # 12/12 must pass
-python smoke_test_modules.py     # 34/34 must pass
+python smoke_test_modules.py     # 43/43 must pass
 python smoke_test_dashboard.py   # 19/19 must pass
 python smoke_test_validation.py  # 20/20 must pass
 python smoke_test_legal.py       # 26/26 must pass
@@ -101,7 +101,24 @@ Dependency injection is done via FastAPI `Depends()` chains defined in `api/deps
 
 ### LLM integration (`services/llm.py`)
 
-Three Gemini functions: `generate_morning_briefing`, `generate_recipe_suggestions`, `interpret_event_text`. All use temperature=0 and thinkingBudget=0. Results are cached in-process with TTL (30 min briefing, 60 min recipes). Each cache key is a SHA-256 hash of the prompt data, so any real data change invalidates the entry automatically. When `GEMINI_API_KEY` is absent, all three functions return static fallback responses — the app works without a key.
+Seven Gemini functions, all via the shared `_call_gemini` helper (temperature=0, thinkingBudget=0):
+`generate_morning_briefing`, `generate_recipe_suggestions`, `interpret_event_text`,
+`interpret_task_text`, `interpret_pantry_text` (multi-item), `suggest_food_metadata`, `generate_meal_plan`.
+The `interpret_*` and `suggest_*` functions use Gemini structured output (`responseSchema`) and follow
+the **AI-passive** rule: they return a proposal the user must confirm before any write. Results that are
+expensive are cached in-process with TTL (briefing 30 min, recipes/meal plan 1–2 h); the cache key is a
+SHA-256 hash of the prompt data. When `GEMINI_API_KEY` is absent, all functions return static fallback
+responses — the app works without a key.
+
+**`_call_gemini` infrastructure**: a single shared `httpx.AsyncClient` (keep-alive pool, closed in the
+app lifespan via `aclose_http_client`), bounded retry with backoff on transient errors (429/5xx/network),
+and `_extract_text` that distinguishes safety blocks / missing candidates / `MAX_TOKENS` truncation.
+The AI endpoints are rate-limited (see `core/rate_limit.py`): `/{calendar,tasks,pantry}/interpretar` share
+20/5 min, `/pantry/recetas` 20/h, `/pantry/sugerir-metadata` 40/5 min, `/pantry/plan-comidas` 10/h.
+
+**Gemini data-tier compliance (RGPD)**: the `GEMINI_API_KEY` must belong to a **billing-enabled** Google AI
+project (where prompts are NOT used to improve Google's products) or Vertex AI with a DPA / EU region. The
+free tier may use prompts for product improvement, which is not acceptable for household personal data.
 
 **LLM anonymization (`services/privacy.py`)**: family names (from structured fields `asignado_a`/`participantes`) are replaced with `Familiar_N` tokens before the briefing prompt leaves for Gemini, and restored in the response. Critical ordering: the cache key is hashed over the *anonymized* prompt and the cached value is the *anonymized* response — reversal always happens after the cache. `generate_morning_briefing` returns `(text, generado_por_ia)`; the flag drives the AI transparency banner (`AIDisclaimerBanner`) in the frontend, which must never label the static fallback as AI.
 

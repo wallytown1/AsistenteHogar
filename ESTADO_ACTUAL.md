@@ -14,6 +14,27 @@
 | F-QA | Ciclo QA mobile: 2 críticos + 2 medios resueltos, 0 errores TS | frontend/src/{api,hooks,state}/ |
 | F-LEGAL | Compliance RGPD/AI Act/stores: purga física, DELETE /auth/cuenta, anonimización LLM, banner IA, SettingsScreen | backend/app/jobs/purge.py, backend/app/services/privacy.py, frontend/src/screens/SettingsScreen.tsx |
 | F-AUDIT | Auditoría post-F-LEGAL: 7 bugs corregidos (B1–B7) + alineación de cifras de tests | backend/app/services/calendar.py, frontend/src/screens/CalendarScreen.tsx, frontend/src/hooks/{useTasks,usePantry}.ts |
+| F-IA-2 | Optimización del flujo Gemini + 4 funciones de IA nuevas (tareas/despensa NL, metadata, plan de comidas) | backend/app/services/llm.py, backend/app/api/routers/{tasks,pantry}.py, backend/app/core/rate_limit.py |
+
+## 🤖 Sesión 2026-06-15 — Optimización de IA + nuevas funciones (backend)
+
+Trabajo de IA en `main` (backend). Lógica de negocio intacta, IA pasiva en todo (propone, el usuario confirma).
+
+**Optimización del flujo Gemini**
+- Cliente `httpx.AsyncClient` **compartido** (pool keep-alive), cerrado en el lifespan (`aclose_http_client`). Adiós al cliente nuevo por llamada.
+- **Reintento con backoff** ante 429/5xx/red; `_extract_text` distingue bloqueo de seguridad, sin candidatos y `MAX_TOKENS`.
+- **Rate-limit** de endpoints de IA: `/{calendar,tasks,pantry}/interpretar` 20/5 min (compartido), `/recetas` 20/h, `/sugerir-metadata` 40/5 min, `/plan-comidas` 10/h.
+- Smoke tests **herméticos** (fuerzan `GEMINI_API_KEY=""`) + test del rate-limit.
+
+**4 funciones de IA nuevas** (reutilizan `_call_gemini` + structured output)
+- `POST /tasks/interpretar` — tarea en lenguaje natural ("poner la lavadora cada martes" → propuesta).
+- `POST /pantry/interpretar` — despensa en lenguaje natural, **multi-item**, resuelve caducidades relativas.
+- `POST /pantry/sugerir-metadata` — categoría + caducidad estimada de un alimento por su nombre.
+- `GET /pantry/plan-comidas` — plan semanal (comida + cena, 7 días) priorizando lo que caduca. Cacheado 2 h.
+
+**Compliance**: los 6 requisitos de `LEGALIDAD.md` siguen cumplidos. Añadido requisito de **tier de Gemini con billing** (no entrenar con los prompts) y tabla de flujos de datos por endpoint en `LEGALIDAD.md`.
+
+**Verificación**: 122 smoke checks (modules 34→43, validation 20→22) + las 4 funciones probadas con Gemini real. **Pendiente**: cableado de UI de las nuevas funciones (irá en la rama del rediseño).
 
 ## 🐞 Sesión 2026-06-13 — Auditoría y corrección de bugs (B1–B7)
 
@@ -158,12 +179,12 @@ IDOR) y se actualizó al diseño real (tenant del JWT) + la arquitectura de comp
 ## 🔧 Verificación mínima antes de cambios
 
 ```bash
-# Backend — suite completa (111 checks). Requiere JWT_SECRET_KEY en el entorno.
+# Backend — suite completa (122 checks). Requiere JWT_SECRET_KEY en el entorno.
 cd backend
 python smoke_test_auth.py        # 12/12
-python smoke_test_modules.py     # 34/34
+python smoke_test_modules.py     # 43/43
 python smoke_test_dashboard.py   # 19/19
-python smoke_test_validation.py  # 20/20
+python smoke_test_validation.py  # 22/22
 python smoke_test_legal.py       # 26/26
 
 # Frontend

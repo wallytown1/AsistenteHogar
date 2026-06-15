@@ -11,11 +11,11 @@ prompt YA anonimizado y el caché almacena la respuesta AÚN anonimizada; la
 reversión se aplica siempre después. Así la caché nunca contiene datos personales.
 """
 import re
-from typing import Iterable, Optional
+from collections.abc import Iterable
 
 
 class AnonimizadorLLM:
-    def __init__(self, nombres: Iterable[Optional[str]]):
+    def __init__(self, nombres: Iterable[str | None]):
         # Deduplicación sin distinguir mayúsculas ('Ana' y 'ana' son la misma
         # persona) y orden determinista (alfabético) para que el mismo conjunto
         # de nombres produzca siempre los mismos tokens y, por tanto, la misma
@@ -25,7 +25,9 @@ class AnonimizadorLLM:
             if n and n.strip():
                 vistos.setdefault(n.strip().casefold(), n.strip())
         unicos = sorted(vistos.values(), key=str.casefold)
-        self._alias = {nombre: f"Familiar_{i}" for i, nombre in enumerate(unicos, start=1)}
+        self._alias = {
+            nombre: f"Familiar_{i}" for i, nombre in enumerate(unicos, start=1)
+        }
 
     @property
     def tiene_nombres(self) -> bool:

@@ -1,7 +1,4 @@
-from typing import Optional
-
-
-def sanitize_text(t: Optional[str]) -> Optional[str]:
+def sanitize_text(t: str | None) -> str | None:
     """Normaliza texto libre quitando los espacios sobrantes en los extremos.
 
     No escapa comillas ni barras invertidas: hacerlo corrompía el texto visible

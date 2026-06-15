@@ -1,3 +1,17 @@
-from app.models.models import Base, Hogar, InventarioAlimento, TareaHogar, EventoCalendario
+from app.database import Base
+from app.models.models import (
+    EventoCalendario,
+    Hogar,
+    InventarioAlimento,
+    TareaHogar,
+    Usuario,
+)
 
-__all__ = ["Base", "Hogar", "InventarioAlimento", "TareaHogar", "EventoCalendario"]
+__all__ = [
+    "Base",
+    "EventoCalendario",
+    "Hogar",
+    "InventarioAlimento",
+    "TareaHogar",
+    "Usuario",
+]

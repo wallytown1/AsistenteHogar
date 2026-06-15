@@ -11,20 +11,37 @@ python = "^3.11"
 [tool.ruff]
 target-version = "py311"
 line-length = 88
+
+[tool.ruff.lint]
 select = [
-    "E",   # pycodestyle errors
-    "W",   # pycodestyle warnings
-    "F",   # pyflakes
-    "I",   # isort
-    "B",   # flake8-bugbear
-    "C4",  # flake8-comprehensions
-    "UP",  # pyupgrade
-    "RUF", # Ruff-specific rules
+    "E",     # pycodestyle errors
+    "W",     # pycodestyle warnings
+    "F",     # pyflakes
+    "I",     # isort
+    "B",     # flake8-bugbear
+    "C4",    # flake8-comprehensions
+    "UP",    # pyupgrade
+    "RUF",   # Ruff-specific rules
+    "ASYNC", # flake8-async (correctitud en código async)
 ]
 ignore = [
-    "D100", # Missing docstring in public module
-    "D104", # Missing docstring in public package
+    # La longitud de línea de CÓDIGO la gobierna el formatter (line-length=88);
+    # los E501 restantes son prompts/instrucciones en español que no tiene sentido
+    # partir a mitad de frase. Recomendación oficial de Ruff al usar el formatter.
+    "E501",
+    # `param = Depends(...)` en los defaults es EL idiom de FastAPI; B008 es un
+    # falso positivo aquí.
+    "B008",
 ]
+
+[tool.ruff.lint.per-file-ignores]
+# En los filtros de SQLAlchemy `Columna == False/True` genera el SQL correcto
+# (`WHERE col = false`); `is False` / `not col` no funcionan en la construcción
+# de queries del ORM. E712 es un falso positivo aquí.
+"app/repositories/*" = ["E712"]
+# main.py importa módulos DESPUÉS de load_dotenv() a propósito: deben ver las
+# variables del .env ya cargadas. E402 es esperado y correcto.
+"app/main.py" = ["E402"]
 
 [tool.ruff.format]
 quote-style = "double"
@@ -32,7 +49,7 @@ indent-style = "space"
 skip-magic-trailing-comma = false
 line-ending = "auto"
 
-[tool.ruff.isort]
+[tool.ruff.lint.isort]
 known-first-party = ["app"]
 
 [tool.mypy]
@@ -40,6 +57,15 @@ python_version = "3.11"
 strict = true
 ignore_missing_imports = true
 exclude = ["alembic/"]
+# Plugin de Pydantic: sin él mypy no entiende los defaults de `Field(...)` y los
+# marca como "missing argument" (falsos positivos). El plugin de SQLAlchemy 2.0
+# (`sqlalchemy.ext.mypy.plugin`) está DEPRECADO y aquí genera más ruido del que
+# arregla; el tipado de modelos se aborda en la tarea de "tipar el backend".
+plugins = ["pydantic.mypy"]
+# Los decoradores de FastAPI (`@router.get(...)`) son untyped; bajo `strict`
+# disparan "untyped decorator makes function untyped" en cada endpoint. Es una
+# acomodación estándar para FastAPI, no un debilitamiento del tipado real.
+disallow_untyped_decorators = false
 
 [[tool.mypy.overrides]]
 module = "tests.*"
