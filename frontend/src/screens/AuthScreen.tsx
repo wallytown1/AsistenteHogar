@@ -1,23 +1,25 @@
 import React, { useState } from 'react';
 import {
   View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  ActivityIndicator,
   KeyboardAvoidingView,
   ScrollView,
   Platform,
   Alert,
+  Pressable,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { apiRequest } from '../api/api';
 import { useAuthStore } from '../state/authStore';
 import { TokenResponse } from '../types/types';
+import { colors, radius, spacing } from '../theme/tokens';
+import { AppText, Button, Field, Icon } from '../components/ui';
+import { haptics } from '../lib/haptics';
 
 type Modo = 'login' | 'registro';
 
 export default function AuthScreen() {
   const setSession = useAuthStore((s) => s.setSession);
+  const insets = useSafeAreaInsets();
 
   const [modo, setModo] = useState<Modo>('login');
   const [email, setEmail] = useState('');
@@ -39,6 +41,7 @@ export default function AuthScreen() {
   const handleSubmit = async () => {
     const errorValidacion = validar();
     if (errorValidacion) {
+      haptics.warning();
       Alert.alert('Datos incompletos', errorValidacion);
       return;
     }
@@ -59,8 +62,10 @@ export default function AuthScreen() {
             method: 'POST',
             json: { email: email.trim().toLowerCase(), password },
           });
+      haptics.success();
       await setSession(session);
     } catch (err: any) {
+      haptics.error();
       Alert.alert(
         esRegistro ? 'No se pudo crear el hogar' : 'No se pudo iniciar sesión',
         err.message || 'Error desconocido de red.'
@@ -70,115 +75,111 @@ export default function AuthScreen() {
     }
   };
 
+  const seleccionarModo = (m: Modo) => { haptics.selection(); setModo(m); };
+
   return (
     <KeyboardAvoidingView
-      className="flex-1 bg-[#fafafa]"
+      style={{ flex: 1, backgroundColor: colors.bg }}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <ScrollView
-        contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }}
+        contentContainerStyle={{
+          flexGrow: 1,
+          justifyContent: 'center',
+          paddingHorizontal: spacing.xl,
+          paddingTop: insets.top + spacing.xxxl,
+          paddingBottom: insets.bottom + spacing.xxxl,
+        }}
         keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
       >
-        <View className="px-6 py-12">
-          {/* Cabecera de marca */}
-          <View className="items-center mb-10">
-            <View className="bg-black rounded-full p-4 mb-4">
-              <Text className="text-white text-3xl">🏠</Text>
-            </View>
-            <Text className="text-black text-2xl font-bold">Asistente del Hogar</Text>
-            <Text className="text-gray-400 text-sm mt-1">
-              {esRegistro ? 'Crea tu hogar y empieza a organizarlo' : 'Inicia sesión en tu hogar'}
-            </Text>
+        {/* Cabecera de marca */}
+        <View style={{ alignItems: 'center', marginBottom: spacing.xxxl }}>
+          <View style={{ width: 72, height: 72, borderRadius: radius.xl, backgroundColor: colors.brand, alignItems: 'center', justifyContent: 'center', marginBottom: spacing.lg }}>
+            <Icon name="home" size={34} color={colors.white} />
           </View>
-
-          {/* Selector login / registro */}
-          <View className="flex-row bg-gray-100 rounded-full p-1 mb-8">
-            <TouchableOpacity
-              className={`flex-1 rounded-full py-2.5 items-center ${modo === 'login' ? 'bg-black' : ''}`}
-              onPress={() => setModo('login')}
-              accessibilityLabel="Cambiar a inicio de sesión"
-            >
-              <Text className={`text-sm font-bold ${modo === 'login' ? 'text-white' : 'text-gray-500'}`}>
-                Iniciar sesión
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              className={`flex-1 rounded-full py-2.5 items-center ${esRegistro ? 'bg-black' : ''}`}
-              onPress={() => setModo('registro')}
-              accessibilityLabel="Cambiar a registro de hogar"
-            >
-              <Text className={`text-sm font-bold ${esRegistro ? 'text-white' : 'text-gray-500'}`}>
-                Crear hogar
-              </Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Formulario */}
-          {esRegistro && (
-            <>
-              <Text className="text-gray-500 text-xs font-semibold mb-1.5 ml-1">NOMBRE DEL HOGAR</Text>
-              <TextInput
-                className="bg-white border border-gray-200 rounded-2xl px-4 py-3.5 text-black text-sm mb-4"
-                placeholder="Ej: Familia Navarro"
-                placeholderTextColor="#9ca3af"
-                value={nombreHogar}
-                onChangeText={setNombreHogar}
-                autoCapitalize="words"
-                editable={!enviando}
-              />
-              <Text className="text-gray-500 text-xs font-semibold mb-1.5 ml-1">TU NOMBRE</Text>
-              <TextInput
-                className="bg-white border border-gray-200 rounded-2xl px-4 py-3.5 text-black text-sm mb-4"
-                placeholder="Ej: María"
-                placeholderTextColor="#9ca3af"
-                value={nombre}
-                onChangeText={setNombre}
-                autoCapitalize="words"
-                editable={!enviando}
-              />
-            </>
-          )}
-
-          <Text className="text-gray-500 text-xs font-semibold mb-1.5 ml-1">EMAIL</Text>
-          <TextInput
-            className="bg-white border border-gray-200 rounded-2xl px-4 py-3.5 text-black text-sm mb-4"
-            placeholder="tu@email.com"
-            placeholderTextColor="#9ca3af"
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            autoCorrect={false}
-            editable={!enviando}
-          />
-
-          <Text className="text-gray-500 text-xs font-semibold mb-1.5 ml-1">CONTRASEÑA</Text>
-          <TextInput
-            className="bg-white border border-gray-200 rounded-2xl px-4 py-3.5 text-black text-sm mb-8"
-            placeholder="Mínimo 8 caracteres"
-            placeholderTextColor="#9ca3af"
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-            autoCapitalize="none"
-            editable={!enviando}
-          />
-
-          <TouchableOpacity
-            className={`rounded-full py-4 items-center ${enviando ? 'bg-gray-300' : 'bg-black'}`}
-            onPress={handleSubmit}
-            disabled={enviando}
-            accessibilityLabel={esRegistro ? 'Crear hogar y cuenta' : 'Iniciar sesión'}
-          >
-            {enviando ? (
-              <ActivityIndicator color="#ffffff" />
-            ) : (
-              <Text className="text-white text-base font-bold">
-                {esRegistro ? 'Crear hogar' : 'Entrar'}
-              </Text>
-            )}
-          </TouchableOpacity>
+          <AppText variant="title">Asistente del Hogar</AppText>
+          <AppText variant="caption" color={colors.inkMuted} center style={{ marginTop: 4 }}>
+            {esRegistro ? 'Crea tu hogar y empieza a organizarlo' : 'Inicia sesión en tu hogar'}
+          </AppText>
         </View>
+
+        {/* Selector login / registro */}
+        <View style={{ flexDirection: 'row', backgroundColor: colors.track, borderRadius: radius.pill, padding: 4, marginBottom: spacing.xxl }}>
+          {(['login', 'registro'] as Modo[]).map((m) => {
+            const activo = modo === m;
+            return (
+              <Pressable
+                key={m}
+                onPress={() => seleccionarModo(m)}
+                accessibilityLabel={m === 'login' ? 'Cambiar a inicio de sesión' : 'Cambiar a registro de hogar'}
+                style={{
+                  flex: 1,
+                  borderRadius: radius.pill,
+                  paddingVertical: 10,
+                  alignItems: 'center',
+                  backgroundColor: activo ? colors.card : 'transparent',
+                }}
+              >
+                <AppText variant="captionStrong" color={activo ? colors.ink : colors.inkMuted}>
+                  {m === 'login' ? 'Iniciar sesión' : 'Crear hogar'}
+                </AppText>
+              </Pressable>
+            );
+          })}
+        </View>
+
+        {/* Formulario */}
+        {esRegistro && (
+          <>
+            <Field
+              label="Nombre del hogar"
+              placeholder="Ej: Familia Navarro"
+              value={nombreHogar}
+              onChangeText={setNombreHogar}
+              autoCapitalize="words"
+              editable={!enviando}
+            />
+            <Field
+              label="Tu nombre"
+              placeholder="Ej: María"
+              value={nombre}
+              onChangeText={setNombre}
+              autoCapitalize="words"
+              editable={!enviando}
+            />
+          </>
+        )}
+
+        <Field
+          label="Email"
+          placeholder="tu@email.com"
+          value={email}
+          onChangeText={setEmail}
+          keyboardType="email-address"
+          autoCapitalize="none"
+          autoCorrect={false}
+          editable={!enviando}
+        />
+
+        <Field
+          label="Contraseña"
+          placeholder="Mínimo 8 caracteres"
+          value={password}
+          onChangeText={setPassword}
+          secureTextEntry
+          autoCapitalize="none"
+          editable={!enviando}
+          containerStyle={{ marginBottom: spacing.xxl }}
+        />
+
+        <Button
+          label={esRegistro ? 'Crear hogar' : 'Entrar'}
+          icon={esRegistro ? 'add-circle-outline' : 'log-in-outline'}
+          size="lg"
+          loading={enviando}
+          onPress={handleSubmit}
+        />
       </ScrollView>
     </KeyboardAvoidingView>
   );

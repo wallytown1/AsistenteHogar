@@ -15,6 +15,7 @@
 | F-LEGAL | Compliance RGPD/AI Act/stores: purga física, DELETE /auth/cuenta, anonimización LLM, banner IA, SettingsScreen | backend/app/jobs/purge.py, backend/app/services/privacy.py, frontend/src/screens/SettingsScreen.tsx |
 | F-AUDIT | Auditoría post-F-LEGAL: 7 bugs corregidos (B1–B7) + alineación de cifras de tests | backend/app/services/calendar.py, frontend/src/screens/CalendarScreen.tsx, frontend/src/hooks/{useTasks,usePantry}.ts |
 | F-IA-2 | Optimización del flujo Gemini + 4 funciones de IA nuevas (tareas/despensa NL, metadata, plan de comidas) | backend/app/services/llm.py, backend/app/api/routers/{tasks,pantry}.py, backend/app/core/rate_limit.py |
+| F-UI 🎨 | Rediseño visual nativo iOS/Android | frontend/src/theme/, frontend/src/components/ui/, frontend/src/lib/, las 6 pantallas |
 
 ## 🤖 Sesión 2026-06-15 — Optimización de IA + nuevas funciones (backend)
 
@@ -35,6 +36,42 @@ Trabajo de IA en `main` (backend). Lógica de negocio intacta, IA pasiva en todo
 **Compliance**: los 6 requisitos de `LEGALIDAD.md` siguen cumplidos. Añadido requisito de **tier de Gemini con billing** (no entrenar con los prompts) y tabla de flujos de datos por endpoint en `LEGALIDAD.md`.
 
 **Verificación**: 122 smoke checks (modules 34→43, validation 20→22) + las 4 funciones probadas con Gemini real. **Pendiente**: cableado de UI de las nuevas funciones (irá en la rama del rediseño).
+
+## 🎨 Sesión 2026-06-13 — Rediseño visual nativo (rama `redesign/native-ui`)
+
+Rediseño completo del frontend con un **lenguaje visual nuevo (con color)** para que la app
+se sienta nativa en iOS y Android. Hecho en la rama `redesign/native-ui` para poder comparar
+contra `main` antes de fusionar. Lógica de negocio preservada al 100%.
+
+**Sistema de diseño nuevo**
+- `src/theme/tokens.ts` — fuente única de color, tipografía, espaciado, radios y sombras (por plataforma). Marca índigo `#6366F1` + acentos por módulo (despensa verde, calendario índigo, tareas ámbar).
+- `src/components/ui/` — 14 componentes reutilizables: `Screen`, `Card`, `Button`, `IconButton`, `Chip`, `StatCard`, `SectionHeader`, `Fab`, `Badge`, `EmptyState`, `Field`, `AppText`, `Icon`/`FoodIcon`, `LoadingView`/`ErrorView`.
+- `src/lib/haptics.ts` — wrapper seguro sobre `expo-haptics`; `src/lib/categoria.ts` — iconos de comida por categoría.
+
+**Mejoras de nativismo**
+1. Iconos vectoriales (`@expo/vector-icons`: Ionicons + MaterialCommunityIcons) — **cero emoji** en la UI; tab bar con iconos relleno/contorno.
+2. Safe areas reales (`Screen` + `useSafeAreaInsets`) — fin de los `paddingTop` hardcodeados; FAB y tab bar respetan el inset inferior.
+3. Sabor de plataforma: ripple Material en Android, `Switch` nativo, sombras iOS vs elevación Android.
+4. Feedback háptico en crear/borrar/confirmar/toggles.
+5. Tipografía con escala definida.
+6. Pull-to-refresh nativo en Dashboard, Despensa, Calendario y Tareas.
+
+**Decisión técnica**: la UI deja de usar NativeWind `className` y pasa a StyleSheet + tokens
+(tipado robusto, control fino). NativeWind queda instalado pero sin uso de estilo.
+
+**Dependencia añadida**: `expo-haptics` (vía `expo install`).
+
+**Verificación**: `npm run ts:check` → 0 errores · 0 referencias a `className` en `src/` ·
+`expo export` (bundle Metro) OK sin errores de imports/runtime.
+
+**Revisión post-rediseño (5 correcciones aplicadas)**
+1. **FAB demasiado alto** — `Fab` sumaba `insets.bottom + 78`, pero el área de la pantalla ya excluye la tab bar y su safe-area; ahora flota a `bottom: 20` justo sobre la barra.
+2. **Flash de loader en pull-to-refresh** — las 4 pantallas con datos hacían `if (isLoading) return <LoadingView/>`; ahora el loader completo solo aparece en la carga inicial (sin datos) y los refrescos usan el spinner nativo.
+3. **Botones en `loading` se veían grises** — `Button` aplicaba aspecto deshabilitado durante la carga; ahora mantiene su color con spinner del color correcto (`busy` accesible).
+4. **Imports/variables sin usar** — retirados (`Badge` en Pantry, `tasksLoading` en Dashboard); `tsc --noUnusedLocals` limpio en el código nuevo.
+5. **Modal de Tareas sin `maxHeight`** — añadido `88%` para evitar corte con el teclado en pantallas pequeñas (igual que Despensa/Calendario).
+
+Pendiente: validación visual en dispositivo antes de fusionar a `main`.
 
 ## 🐞 Sesión 2026-06-13 — Auditoría y corrección de bugs (B1–B7)
 
