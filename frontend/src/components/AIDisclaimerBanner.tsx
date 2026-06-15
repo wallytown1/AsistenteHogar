@@ -1,5 +1,8 @@
 import React from 'react';
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
+import { colors, radius, spacing } from '../theme/tokens';
+import { AppText } from './ui/AppText';
+import { Icon } from './ui/Icon';
 
 interface AIDisclaimerBannerProps {
   /** Texto alternativo para contextos distintos del briefing (p. ej. propuestas de evento) */
@@ -14,14 +17,25 @@ interface AIDisclaimerBannerProps {
 export default function AIDisclaimerBanner({ texto }: AIDisclaimerBannerProps) {
   return (
     <View
-      className="flex-row items-center bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 mb-3"
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        backgroundColor: colors.brandSoft,
+        borderWidth: 1,
+        borderColor: colors.border,
+        borderRadius: radius.lg,
+        paddingHorizontal: spacing.md,
+        paddingVertical: spacing.sm + 2,
+        marginBottom: spacing.md,
+      }}
       accessibilityRole="text"
       accessibilityLabel="Aviso de contenido generado por inteligencia artificial"
     >
-      <Text className="text-xs mr-2">🤖</Text>
-      <Text className="text-gray-500 text-[10px] leading-4 flex-1 font-medium">
+      <Icon name="sparkles" size={14} color={colors.brand} />
+      <AppText variant="micro" color={colors.inkMuted} style={{ flex: 1, lineHeight: 15 }}>
         {texto ?? 'Este resumen ha sido generado por IA y puede contener imprecisiones.'}
-      </Text>
+      </AppText>
     </View>
   );
 }

@@ -139,6 +139,16 @@ with TestClient(app) as client:
     check("Tarea con comillas intacta en el dashboard (sin doble escape)", nombre_con_comillas in nombres_dash,
           f"(dashboard={nombres_dash!r})")
 
+    # ============ Rate limiting de IA: /calendar/interpretar (20 / 5 min) ============
+    # Sin GEMINI_API_KEY el endpoint responde 200 (fallback) al instante, así que
+    # podemos verificar que el limitador corta a partir de la 21ª llamada.
+    print("\n--- Rate limit de IA (/calendar/interpretar) ---")
+    body_ia = {"texto": "cena el viernes a las 21h", "fecha_referencia": "2026-06-19T10:00:00+02:00"}
+    codigos = [client.post("/api/v1/calendar/interpretar", headers=h, json=body_ia).status_code for _ in range(20)]
+    check("Las primeras 20 llamadas a /interpretar pasan (200)", all(c == 200 for c in codigos), f"(códigos={sorted(set(codigos))})")
+    r = client.post("/api/v1/calendar/interpretar", headers=h, json=body_ia)
+    check("La llamada 21 a /interpretar devuelve 429 (rate limit IA)", r.status_code == 429, f"(status={r.status_code})")
+
 print()
 if fallos:
     print(f"RESULTADO: {len(fallos)} fallos -> {fallos}")

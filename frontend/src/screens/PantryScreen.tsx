@@ -1,37 +1,37 @@
 import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  TextInput,
-  Modal,
-  ScrollView,
-  Alert,
-  ActivityIndicator
-} from 'react-native';
+import { View, Modal, ScrollView, Alert, Switch, Pressable, ActivityIndicator } from 'react-native';
 import { usePantry, getDiasParaCaducar } from '../hooks/usePantry';
+import { useExpiryNotifications } from '../hooks/useExpiryNotifications';
 import { AlimentoItem, RecetaSugerida, RecetasSugeridasResponse } from '../types/types';
 import { apiRequest } from '../api/api';
 import AIDisclaimerBanner from '../components/AIDisclaimerBanner';
+import { colors, radius, spacing } from '../theme/tokens';
+import {
+  Screen,
+  Card,
+  StatCard,
+  Button,
+  IconButton,
+  Field,
+  Fab,
+  AppText,
+  Icon,
+  FoodIcon,
+  EmptyState,
+  LoadingView,
+  ErrorView,
+} from '../components/ui';
+import { getCategoriaIcon } from '../lib/categoria';
+import { haptics } from '../lib/haptics';
 
 const UMBRAL_BAJO_STOCK = 1;
 
-function getItemStatus(item: AlimentoItem): { text: string; color: string; bar: string } {
+function getItemStatus(item: AlimentoItem): { text: string; color: string } {
   const dias = getDiasParaCaducar(item.fecha_caducidad);
-  if (dias !== null && dias <= 0) return { text: 'Caducado', color: 'text-red-600', bar: 'bg-red-600' };
-  if (dias !== null && dias <= 2) return { text: 'Caduca pronto', color: 'text-amber-500', bar: 'bg-amber-500' };
-  if (item.cantidad <= UMBRAL_BAJO_STOCK) return { text: 'Bajo stock', color: 'text-red-500', bar: 'bg-red-500' };
-  return { text: 'Stock correcto', color: 'text-green-500', bar: 'bg-green-500' };
-}
-
-function getCategoriaEmoji(categoria: string): string {
-  const c = categoria.toLowerCase();
-  if (c.includes('lácteo') || c.includes('lacteo')) return '🥛';
-  if (c.includes('carne')) return '🥩';
-  if (c.includes('fruta')) return '🍎';
-  if (c.includes('verdura') || c.includes('vegetal')) return '🥦';
-  if (c.includes('bebida')) return '🧃';
-  return '🥫';
+  if (dias !== null && dias <= 0) return { text: 'Caducado', color: colors.danger };
+  if (dias !== null && dias <= 2) return { text: 'Caduca pronto', color: colors.warning };
+  if (item.cantidad <= UMBRAL_BAJO_STOCK) return { text: 'Bajo stock', color: colors.danger };
+  return { text: 'Stock correcto', color: colors.success };
 }
 
 export default function PantryScreen() {
@@ -45,25 +45,23 @@ export default function PantryScreen() {
     addItem,
     updateQuantity,
     deleteItem,
-    refetch
+    refetch,
   } = usePantry();
+  // Programa notificaciones locales para alimentos próximos a caducar (≤3 días).
+  useExpiryNotifications(items);
   const [modalVisible, setModalVisible] = useState(false);
-  
-  // Inputs de Filtros
+
   const [filtroCategoria, setFiltroCategoria] = useState('');
   const [soloBajoStock, setSoloBajoStock] = useState(false);
 
-  // Formulario nuevo producto
   const [nombre, setNombre] = useState('');
   const [cantidad, setCantidad] = useState('');
   const [unidad, setUnidad] = useState('unidades');
   const [categoria, setCategoria] = useState('Despensa');
   const [fechaCaducidad, setFechaCaducidad] = useState('');
 
-  // Checkbox de selección por lote
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
 
-  // Recetas sugeridas por IA
   const [recetas, setRecetas] = useState<RecetaSugerida[]>([]);
   const [recetasMensaje, setRecetasMensaje] = useState<string | null>(null);
   const [recetasLoading, setRecetasLoading] = useState(false);
@@ -88,34 +86,14 @@ export default function PantryScreen() {
     }
   };
 
-  if (isLoading) {
-    return (
-      <View className="flex-1 bg-[#fafafa] justify-center items-center">
-        <ActivityIndicator size="large" color="#000000" />
-        <Text className="text-gray-500 mt-4 text-sm font-medium">Cargando inventario de la despensa...</Text>
-      </View>
-    );
-  }
-
-  if (error) {
-    return (
-      <View className="flex-1 bg-[#fafafa] justify-center items-center px-6">
-        <Text className="text-red-500 text-center text-base mb-4 font-semibold">{error}</Text>
-        <TouchableOpacity
-          className="bg-black rounded-full px-6 py-3"
-          onPress={refetch}
-          accessibilityLabel="Reintentar carga de despensa"
-        >
-          <Text className="text-white font-bold">Reintentar</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
+  // Loader completo solo en carga inicial; en refrescos se usa el spinner nativo.
+  if (isLoading && items.length === 0)
+    return <LoadingView message="Cargando inventario de la despensa..." />;
+  if (error && items.length === 0) return <ErrorView message={error} onRetry={refetch} />;
 
   const toggleSelectProduct = (id: string) => {
-    setSelectedItems(prev =>
-      prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
-    );
+    haptics.selection();
+    setSelectedItems((prev) => (prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]));
   };
 
   const handleAdd = () => {
@@ -123,440 +101,635 @@ export default function PantryScreen() {
       Alert.alert('Campo requerido', 'El nombre del producto es obligatorio.');
       return;
     }
-    
     const qty = parseFloat(cantidad);
-    // Validación estricta equivalente a Pydantic: cantidad no negativa ni cero
     if (isNaN(qty) || qty <= 0) {
-      Alert.alert('Valor no válido', 'La cantidad del producto debe ser un número estrictamente mayor que 0.');
+      Alert.alert(
+        'Valor no válido',
+        'La cantidad del producto debe ser un número estrictamente mayor que 0.'
+      );
       return;
     }
 
     // IA Pasiva - Confirmar adición manual del usuario
     Alert.alert(
-      "Confirmar adición",
+      'Confirmar adición',
       `¿Deseas agregar ${qty} ${unidad} de "${nombre}" al inventario?`,
       [
-        { text: "Cancelar", style: "cancel" },
-        { text: "Aceptar", onPress: () => {
-          addItem({
-            nombre: nombre.trim(),
-            cantidad: qty,
-            unidad: unidad.trim(),
-            categoria: categoria.trim(),
-            fecha_caducidad: fechaCaducidad || null,
-          });
-          setModalVisible(false);
-          setNombre(''); setCantidad(''); setFechaCaducidad('');
-          Alert.alert("Éxito", "El producto ha sido registrado.");
-        }}
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Aceptar',
+          onPress: () => {
+            addItem({
+              nombre: nombre.trim(),
+              cantidad: qty,
+              unidad: unidad.trim(),
+              categoria: categoria.trim(),
+              fecha_caducidad: fechaCaducidad || null,
+            });
+            haptics.success();
+            setModalVisible(false);
+            setNombre('');
+            setCantidad('');
+            setFechaCaducidad('');
+            Alert.alert('Éxito', 'El producto ha sido registrado.');
+          },
+        },
       ]
     );
   };
 
   const handleBatchAction = (action: string) => {
     if (selectedItems.length === 0) {
-      Alert.alert("Selección vacía", "Por favor, selecciona al menos un artículo.");
+      Alert.alert('Selección vacía', 'Por favor, selecciona al menos un artículo.');
       return;
     }
-
     Alert.alert(
-      "Confirmar acción por lote",
+      'Confirmar acción por lote',
       `¿Deseas aplicar la acción "${action}" sobre los ${selectedItems.length} artículos seleccionados?`,
       [
-        { text: "No", style: "cancel" },
-        { text: "Sí", onPress: () => {
-          if (action === 'usar') {
-            const promises = selectedItems.map(id => apiRequest(`/pantry/${id}`, { method: 'DELETE' }));
-            Promise.all(promises)
-              .then(() => {
-                refetch();
-                Alert.alert("Inventario actualizado", "Los artículos seleccionados han sido marcados como usados.");
-              })
-              .catch(err => {
-                Alert.alert("Error", err.message || "Error al eliminar artículos.");
-              })
-              .finally(() => {
-                setSelectedItems([]);
+        { text: 'No', style: 'cancel' },
+        {
+          text: 'Sí',
+          onPress: () => {
+            if (action === 'usar') {
+              const promises = selectedItems.map((id) =>
+                apiRequest(`/pantry/${id}`, { method: 'DELETE' })
+              );
+              Promise.all(promises)
+                .then(() => {
+                  refetch();
+                  Alert.alert(
+                    'Inventario actualizado',
+                    'Los artículos seleccionados han sido marcados como usados.'
+                  );
+                })
+                .catch((err) => {
+                  Alert.alert('Error', err.message || 'Error al eliminar artículos.');
+                })
+                .finally(() => {
+                  setSelectedItems([]);
+                });
+            } else {
+              const promises = selectedItems.map((id) => {
+                const item = items.find((i) => i.id === id);
+                const currentQty = item ? item.cantidad : 0;
+                return apiRequest(`/pantry/${id}`, {
+                  method: 'PATCH',
+                  json: { cantidad: currentQty + 1 },
+                });
               });
-          } else {
-            const promises = selectedItems.map(id => {
-              const item = items.find(i => i.id === id);
-              const currentQty = item ? item.cantidad : 0;
-              return apiRequest(`/pantry/${id}`, {
-                method: 'PATCH',
-                json: { cantidad: currentQty + 1 }
-              });
-            });
-            Promise.all(promises)
-              .then(() => {
-                refetch();
-                Alert.alert("Inventario actualizado", "Se ha incrementado el stock de los artículos seleccionados.");
-              })
-              .catch(err => {
-                Alert.alert("Error", err.message || "Error al incrementar el stock.");
-              })
-              .finally(() => {
-                setSelectedItems([]);
-              });
-          }
-        }}
+              Promise.all(promises)
+                .then(() => {
+                  refetch();
+                  Alert.alert(
+                    'Inventario actualizado',
+                    'Se ha incrementado el stock de los artículos seleccionados.'
+                  );
+                })
+                .catch((err) => {
+                  Alert.alert('Error', err.message || 'Error al incrementar el stock.');
+                })
+                .finally(() => {
+                  setSelectedItems([]);
+                });
+            }
+          },
+        },
       ]
     );
   };
 
-  // Productos con bajo stock real (para recomendaciones de compra)
-  const itemsBajoStock = items.filter(i => i.cantidad <= UMBRAL_BAJO_STOCK);
+  const itemsBajoStock = items.filter((i) => i.cantidad <= UMBRAL_BAJO_STOCK);
+
+  const itemsFiltrados = items.filter((item) => {
+    if (filtroCategoria && !item.categoria.toLowerCase().includes(filtroCategoria.toLowerCase()))
+      return false;
+    if (soloBajoStock) return item.cantidad <= UMBRAL_BAJO_STOCK;
+    return true;
+  });
 
   return (
-    <View className="flex-1 bg-[#fafafa]">
-      <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 56, paddingBottom: 120 }}>
-        
-        {/* Cabecera del Gestor de Despensa */}
-        <View className="flex-row justify-between items-center mb-5">
-          <Text className="text-black text-xl font-bold">Despensa</Text>
+    <View style={{ flex: 1, backgroundColor: colors.bg }}>
+      <Screen bottomExtra={72} refreshing={isLoading} onRefresh={refetch}>
+        <AppText variant="display" style={{ marginBottom: spacing.lg }}>
+          Despensa
+        </AppText>
+
+        {/* Métricas */}
+        <View style={{ flexDirection: 'row', gap: spacing.md, marginBottom: spacing.lg }}>
+          <StatCard
+            label="Stock total"
+            value={`${porcentajeStock}%`}
+            icon="cube-outline"
+            accent={colors.pantry}
+            accentSoft={colors.pantrySoft}
+            progress={porcentajeStock}
+            footnote={`${itemsDisponibles} items disponibles`}
+          />
+          <StatCard
+            label="A caducar"
+            value={String(alertasCaducidad.length)}
+            icon="alert-circle-outline"
+            accent={colors.warning}
+            accentSoft={colors.warningSoft}
+            footnote="Notificaciones activas"
+          />
         </View>
 
-        {/* Bloque de Métricas */}
-        <View className="flex-row gap-3 mb-5">
-          {/* Stock Total */}
-          <View className="flex-1 bg-white border border-gray-100 rounded-3xl p-4 shadow-sm items-center">
-            <View className="flex-row justify-between items-center w-full mb-2">
-              <Text className="text-gray-400 text-[10px] font-bold uppercase">Stock total</Text>
-              <Text className="text-base">📦</Text>
+        {/* Recomendaciones de compra */}
+        {itemsBajoStock.length > 0 ? (
+          <Card
+            style={{ marginBottom: spacing.lg }}
+            tint={colors.warningSoft}
+            borderColor="#FBE7BE"
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+              <Icon name="cart-outline" size={16} color={colors.warning} />
+              <AppText variant="label" color="#B45309">
+                Recomendaciones de compra
+              </AppText>
             </View>
-            <View className="w-16 h-16 rounded-full bg-black justify-center items-center mb-2">
-              <Text className="text-white text-lg font-bold">{porcentajeStock}%</Text>
-            </View>
-            <Text className="text-black text-xs font-bold">Items disponibles: {itemsDisponibles}</Text>
-            {/* Barra de progreso horizontal */}
-            <View className="w-full h-1.5 bg-gray-100 rounded-full mt-2 overflow-hidden">
-              <View className="h-full bg-black" style={{ width: `${porcentajeStock}%` }} />
-            </View>
-          </View>
+            <AppText variant="captionStrong" color="#92400E">
+              {itemsBajoStock.map((i) => i.nombre).join(', ')}
+            </AppText>
+          </Card>
+        ) : null}
 
-          {/* A caducar pronto */}
-          <View className="flex-1 bg-white border border-gray-100 rounded-3xl p-4 shadow-sm items-center justify-between">
-            <View className="flex-row justify-between items-center w-full mb-2">
-              <Text className="text-gray-400 text-[10px] font-bold uppercase">A caducar pronto</Text>
-              <Text className="text-base">⚠️</Text>
-            </View>
-            <View className="w-16 h-16 rounded-full bg-black justify-center items-center mb-2">
-              <Text className="text-white text-lg font-bold">{alertasCaducidad.length}</Text>
-            </View>
-            <Text className="text-black text-[10px] text-center font-bold">Notificaciones activas para {alertasCaducidad.length} artículos</Text>
-          </View>
-        </View>
-
-        {/* Recomendaciones de Compra (calculadas del stock real) */}
-        {itemsBajoStock.length > 0 && (
-          <View className="bg-white border border-gray-100 rounded-3xl p-4 mb-5 shadow-sm">
-            <Text className="text-gray-400 text-[10px] font-bold uppercase mb-0.5">Recomendaciones de compra</Text>
-            <Text className="text-black text-xs font-bold">
-              {itemsBajoStock.map(i => i.nombre).join(', ')}
-            </Text>
-            <Text className="text-gray-400 text-[9px] mt-1">Artículos con stock bajo en tu inventario</Text>
-          </View>
-        )}
-
-        {/* Sección de Filtros */}
-        <View className="bg-white border border-gray-100 rounded-3xl p-5 mb-5 shadow-sm">
-          <Text className="text-black text-xs font-bold mb-3">Filtros</Text>
-
-          <TextInput
+        {/* Filtros */}
+        <Card style={{ marginBottom: spacing.lg }}>
+          <AppText variant="captionStrong" style={{ marginBottom: spacing.md }}>
+            Filtros
+          </AppText>
+          <Field
             placeholder="Categoría (ej. Lácteos)"
-            placeholderTextColor="#94a3b8"
-            className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-black text-xs mb-3 font-medium"
             value={filtroCategoria}
             onChangeText={setFiltroCategoria}
+            containerStyle={{ marginBottom: spacing.md }}
           />
+          <View
+            style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}
+          >
+            <AppText variant="caption" color={colors.inkMuted}>
+              Solo mostrar bajo stock
+            </AppText>
+            <Switch
+              value={soloBajoStock}
+              onValueChange={(v) => {
+                haptics.selection();
+                setSoloBajoStock(v);
+              }}
+              trackColor={{ false: colors.track, true: colors.pantry }}
+              thumbColor={colors.white}
+              ios_backgroundColor={colors.track}
+            />
+          </View>
+        </Card>
 
-          <View className="flex-row justify-between items-center">
-            <Text className="text-gray-600 text-xs font-semibold">Solo mostrar bajo stock</Text>
-            <TouchableOpacity
-              onPress={() => setSoloBajoStock(!soloBajoStock)}
-              className="w-5 h-5 rounded border border-gray-300 items-center justify-center bg-gray-50"
-            >
-              {soloBajoStock && <View className="w-3 h-3 bg-black rounded" />}
-            </TouchableOpacity>
+        {/* Acciones por lote */}
+        <View style={{ marginBottom: spacing.lg }}>
+          <AppText variant="label" color={colors.inkFaint} style={{ marginBottom: spacing.sm }}>
+            Acciones por lote{selectedItems.length > 0 ? ` (${selectedItems.length})` : ''}
+          </AppText>
+          <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+            <View style={{ flex: 1 }}>
+              <Button
+                label="Marcar usado"
+                icon="checkmark-done-outline"
+                variant="secondary"
+                size="sm"
+                onPress={() => handleBatchAction('usar')}
+              />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Button
+                label="Agregar más"
+                icon="add"
+                variant="secondary"
+                size="sm"
+                onPress={() => handleBatchAction('agregar')}
+              />
+            </View>
           </View>
         </View>
 
-        {/* Acciones por Lote */}
-        <View className="mb-5">
-          <Text className="text-gray-400 text-[10px] font-bold uppercase mb-2">Acciones por lote</Text>
-          <View className="flex-row gap-2">
-            <TouchableOpacity 
-              onPress={() => handleBatchAction('usar')}
-              className="flex-1 bg-black rounded-full py-3 items-center"
-            >
-              <Text className="text-white text-xs font-bold">Marcar como usado</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              onPress={() => handleBatchAction('agregar')}
-              className="flex-1 bg-black rounded-full py-3 items-center"
-            >
-              <Text className="text-white text-xs font-bold">Agregar más</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* Listado de Tarjetas de Inventario */}
-        <View className="mb-6">
-          {items
-            .filter(item => {
-              if (filtroCategoria && !item.categoria.toLowerCase().includes(filtroCategoria.toLowerCase())) return false;
-              if (soloBajoStock) return item.cantidad <= UMBRAL_BAJO_STOCK;
-              return true;
-            })
-            .map(item => {
-              const status = getItemStatus(item);
-              const isSelected = selectedItems.includes(item.id);
-
-              return (
-                <View key={item.id} className="bg-white border border-gray-100 rounded-3xl p-4 mb-3 shadow-sm flex-row items-center">
-                  
-                  {/* Checkbox selección lote */}
-                  <TouchableOpacity 
+        {/* Listado */}
+        {itemsFiltrados.length === 0 ? (
+          <Card style={{ marginBottom: spacing.lg }}>
+            <EmptyState
+              icon="basket-outline"
+              accent={colors.pantry}
+              accentSoft={colors.pantrySoft}
+              title="Sin productos"
+              subtitle="Pulsa + para añadir el primer producto a tu despensa."
+            />
+          </Card>
+        ) : (
+          itemsFiltrados.map((item) => {
+            const status = getItemStatus(item);
+            const isSelected = selectedItems.includes(item.id);
+            return (
+              <Card key={item.id} padding={spacing.lg} style={{ marginBottom: spacing.md }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  {/* Checkbox de lote */}
+                  <Pressable
                     onPress={() => toggleSelectProduct(item.id)}
-                    className="w-5 h-5 rounded border border-gray-300 mr-3 items-center justify-center bg-gray-50"
+                    hitSlop={8}
+                    accessibilityLabel={`Seleccionar ${item.nombre}`}
+                    style={{
+                      width: 22,
+                      height: 22,
+                      borderRadius: 7,
+                      marginRight: spacing.md,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      borderWidth: isSelected ? 0 : 2,
+                      borderColor: colors.borderStrong,
+                      backgroundColor: isSelected ? colors.pantry : colors.cardAlt,
+                    }}
                   >
-                    {isSelected && <View className="w-3 h-3 bg-black rounded" />}
-                  </TouchableOpacity>
+                    {isSelected ? <Icon name="checkmark" size={14} color={colors.white} /> : null}
+                  </Pressable>
 
-                  {/* Icono por categoría */}
-                  <View className="w-14 h-14 rounded-2xl mr-3 bg-gray-100 items-center justify-center">
-                    <Text className="text-2xl">{getCategoriaEmoji(item.categoria)}</Text>
+                  {/* Icono categoría */}
+                  <View
+                    style={{
+                      width: 46,
+                      height: 46,
+                      borderRadius: radius.md,
+                      backgroundColor: colors.pantrySoft,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      marginRight: spacing.md,
+                    }}
+                  >
+                    <FoodIcon
+                      name={getCategoriaIcon(item.categoria)}
+                      size={24}
+                      color={colors.pantry}
+                    />
                   </View>
 
                   {/* Detalles */}
-                  <View className="flex-1 mr-2">
-                    <Text className="text-black text-xs font-bold" numberOfLines={1}>{item.nombre}</Text>
-                    <Text className="text-gray-500 text-[10px] mt-0.5">
-                      Cantidad: {item.cantidad} {item.unidad} · {item.categoria}
-                    </Text>
-                    <Text className="text-gray-400 text-[9px] mt-1">
+                  <View style={{ flex: 1, marginRight: spacing.sm }}>
+                    <AppText variant="captionStrong" numberOfLines={1}>
+                      {item.nombre}
+                    </AppText>
+                    <AppText variant="micro" color={colors.inkMuted} style={{ marginTop: 1 }}>
+                      {item.cantidad} {item.unidad} · {item.categoria}
+                    </AppText>
+                    <AppText variant="micro" color={colors.inkFaint} style={{ marginTop: 1 }}>
                       Caduca: {item.fecha_caducidad || 'Indefinido'}
-                    </Text>
-
-                    {/* Barra de nivel de stock (proporcional a la cantidad) */}
-                    <View className="w-full h-1 bg-gray-100 rounded-full mt-2 overflow-hidden relative">
-                      <View
-                        className={`h-full ${status.bar}`}
-                        style={{ width: `${Math.min(100, Math.round((item.cantidad / 5) * 100))}%` }}
-                      />
-                    </View>
-
-                    <Text className={`${status.color} text-[9px] font-bold mt-1`}>
-                      {status.text}
-                    </Text>
+                    </AppText>
                   </View>
 
-                  {/* Botones de incremento/decremento de stock */}
-                  <View className="flex-row items-center bg-gray-50 border border-gray-100 rounded-full px-1.5 py-0.5 gap-1.5 mr-2">
-                    <TouchableOpacity
-                      onPress={() => {
-                        const nuevaCant = item.cantidad - 1;
-                        if (nuevaCant <= 0) {
-                          Alert.alert("Cantidad inválida", "La cantidad debe ser mayor que 0.0. Usa el botón de eliminar si deseas borrar el producto.");
-                          return;
-                        }
-                        Alert.alert(
-                          "Confirmar decremento",
-                          `¿Deseas disminuir la cantidad de "${item.nombre}" a ${nuevaCant} ${item.unidad}?`,
-                          [
-                            { text: "Cancelar", style: "cancel" },
-                            { text: "Confirmar", onPress: () => updateQuantity(item.id, nuevaCant) }
-                          ]
-                        );
-                      }}
-                      className="w-5 h-5 rounded-full bg-white border border-gray-200 items-center justify-center"
-                    >
-                      <Text className="text-black text-xs font-bold">-</Text>
-                    </TouchableOpacity>
-                    
-                    <Text className="text-black text-xs font-bold px-0.5">{item.cantidad}</Text>
-
-                    <TouchableOpacity
-                      onPress={() => {
-                        const nuevaCant = item.cantidad + 1;
-                        Alert.alert(
-                          "Confirmar incremento",
-                          `¿Deseas aumentar la cantidad de "${item.nombre}" a ${nuevaCant} ${item.unidad}?`,
-                          [
-                            { text: "Cancelar", style: "cancel" },
-                            { text: "Confirmar", onPress: () => updateQuantity(item.id, nuevaCant) }
-                          ]
-                        );
-                      }}
-                      className="w-5 h-5 rounded-full bg-black items-center justify-center"
-                    >
-                      <Text className="text-white text-xs font-bold">+</Text>
-                    </TouchableOpacity>
-                  </View>
-
-                  {/* Botón de eliminación manual */}
-                  <TouchableOpacity
+                  {/* Eliminar */}
+                  <IconButton
+                    name="trash-outline"
+                    size={16}
+                    color={colors.danger}
+                    bg={colors.dangerSoft}
+                    diameter={32}
+                    accessibilityLabel={`Eliminar ${item.nombre}`}
                     onPress={() => {
                       Alert.alert(
-                        "Confirmar eliminación",
+                        'Confirmar eliminación',
                         `¿Deseas eliminar "${item.nombre}" del inventario?`,
                         [
-                          { text: "No", style: "cancel" },
-                          { text: "Sí", onPress: () => deleteItem(item.id) }
+                          { text: 'No', style: 'cancel' },
+                          { text: 'Sí', style: 'destructive', onPress: () => deleteItem(item.id) },
                         ]
                       );
                     }}
-                    className="bg-gray-100 rounded-full w-7 h-7 items-center justify-center border border-gray-200"
-                  >
-                    <Text className="text-xs">🗑️</Text>
-                  </TouchableOpacity>
+                  />
                 </View>
-              );
-            })}
-        </View>
 
-        {/* Sección: Recetas sugeridas por IA */}
-        <View className="bg-white border border-gray-100 rounded-3xl p-5 shadow-sm">
-          <View className="flex-row justify-between items-center mb-4">
-            <Text className="text-black text-sm font-bold">Recetas sugeridas ✨</Text>
-            <TouchableOpacity
+                {/* Fila inferior: estado + stepper */}
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    marginTop: spacing.md,
+                  }}
+                >
+                  <View style={{ flex: 1, marginRight: spacing.md }}>
+                    <View
+                      style={{
+                        height: 5,
+                        backgroundColor: colors.track,
+                        borderRadius: radius.pill,
+                        overflow: 'hidden',
+                      }}
+                    >
+                      <View
+                        style={{
+                          height: '100%',
+                          width: `${Math.min(100, Math.round((item.cantidad / 5) * 100))}%`,
+                          backgroundColor: status.color,
+                          borderRadius: radius.pill,
+                        }}
+                      />
+                    </View>
+                    <AppText
+                      variant="micro"
+                      color={status.color}
+                      style={{ marginTop: 4, fontWeight: '700' }}
+                    >
+                      {status.text}
+                    </AppText>
+                  </View>
+
+                  {/* Stepper */}
+                  <View
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      backgroundColor: colors.cardAlt,
+                      borderWidth: 1,
+                      borderColor: colors.border,
+                      borderRadius: radius.pill,
+                      paddingHorizontal: 4,
+                      paddingVertical: 3,
+                      gap: spacing.sm,
+                    }}
+                  >
+                    <Pressable
+                      onPress={() => {
+                        const nuevaCant = item.cantidad - 1;
+                        if (nuevaCant <= 0) {
+                          Alert.alert(
+                            'Cantidad inválida',
+                            'La cantidad debe ser mayor que 0. Usa el botón de eliminar si deseas borrar el producto.'
+                          );
+                          return;
+                        }
+                        Alert.alert(
+                          'Confirmar decremento',
+                          `¿Deseas disminuir la cantidad de "${item.nombre}" a ${nuevaCant} ${item.unidad}?`,
+                          [
+                            { text: 'Cancelar', style: 'cancel' },
+                            {
+                              text: 'Confirmar',
+                              onPress: () => {
+                                haptics.light();
+                                updateQuantity(item.id, nuevaCant);
+                              },
+                            },
+                          ]
+                        );
+                      }}
+                      hitSlop={6}
+                      style={{
+                        width: 26,
+                        height: 26,
+                        borderRadius: radius.pill,
+                        backgroundColor: colors.card,
+                        borderWidth: 1,
+                        borderColor: colors.borderStrong,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <Icon name="remove" size={16} color={colors.ink} />
+                    </Pressable>
+                    <AppText variant="captionStrong" style={{ minWidth: 18, textAlign: 'center' }}>
+                      {item.cantidad}
+                    </AppText>
+                    <Pressable
+                      onPress={() => {
+                        const nuevaCant = item.cantidad + 1;
+                        Alert.alert(
+                          'Confirmar incremento',
+                          `¿Deseas aumentar la cantidad de "${item.nombre}" a ${nuevaCant} ${item.unidad}?`,
+                          [
+                            { text: 'Cancelar', style: 'cancel' },
+                            {
+                              text: 'Confirmar',
+                              onPress: () => {
+                                haptics.light();
+                                updateQuantity(item.id, nuevaCant);
+                              },
+                            },
+                          ]
+                        );
+                      }}
+                      hitSlop={6}
+                      style={{
+                        width: 26,
+                        height: 26,
+                        borderRadius: radius.pill,
+                        backgroundColor: colors.pantry,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <Icon name="add" size={16} color={colors.white} />
+                    </Pressable>
+                  </View>
+                </View>
+              </Card>
+            );
+          })
+        )}
+
+        {/* Recetas sugeridas por IA */}
+        <Card>
+          <View
+            style={{
+              flexDirection: 'row',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: spacing.md,
+            }}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
+              <Icon name="sparkles" size={16} color={colors.brand} />
+              <AppText variant="h2">Recetas sugeridas</AppText>
+            </View>
+            <Button
+              label={
+                recetasLoading
+                  ? 'Pensando...'
+                  : recetas.length > 0
+                    ? 'Actualizar'
+                    : 'Sugerir con IA'
+              }
+              size="sm"
+              variant="secondary"
+              loading={recetasLoading}
               onPress={fetchRecetas}
-              disabled={recetasLoading}
-              className="bg-black rounded-full px-4 py-1.5"
-              accessibilityLabel="Generar sugerencias de recetas con IA"
-            >
-              <Text className="text-white text-xs font-bold">
-                {recetasLoading ? 'Pensando...' : recetas.length > 0 ? 'Actualizar' : 'Sugerir con IA'}
-              </Text>
-            </TouchableOpacity>
+              fullWidth={false}
+            />
           </View>
 
-          {recetasLoading && (
-            <View className="items-center py-4">
-              <ActivityIndicator size="small" color="#000000" />
-              <Text className="text-gray-400 text-[10px] mt-2 font-medium">El chef IA está revisando tu despensa...</Text>
+          {recetasLoading ? (
+            <View style={{ alignItems: 'center', paddingVertical: spacing.lg }}>
+              <ActivityIndicator size="small" color={colors.brand} />
+              <AppText variant="micro" color={colors.inkMuted} style={{ marginTop: spacing.sm }}>
+                El chef IA está revisando tu despensa...
+              </AppText>
             </View>
-          )}
+          ) : null}
 
-          {!recetasLoading && recetasMensaje && (
-            <Text className="text-gray-500 text-xs text-center py-3 font-medium">{recetasMensaje}</Text>
-          )}
+          {!recetasLoading && recetasMensaje ? (
+            <AppText
+              variant="caption"
+              color={colors.inkMuted}
+              center
+              style={{ paddingVertical: spacing.md }}
+            >
+              {recetasMensaje}
+            </AppText>
+          ) : null}
 
-          {!recetasLoading && recetas.length === 0 && !recetasMensaje && (
-            <Text className="text-gray-400 text-xs text-center py-3 font-medium">
-              Pulsa "Sugerir con IA" para recibir recetas que aprovechen tu despensa, priorizando lo que caduca pronto.
-            </Text>
-          )}
+          {!recetasLoading && recetas.length === 0 && !recetasMensaje ? (
+            <AppText
+              variant="caption"
+              color={colors.inkFaint}
+              center
+              style={{ paddingVertical: spacing.md, lineHeight: 18 }}
+            >
+              Pulsa «Sugerir con IA» para recibir recetas que aprovechen tu despensa, priorizando lo
+              que caduca pronto.
+            </AppText>
+          ) : null}
 
           {/* Transparencia IA (EU AI Act): solo cuando las recetas provienen del modelo */}
-          {!recetasLoading && recetas.length > 0 && recetasGeneradasPorIA && (
+          {!recetasLoading && recetas.length > 0 && recetasGeneradasPorIA ? (
             <AIDisclaimerBanner texto="Estas recetas han sido generadas por IA y pueden contener imprecisiones." />
-          )}
+          ) : null}
 
-          {!recetasLoading && recetas.map((receta, idx) => (
-            <View key={`${receta.titulo}-${idx}`} className="flex-row items-center justify-between mb-3">
-              <View className="flex-1 pr-3">
-                <Text className="text-black text-xs font-bold">{receta.titulo}</Text>
-                <Text className="text-gray-400 text-[10px] mt-0.5">
-                  Tiempo: {receta.tiempo_min} min • Usa {receta.ingredientes_usados.slice(0, 3).join(', ')}
-                </Text>
-              </View>
-              <TouchableOpacity
-                onPress={() => Alert.alert(
-                  receta.titulo,
-                  `Ingredientes: ${receta.ingredientes_usados.join(', ')}\n\nPasos:\n${receta.pasos.map((p, i) => `${i + 1}. ${p}`).join('\n')}`
-                )}
-                className="bg-black rounded-full px-4 py-1.5"
+          {!recetasLoading &&
+            recetas.map((receta, idx) => (
+              <View
+                key={`${receta.titulo}-${idx}`}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  paddingVertical: spacing.sm,
+                  borderTopWidth: idx === 0 ? 0 : 1,
+                  borderTopColor: colors.border,
+                }}
               >
-                <Text className="text-white text-xs font-bold">Ver</Text>
-              </TouchableOpacity>
-            </View>
-          ))}
-        </View>
+                <View style={{ flex: 1, paddingRight: spacing.md }}>
+                  <AppText variant="captionStrong" numberOfLines={1}>
+                    {receta.titulo}
+                  </AppText>
+                  <AppText
+                    variant="micro"
+                    color={colors.inkMuted}
+                    numberOfLines={1}
+                    style={{ marginTop: 1 }}
+                  >
+                    {receta.tiempo_min} min · {receta.ingredientes_usados.slice(0, 3).join(', ')}
+                  </AppText>
+                </View>
+                <Button
+                  label="Ver"
+                  size="sm"
+                  variant="ghost"
+                  fullWidth={false}
+                  onPress={() =>
+                    Alert.alert(
+                      receta.titulo,
+                      `Ingredientes: ${receta.ingredientes_usados.join(', ')}\n\nPasos:\n${receta.pasos.map((p, i) => `${i + 1}. ${p}`).join('\n')}`
+                    )
+                  }
+                />
+              </View>
+            ))}
+        </Card>
+      </Screen>
 
-      </ScrollView>
-
-      {/* FAB Añadir Producto */}
-      <TouchableOpacity
-        className="absolute bottom-6 right-5 bg-black rounded-full w-14 h-14 justify-center items-center shadow-2xl"
+      <Fab
+        icon="add"
+        color={colors.pantry}
         onPress={() => setModalVisible(true)}
         accessibilityLabel="Añadir producto a la despensa"
-      >
-        <Text className="text-white text-2xl font-light">+</Text>
-      </TouchableOpacity>
+      />
 
       {/* Modal Añadir Producto */}
-      <Modal visible={modalVisible} transparent animationType="slide">
-        <View className="flex-1 justify-end bg-black/60">
-          <View className="bg-white rounded-t-3xl p-6">
-            <Text className="text-black text-lg font-bold mb-4">Añadir producto</Text>
-            <ScrollView>
-              <Text className="text-gray-400 text-[10px] font-bold mb-1 uppercase">Nombre *</Text>
-              <TextInput
-                className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-black mb-3 text-xs"
+      <Modal
+        visible={modalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: colors.overlay }}>
+          <View
+            style={{
+              backgroundColor: colors.card,
+              borderTopLeftRadius: radius.xxl,
+              borderTopRightRadius: radius.xxl,
+              padding: spacing.xl,
+              paddingBottom: spacing.xxxl,
+              maxHeight: '88%',
+            }}
+          >
+            <View style={{ alignItems: 'center', marginBottom: spacing.md }}>
+              <View
+                style={{
+                  width: 40,
+                  height: 4,
+                  borderRadius: 2,
+                  backgroundColor: colors.borderStrong,
+                }}
+              />
+            </View>
+            <AppText variant="h2" style={{ marginBottom: spacing.lg }}>
+              Añadir producto
+            </AppText>
+            <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+              <Field
+                label="Nombre *"
                 placeholder="Ej: Leche entera"
-                placeholderTextColor="#94a3b8"
                 value={nombre}
                 onChangeText={setNombre}
               />
-              <View className="flex-row gap-3 mb-3">
-                <View className="flex-1">
-                  <Text className="text-gray-400 text-[10px] font-bold mb-1 uppercase">Cantidad *</Text>
-                  <TextInput
-                    className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-black text-xs"
+              <View style={{ flexDirection: 'row', gap: spacing.md }}>
+                <View style={{ flex: 1 }}>
+                  <Field
+                    label="Cantidad *"
                     placeholder="1"
-                    placeholderTextColor="#94a3b8"
                     keyboardType="numeric"
                     value={cantidad}
                     onChangeText={setCantidad}
                   />
                 </View>
-                <View className="flex-1">
-                  <Text className="text-gray-400 text-[10px] font-bold mb-1 uppercase">Unidad</Text>
-                  <TextInput
-                    className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-black text-xs"
+                <View style={{ flex: 1 }}>
+                  <Field
+                    label="Unidad"
                     placeholder="unidades"
-                    placeholderTextColor="#94a3b8"
                     value={unidad}
                     onChangeText={setUnidad}
                   />
                 </View>
               </View>
-              <Text className="text-gray-400 text-[10px] font-bold mb-1 uppercase">Categoría</Text>
-              <TextInput
-                className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-black mb-3 text-xs"
+              <Field
+                label="Categoría"
                 placeholder="Despensa"
-                placeholderTextColor="#94a3b8"
                 value={categoria}
                 onChangeText={setCategoria}
               />
-              <Text className="text-gray-400 text-[10px] font-bold mb-1 uppercase">Fecha de caducidad (YYYY-MM-DD)</Text>
-              <TextInput
-                className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-black mb-5 text-xs"
+              <Field
+                label="Caducidad (YYYY-MM-DD)"
                 placeholder="2026-06-15"
-                placeholderTextColor="#94a3b8"
                 value={fechaCaducidad}
                 onChangeText={setFechaCaducidad}
+                containerStyle={{ marginBottom: spacing.xl }}
               />
-              <TouchableOpacity
-                className="bg-black rounded-full py-4 items-center mb-3"
+              <Button
+                label="Añadir producto"
+                icon="add"
                 onPress={handleAdd}
-                accessibilityLabel="Confirmar añadir producto"
-              >
-                <Text className="text-white font-bold text-sm">Añadir producto</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                className="items-center py-2"
-                onPress={() => setModalVisible(false)}
-                accessibilityLabel="Cancelar añadir producto"
-              >
-                <Text className="text-gray-400 text-xs font-bold">Cancelar</Text>
-              </TouchableOpacity>
+                style={{ marginBottom: spacing.sm }}
+              />
+              <Button label="Cancelar" variant="ghost" onPress={() => setModalVisible(false)} />
             </ScrollView>
           </View>
         </View>
       </Modal>
-
     </View>
   );
 }

@@ -1,6 +1,7 @@
+import logging
 import os
 import sys
-import logging
+
 from dotenv import load_dotenv
 
 # Cargar archivo .env
@@ -9,11 +10,17 @@ load_dotenv()
 logger = logging.getLogger("app.core.config")
 
 # Clave secreta para firmar los tokens JWT. Obligatoria: sin ella no hay aislamiento multi-tenant.
-JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY")
+_jwt_secret = os.getenv("JWT_SECRET_KEY")
 
-if not JWT_SECRET_KEY:
-    logger.critical("Error crítico: La variable de entorno JWT_SECRET_KEY no está definida. Se requiere para firmar los tokens de autenticación. Abortando arranque...")
+if not _jwt_secret:
+    logger.critical(
+        "Error crítico: La variable de entorno JWT_SECRET_KEY no está definida. Se requiere para firmar los tokens de autenticación. Abortando arranque..."
+    )
     sys.exit(1)
+
+# Tras el chequeo, mypy estrecha el valor a str (sys.exit es NoReturn): así el
+# símbolo exportado es str, no str | None (jwt.encode/decode exigen str).
+JWT_SECRET_KEY: str = _jwt_secret
 
 JWT_ALGORITHM = "HS256"
 

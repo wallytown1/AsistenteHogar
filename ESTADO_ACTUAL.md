@@ -14,6 +14,74 @@
 | F-QA | Ciclo QA mobile: 2 críticos + 2 medios resueltos, 0 errores TS | frontend/src/{api,hooks,state}/ |
 | F-LEGAL | Compliance RGPD/AI Act/stores: purga física, DELETE /auth/cuenta, anonimización LLM, banner IA, SettingsScreen | backend/app/jobs/purge.py, backend/app/services/privacy.py, frontend/src/screens/SettingsScreen.tsx |
 | F-AUDIT | Auditoría post-F-LEGAL: 7 bugs corregidos (B1–B7) + alineación de cifras de tests | backend/app/services/calendar.py, frontend/src/screens/CalendarScreen.tsx, frontend/src/hooks/{useTasks,usePantry}.ts |
+| F-IA-2 | Optimización del flujo Gemini + 4 funciones de IA nuevas (tareas/despensa NL, metadata, plan de comidas) | backend/app/services/llm.py, backend/app/api/routers/{tasks,pantry}.py, backend/app/core/rate_limit.py |
+| F-UI 🎨 | Rediseño visual nativo iOS/Android | frontend/src/theme/, frontend/src/components/ui/, frontend/src/lib/, las 6 pantallas |
+
+## 🔀 Sesión 2026-06-15 — Integración de ramas + tooling + rescate de features
+
+Fusión de las dos ramas de trabajo (`chore/backend-typing-shield` = tipado/IA/escudo, `redesign/native-ui` = UI nativa) en la rama `integracion/merge-all` (**futuro `main`**). Único conflicto: una tabla en este archivo (resuelto conservando ambas secciones).
+
+- **Verificación post-merge:** backend **122 smoke checks** verde, frontend **0 errores TS** (solo hubo que `npm install` por `expo-haptics`, ya en el lockfile).
+- **graphify activado:** knowledge graph del código (`uv tool install graphifyy`, skill project-scoped en `.claude/`, hooks PreToolUse). `graphify-out/` gitignorado → regenerar con `graphify update .` (AST local, sin coste). Ver [[tooling_dev]] en memoria.
+- **Rescate de 2 features huérfanas** (eran archivos untracked solo en el PC viejo; el rediseño se construyó sin verlos):
+  - `useExpiryNotifications.ts` — notificaciones locales de caducidad (≤3 días, aviso 9:00). Dep `expo-notifications` añadida; cableado en `PantryScreen`.
+  - `OnboardingScreen.tsx` — **reescrito al nuevo sistema de diseño** (tokens + iconos vectoriales, sin emoji ni paleta vieja); gate `hasSeenOnboarding` recableado en `AppNavigator`.
+- **Pendiente del usuario:** `uv run pre-commit install` (escudo backend, hoy bloquea commits) · plugin `expo-notifications` en `app.json` antes del build de producción (F6) · descartar `stash@{0}` (sus únicos archivos únicos ya están rescatados).
+
+## 🤖 Sesión 2026-06-15 — Optimización de IA + nuevas funciones (backend)
+
+Trabajo de IA en `main` (backend). Lógica de negocio intacta, IA pasiva en todo (propone, el usuario confirma).
+
+**Optimización del flujo Gemini**
+- Cliente `httpx.AsyncClient` **compartido** (pool keep-alive), cerrado en el lifespan (`aclose_http_client`). Adiós al cliente nuevo por llamada.
+- **Reintento con backoff** ante 429/5xx/red; `_extract_text` distingue bloqueo de seguridad, sin candidatos y `MAX_TOKENS`.
+- **Rate-limit** de endpoints de IA: `/{calendar,tasks,pantry}/interpretar` 20/5 min (compartido), `/recetas` 20/h, `/sugerir-metadata` 40/5 min, `/plan-comidas` 10/h.
+- Smoke tests **herméticos** (fuerzan `GEMINI_API_KEY=""`) + test del rate-limit.
+
+**4 funciones de IA nuevas** (reutilizan `_call_gemini` + structured output)
+- `POST /tasks/interpretar` — tarea en lenguaje natural ("poner la lavadora cada martes" → propuesta).
+- `POST /pantry/interpretar` — despensa en lenguaje natural, **multi-item**, resuelve caducidades relativas.
+- `POST /pantry/sugerir-metadata` — categoría + caducidad estimada de un alimento por su nombre.
+- `GET /pantry/plan-comidas` — plan semanal (comida + cena, 7 días) priorizando lo que caduca. Cacheado 2 h.
+
+**Compliance**: los 6 requisitos de `LEGALIDAD.md` siguen cumplidos. Añadido requisito de **tier de Gemini con billing** (no entrenar con los prompts) y tabla de flujos de datos por endpoint en `LEGALIDAD.md`.
+
+**Verificación**: 122 smoke checks (modules 34→43, validation 20→22) + las 4 funciones probadas con Gemini real. **Pendiente**: cableado de UI de las nuevas funciones (irá en la rama del rediseño).
+
+## 🎨 Sesión 2026-06-13 — Rediseño visual nativo
+
+Rediseño completo del frontend con un **lenguaje visual nuevo (con color)** para que la app
+se sienta nativa en iOS y Android. Lógica de negocio preservada al 100%.
+
+**Sistema de diseño nuevo**
+- `src/theme/tokens.ts` — fuente única de color, tipografía, espaciado, radios y sombras (por plataforma). Marca índigo `#6366F1` + acentos por módulo (despensa verde, calendario índigo, tareas ámbar).
+- `src/components/ui/` — 14 componentes reutilizables: `Screen`, `Card`, `Button`, `IconButton`, `Chip`, `StatCard`, `SectionHeader`, `Fab`, `Badge`, `EmptyState`, `Field`, `AppText`, `Icon`/`FoodIcon`, `LoadingView`/`ErrorView`.
+- `src/lib/haptics.ts` — wrapper seguro sobre `expo-haptics`; `src/lib/categoria.ts` — iconos de comida por categoría.
+
+**Mejoras de nativismo**
+1. Iconos vectoriales (`@expo/vector-icons`: Ionicons + MaterialCommunityIcons) — **cero emoji** en la UI; tab bar con iconos relleno/contorno.
+2. Safe areas reales (`Screen` + `useSafeAreaInsets`) — fin de los `paddingTop` hardcodeados; FAB y tab bar respetan el inset inferior.
+3. Sabor de plataforma: ripple Material en Android, `Switch` nativo, sombras iOS vs elevación Android.
+4. Feedback háptico en crear/borrar/confirmar/toggles.
+5. Tipografía con escala definida.
+6. Pull-to-refresh nativo en Dashboard, Despensa, Calendario y Tareas.
+
+**Decisión técnica**: la UI deja de usar NativeWind `className` y pasa a StyleSheet + tokens
+(tipado robusto, control fino). NativeWind queda instalado pero sin uso de estilo.
+
+**Dependencia añadida**: `expo-haptics` (vía `expo install`).
+
+**Verificación**: `npm run ts:check` → 0 errores · 0 referencias a `className` en `src/` ·
+`expo export` (bundle Metro) OK sin errores de imports/runtime.
+
+**Revisión post-rediseño (5 correcciones aplicadas)**
+1. **FAB demasiado alto** — `Fab` sumaba `insets.bottom + 78`, pero el área de la pantalla ya excluye la tab bar y su safe-area; ahora flota a `bottom: 20` justo sobre la barra.
+2. **Flash de loader en pull-to-refresh** — las 4 pantallas con datos hacían `if (isLoading) return <LoadingView/>`; ahora el loader completo solo aparece en la carga inicial (sin datos) y los refrescos usan el spinner nativo.
+3. **Botones en `loading` se veían grises** — `Button` aplicaba aspecto deshabilitado durante la carga; ahora mantiene su color con spinner del color correcto (`busy` accesible).
+4. **Imports/variables sin usar** — retirados (`Badge` en Pantry, `tasksLoading` en Dashboard); `tsc --noUnusedLocals` limpio en el código nuevo.
+5. **Modal de Tareas sin `maxHeight`** — añadido `88%` para evitar corte con el teclado en pantallas pequeñas (igual que Despensa/Calendario).
+
+Pendiente: validación visual en dispositivo real.
 
 ## 🐞 Sesión 2026-06-13 — Auditoría y corrección de bugs (B1–B7)
 
@@ -158,12 +226,12 @@ IDOR) y se actualizó al diseño real (tenant del JWT) + la arquitectura de comp
 ## 🔧 Verificación mínima antes de cambios
 
 ```bash
-# Backend — suite completa (111 checks). Requiere JWT_SECRET_KEY en el entorno.
+# Backend — suite completa (122 checks). Requiere JWT_SECRET_KEY en el entorno.
 cd backend
 python smoke_test_auth.py        # 12/12
-python smoke_test_modules.py     # 34/34
+python smoke_test_modules.py     # 43/43
 python smoke_test_dashboard.py   # 19/19
-python smoke_test_validation.py  # 20/20
+python smoke_test_validation.py  # 22/22
 python smoke_test_legal.py       # 26/26
 
 # Frontend

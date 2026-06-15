@@ -25,3 +25,33 @@ Ejecuta las siguientes implementaciones en la app de Expo/React Native:
 *   Usa las herramientas `Read` y `View` para analizar la arquitectura actual antes de modificar archivos.
 *   Asegúrate de que las firmas de las funciones y los tipos de TypeScript/Python coincidan con la arquitectura establecida.
 *   Genera y aplica los parches de código directamente.
+
+---
+
+# Addendum de Cumplimiento (estado a 2026-06-15)
+
+## Estado de los requisitos de este documento
+| Requisito | Estado | Implementación real |
+|---|---|---|
+| Purga física RGPD (30 días) | ✅ | `app/jobs/purge.py` (scheduler 24 h + CLI); `purge_expired()` en cada repo |
+| Anonimización LLM del briefing | ✅ | `app/services/privacy.py` (`AnonimizadorLLM`); clave de caché sobre prompt anonimizado |
+| Endpoint de destrucción de cuenta | ✅ | `DELETE /api/v1/auth/cuenta` (cascade ORM). **Mejora sobre el brief**: `hogar_id` del JWT, no de la URL → sin IDOR |
+| Banner de transparencia IA | ✅ | `frontend/src/components/AIDisclaimerBanner.tsx`, condicional a `generado_por_ia` |
+| Flujo de eliminación en frontend | ✅ | `SettingsScreen.tsx` (confirmación en 2 pasos) + `authStore.deleteAccount()` |
+
+## Requisito adicional: tier de la API de Gemini (RGPD art. 28, encargado del tratamiento)
+La API **gratuita** de Google AI (`generativelanguage`) **puede usar los prompts para mejorar los productos de Google** (revisión humana / entrenamiento). Enviar datos del hogar bajo esas condiciones no es admisible.
+**Acción requerida (contractual, no código):** usar una `GEMINI_API_KEY` de un proyecto con **facturación activada** (donde Google **no** entrena con los datos) o **Vertex AI** con DPA y región UE.
+
+## Flujos de datos hacia Gemini (minimización, art. 5.1.c)
+| Endpoint | Qué sale hacia Gemini | PII | Mitigación |
+|---|---|---|---|
+| `GET /dashboard` (briefing) | eventos/tareas/alimentos del día | Nombres de familiares | **Anonimizados** a `Familiar_N` antes de enviar; revertidos tras la respuesta |
+| `GET /pantry/recetas` | inventario (alimentos) | No | — |
+| `GET /pantry/plan-comidas` | inventario (alimentos) | No | — |
+| `POST /pantry/sugerir-metadata` | nombre de un alimento | No | — |
+| `POST /pantry/interpretar` | frase del usuario sobre compra | Improbable | Input voluntario del usuario para esa finalidad |
+| `POST /calendar/interpretar` | frase del usuario sobre un evento | Posible (nombres) | Input voluntario del usuario para esa finalidad |
+| `POST /tasks/interpretar` | frase del usuario sobre una tarea | Posible (nombres) | Input voluntario del usuario para esa finalidad |
+
+Notas: la clave nunca viaja en la URL (header `x-goog-api-key`); los prompts no se registran en logs; los endpoints de IA están rate-limited para contener coste y abuso.

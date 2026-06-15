@@ -14,9 +14,9 @@ import logging
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.models import RegistroBorrado
+from app.repositories.calendar import CalendarRepository
 from app.repositories.pantry import PantryRepository
 from app.repositories.task import TaskRepository
-from app.repositories.calendar import CalendarRepository
 
 logger = logging.getLogger("app.jobs.purge")
 
@@ -42,20 +42,26 @@ class PurgeService:
             )
             if total > 0:
                 # Auditoría sin datos personales: solo tipo, motivo y recuento
-                self.session.add(RegistroBorrado(
-                    tipo_evento="purga_programada",
-                    motivo=f"retencion_{retention_days}_dias",
-                    registros_afectados=total,
-                ))
+                self.session.add(
+                    RegistroBorrado(
+                        tipo_evento="purga_programada",
+                        motivo=f"retencion_{retention_days}_dias",
+                        registros_afectados=total,
+                    )
+                )
             await self.session.commit()
         except Exception:
             await self.session.rollback()
             raise
 
         if total > 0:
-            logger.info(f"Purga física completada: {total} registro(s) eliminados definitivamente.")
+            logger.info(
+                f"Purga física completada: {total} registro(s) eliminados definitivamente."
+            )
         else:
-            logger.info("Purga física completada: ningún registro superaba el plazo de retención.")
+            logger.info(
+                "Purga física completada: ningún registro superaba el plazo de retención."
+            )
         return total
 
 
@@ -84,6 +90,7 @@ async def purge_scheduler() -> None:
 
 if __name__ == "__main__":
     from dotenv import load_dotenv
+
     load_dotenv()
     total = asyncio.run(run_purge_once())
     print(f"Purga finalizada: {total} registro(s) eliminados.")

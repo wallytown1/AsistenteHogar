@@ -1,15 +1,21 @@
-import React, { useEffect } from 'react';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { BottomTabNavigationOptions } from '@react-navigation/bottom-tabs';
+import React, { useEffect, useState } from 'react';
+import {
+  createBottomTabNavigator,
+  BottomTabNavigationOptions,
+} from '@react-navigation/bottom-tabs';
 import { RouteProp } from '@react-navigation/native';
-import { ActivityIndicator, Text, View } from 'react-native';
+import { ActivityIndicator, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import DashboardScreen from '../screens/DashboardScreen';
 import PantryScreen from '../screens/PantryScreen';
 import CalendarScreen from '../screens/CalendarScreen';
 import TasksScreen from '../screens/TasksScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import AuthScreen from '../screens/AuthScreen';
+import OnboardingScreen, { hasSeenOnboarding } from '../screens/OnboardingScreen';
 import { useAuthStore } from '../state/authStore';
+import { colors } from '../theme/tokens';
 
 type RootTabParamList = {
   Inicio: undefined;
@@ -21,37 +27,56 @@ type RootTabParamList = {
 
 const Tab = createBottomTabNavigator<RootTabParamList>();
 
-function TabIcon({ label, focused }: { label: string; focused: boolean }) {
-  const icons: Record<string, string> = {
-    Inicio: '🏠',
-    Despensa: '🥫',
-    Calendario: '📅',
-    Tareas: '✅',
-    Ajustes: '⚙️',
-  };
-  return (
-    <View className="items-center justify-center">
-      <Text style={{ fontSize: 22, opacity: focused ? 1 : 0.45 }}>{icons[label]}</Text>
-    </View>
-  );
-}
+// Par de iconos (relleno cuando está activo, contorno cuando no) por pestaña.
+const ICONS: Record<
+  keyof RootTabParamList,
+  { on: keyof typeof Ionicons.glyphMap; off: keyof typeof Ionicons.glyphMap }
+> = {
+  Inicio: { on: 'home', off: 'home-outline' },
+  Despensa: { on: 'basket', off: 'basket-outline' },
+  Calendario: { on: 'calendar', off: 'calendar-outline' },
+  Tareas: { on: 'checkbox', off: 'checkbox-outline' },
+  Ajustes: { on: 'settings', off: 'settings-outline' },
+};
 
 export default function AppNavigator() {
   const token = useAuthStore((s) => s.token);
   const hydrated = useAuthStore((s) => s.hydrated);
   const hydrate = useAuthStore((s) => s.hydrate);
+  const insets = useSafeAreaInsets();
+  const [onboardingChecked, setOnboardingChecked] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
 
   useEffect(() => {
     hydrate();
   }, [hydrate]);
 
-  // Restaurando la sesión persistida desde SecureStore
-  if (!hydrated) {
+  useEffect(() => {
+    hasSeenOnboarding().then((seen) => {
+      setShowOnboarding(!seen);
+      setOnboardingChecked(true);
+    });
+  }, []);
+
+  // Restaurando la sesión persistida y comprobando el onboarding (SecureStore)
+  if (!hydrated || !onboardingChecked) {
     return (
-      <View className="flex-1 bg-[#fafafa] justify-center items-center">
-        <ActivityIndicator size="large" color="#000000" />
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: colors.bg,
+          justifyContent: 'center',
+          alignItems: 'center',
+        }}
+      >
+        <ActivityIndicator size="large" color={colors.brand} />
       </View>
     );
+  }
+
+  // Primera ejecución: intro de 3 slides antes del acceso
+  if (showOnboarding) {
+    return <OnboardingScreen onDone={() => setShowOnboarding(false)} />;
   }
 
   // Sin sesión: pantalla de acceso (login / crear hogar)
@@ -61,25 +86,33 @@ export default function AppNavigator() {
 
   return (
     <Tab.Navigator
-      screenOptions={({ route }: { route: RouteProp<RootTabParamList> }): BottomTabNavigationOptions => ({
+      screenOptions={({
+        route,
+      }: {
+        route: RouteProp<RootTabParamList>;
+      }): BottomTabNavigationOptions => ({
         headerShown: false,
         tabBarStyle: {
-          backgroundColor: '#ffffff',
-          borderTopColor: '#f1f5f9',
+          backgroundColor: colors.card,
+          borderTopColor: colors.border,
           borderTopWidth: 1,
-          height: 64,
-          paddingBottom: 8,
-          paddingTop: 6,
+          height: 58 + insets.bottom,
+          paddingBottom: insets.bottom + 6,
+          paddingTop: 8,
         },
-        tabBarActiveTintColor: '#000000',
-        tabBarInactiveTintColor: '#94a3b8',
+        tabBarActiveTintColor: colors.brand,
+        tabBarInactiveTintColor: colors.inkFaint,
         tabBarLabelStyle: {
           fontSize: 11,
           fontWeight: '700',
           marginTop: 2,
         },
-        tabBarIcon: ({ focused }: { focused: boolean }) => (
-          <TabIcon label={route.name} focused={focused} />
+        tabBarIcon: ({ focused, color }: { focused: boolean; color: string }) => (
+          <Ionicons
+            name={focused ? ICONS[route.name].on : ICONS[route.name].off}
+            size={23}
+            color={color}
+          />
         ),
       })}
     >

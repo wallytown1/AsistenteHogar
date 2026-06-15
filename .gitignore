@@ -19,3 +19,13 @@ frontend/.expo/
 .vscode/*.log
 Thumbs.db
 .DS_Store
+.aider*
+
+# Artefactos generados por graphify (knowledge graph, ~1.4 MB).
+# Se regenera con `graphify update .` (sin coste de API).
+graphify-out/
+
+# Cachés de tooling
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/

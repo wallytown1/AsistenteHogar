@@ -1,0 +1,4 @@
+# Los hooks de husky y los scripts de shell DEBEN usar LF: con CRLF, `sh` falla al
+# interpretar el shebang (#!/usr/bin/env sh\r) y el hook no se ejecuta en Windows.
+.husky/** text eol=lf
+*.sh text eol=lf

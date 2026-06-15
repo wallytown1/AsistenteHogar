@@ -1,10 +1,11 @@
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
+from typing import Any
 
 import bcrypt
 import jwt
 
-from app.core.config import JWT_SECRET_KEY, JWT_ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES
+from app.core.config import ACCESS_TOKEN_EXPIRE_MINUTES, JWT_ALGORITHM, JWT_SECRET_KEY
 
 
 def hash_password(password: str) -> str:
@@ -23,16 +24,20 @@ def verify_password(password: str, hashed_password: str) -> bool:
 
 def create_access_token(usuario_id: uuid.UUID, hogar_id: uuid.UUID) -> str:
     """Crea un token JWT firmado con el usuario y su hogar como claims."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     payload = {
         "sub": str(usuario_id),
         "hogar_id": str(hogar_id),
         "iat": now,
         "exp": now + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
     }
-    return jwt.encode(payload, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
+    token: str = jwt.encode(payload, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
+    return token
 
 
-def decode_access_token(token: str) -> dict:
+def decode_access_token(token: str) -> dict[str, Any]:
     """Decodifica y valida un token JWT. Lanza jwt.PyJWTError si es inválido o expiró."""
-    return jwt.decode(token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
+    payload: dict[str, Any] = jwt.decode(
+        token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM]
+    )
+    return payload
