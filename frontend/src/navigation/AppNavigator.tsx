@@ -1,6 +1,8 @@
-import React, { useEffect } from 'react';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { BottomTabNavigationOptions } from '@react-navigation/bottom-tabs';
+import React, { useEffect, useState } from 'react';
+import {
+  createBottomTabNavigator,
+  BottomTabNavigationOptions,
+} from '@react-navigation/bottom-tabs';
 import { RouteProp } from '@react-navigation/native';
 import { ActivityIndicator, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -11,6 +13,7 @@ import CalendarScreen from '../screens/CalendarScreen';
 import TasksScreen from '../screens/TasksScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import AuthScreen from '../screens/AuthScreen';
+import OnboardingScreen, { hasSeenOnboarding } from '../screens/OnboardingScreen';
 import { useAuthStore } from '../state/authStore';
 import { colors } from '../theme/tokens';
 
@@ -25,7 +28,10 @@ type RootTabParamList = {
 const Tab = createBottomTabNavigator<RootTabParamList>();
 
 // Par de iconos (relleno cuando está activo, contorno cuando no) por pestaña.
-const ICONS: Record<keyof RootTabParamList, { on: keyof typeof Ionicons.glyphMap; off: keyof typeof Ionicons.glyphMap }> = {
+const ICONS: Record<
+  keyof RootTabParamList,
+  { on: keyof typeof Ionicons.glyphMap; off: keyof typeof Ionicons.glyphMap }
+> = {
   Inicio: { on: 'home', off: 'home-outline' },
   Despensa: { on: 'basket', off: 'basket-outline' },
   Calendario: { on: 'calendar', off: 'calendar-outline' },
@@ -38,18 +44,39 @@ export default function AppNavigator() {
   const hydrated = useAuthStore((s) => s.hydrated);
   const hydrate = useAuthStore((s) => s.hydrate);
   const insets = useSafeAreaInsets();
+  const [onboardingChecked, setOnboardingChecked] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
 
   useEffect(() => {
     hydrate();
   }, [hydrate]);
 
-  // Restaurando la sesión persistida desde SecureStore
-  if (!hydrated) {
+  useEffect(() => {
+    hasSeenOnboarding().then((seen) => {
+      setShowOnboarding(!seen);
+      setOnboardingChecked(true);
+    });
+  }, []);
+
+  // Restaurando la sesión persistida y comprobando el onboarding (SecureStore)
+  if (!hydrated || !onboardingChecked) {
     return (
-      <View style={{ flex: 1, backgroundColor: colors.bg, justifyContent: 'center', alignItems: 'center' }}>
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: colors.bg,
+          justifyContent: 'center',
+          alignItems: 'center',
+        }}
+      >
         <ActivityIndicator size="large" color={colors.brand} />
       </View>
     );
+  }
+
+  // Primera ejecución: intro de 3 slides antes del acceso
+  if (showOnboarding) {
+    return <OnboardingScreen onDone={() => setShowOnboarding(false)} />;
   }
 
   // Sin sesión: pantalla de acceso (login / crear hogar)
@@ -59,7 +86,11 @@ export default function AppNavigator() {
 
   return (
     <Tab.Navigator
-      screenOptions={({ route }: { route: RouteProp<RootTabParamList> }): BottomTabNavigationOptions => ({
+      screenOptions={({
+        route,
+      }: {
+        route: RouteProp<RootTabParamList>;
+      }): BottomTabNavigationOptions => ({
         headerShown: false,
         tabBarStyle: {
           backgroundColor: colors.card,
@@ -77,7 +108,11 @@ export default function AppNavigator() {
           marginTop: 2,
         },
         tabBarIcon: ({ focused, color }: { focused: boolean; color: string }) => (
-          <Ionicons name={focused ? ICONS[route.name].on : ICONS[route.name].off} size={23} color={color} />
+          <Ionicons
+            name={focused ? ICONS[route.name].on : ICONS[route.name].off}
+            size={23}
+            color={color}
+          />
         ),
       })}
     >
