@@ -24,8 +24,17 @@ async function requestPermission(): Promise<boolean> {
 
 function daysUntil(dateStr: string | null): number | null {
   if (!dateStr) return null;
-  const diff = new Date(dateStr).setHours(0, 0, 0, 0) - new Date().setHours(0, 0, 0, 0);
-  return Math.round(diff / 86400000);
+  // fecha_caducidad es una fecha de calendario ("YYYY-MM-DD"), no un instante.
+  // new Date("YYYY-MM-DD") la parsea como medianoche UTC y, en husos al oeste de
+  // UTC, .setHours() la desplazaba al día anterior (off-by-one). Parseamos los
+  // componentes como fecha LOCAL para comparar día contra día, inmune al huso.
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(dateStr);
+  if (!m) return null;
+  const expiry = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])); // medianoche local
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  // Redondeo para absorber el salto horario (±1 h) de los cambios de DST.
+  return Math.round((expiry.getTime() - today.getTime()) / 86400000);
 }
 
 async function scheduleExpiryNotifications(items: AlimentoItem[]) {

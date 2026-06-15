@@ -1,5 +1,13 @@
 import React, { useState } from 'react';
-import { View, TextInput, Modal, ScrollView, Alert, Pressable, ActivityIndicator } from 'react-native';
+import {
+  View,
+  TextInput,
+  Modal,
+  ScrollView,
+  Alert,
+  Pressable,
+  ActivityIndicator,
+} from 'react-native';
 import { useCalendar } from '../hooks/useCalendar';
 import { EventoItem, ConflictoEvento, InterpretarEventoResponse } from '../types/types';
 import { apiRequest } from '../api/api';
@@ -31,7 +39,12 @@ function formatFechaLarga(d: Date): string {
 }
 
 function getInitials(name: string): string {
-  return name.split(' ').map((p) => p.charAt(0)).join('').slice(0, 2).toUpperCase();
+  return name
+    .split(' ')
+    .map((p) => p.charAt(0))
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
 }
 
 // Horas del eje vertical del calendario
@@ -40,13 +53,24 @@ const HOURS = Array.from({ length: 16 }, (_, i) => `${(i + 7).toString().padStar
 type EventoStyle = { bg: string; border: string; fg: string; icon: IconName };
 
 function getEventoStyle(evento: EventoItem, hasConflict: boolean): EventoStyle {
-  if (hasConflict) return { bg: colors.dangerSoft, border: '#FBD5D5', fg: colors.danger, icon: 'warning-outline' };
+  if (hasConflict)
+    return { bg: colors.dangerSoft, border: '#FBD5D5', fg: colors.danger, icon: 'warning-outline' };
   const t = evento.titulo.toLowerCase();
   if (t.includes('médico') || t.includes('dentista') || t.includes('pediatra'))
     return { bg: colors.infoSoft, border: '#CFE3FB', fg: colors.info, icon: 'medkit-outline' };
   if (t.includes('tarea') || t.includes('basura') || t.includes('limpiar'))
-    return { bg: colors.successSoft, border: '#C6F0DD', fg: colors.success, icon: 'checkbox-outline' };
-  return { bg: colors.calendarSoft, border: '#DADBF7', fg: colors.calendar, icon: 'calendar-outline' };
+    return {
+      bg: colors.successSoft,
+      border: '#C6F0DD',
+      fg: colors.success,
+      icon: 'checkbox-outline',
+    };
+  return {
+    bg: colors.calendarSoft,
+    border: '#DADBF7',
+    fg: colors.calendar,
+    icon: 'calendar-outline',
+  };
 }
 
 export default function CalendarScreen() {
@@ -68,11 +92,14 @@ export default function CalendarScreen() {
 
   const toggleMember = (member: string) => {
     haptics.selection();
-    setSelectedMembers((prev) => (prev.includes(member) ? prev.filter((m) => m !== member) : [...prev, member]));
+    setSelectedMembers((prev) =>
+      prev.includes(member) ? prev.filter((m) => m !== member) : [...prev, member]
+    );
   };
 
   // Loader completo solo en carga inicial; en refrescos se usa el spinner nativo.
-  if (isLoading && eventos.length === 0) return <LoadingView message="Cargando agenda familiar..." />;
+  if (isLoading && eventos.length === 0)
+    return <LoadingView message="Cargando agenda familiar..." />;
   if (error && eventos.length === 0) return <ErrorView message={error} onRetry={refetch} />;
 
   const crearEvento = (
@@ -86,7 +113,11 @@ export default function CalendarScreen() {
         } else {
           haptics.success();
           setModalVisible(false);
-          setTitulo(''); setDescripcion(''); setHoraInicio(''); setHoraFin(''); setParticipantes('');
+          setTitulo('');
+          setDescripcion('');
+          setHoraInicio('');
+          setHoraFin('');
+          setParticipantes('');
           Alert.alert('Éxito', 'El evento se ha agregado correctamente.');
         }
       })
@@ -112,9 +143,26 @@ export default function CalendarScreen() {
           crearEvento({
             titulo: titulo.trim(),
             descripcion: descripcion || null,
-            fecha_inicio: new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate(), hI || 9, mI || 0).toISOString(),
-            fecha_fin: new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate(), hF || 10, mF || 0).toISOString(),
-            participantes: participantes ? participantes.split(',').map((p: string) => p.trim()).filter(Boolean) : null,
+            fecha_inicio: new Date(
+              hoy.getFullYear(),
+              hoy.getMonth(),
+              hoy.getDate(),
+              hI || 9,
+              mI || 0
+            ).toISOString(),
+            fecha_fin: new Date(
+              hoy.getFullYear(),
+              hoy.getMonth(),
+              hoy.getDate(),
+              hF || 10,
+              mF || 0
+            ).toISOString(),
+            participantes: participantes
+              ? participantes
+                  .split(',')
+                  .map((p: string) => p.trim())
+                  .filter(Boolean)
+              : null,
           });
         },
       },
@@ -139,7 +187,8 @@ export default function CalendarScreen() {
       if (!res.evento) {
         Alert.alert(
           'No se pudo interpretar',
-          res.mensaje || 'Intenta describir el evento con más detalle, por ejemplo: "cena con mis padres el viernes a las 21h".'
+          res.mensaje ||
+            'Intenta describir el evento con más detalle, por ejemplo: "cena con mis padres el viernes a las 21h".'
         );
         return;
       }
@@ -149,7 +198,9 @@ export default function CalendarScreen() {
       const detalle =
         `📅 ${formatFechaLarga(inicio)}\n` +
         `🕐 ${formatHora(ev.fecha_inicio)} – ${formatHora(ev.fecha_fin)}` +
-        (ev.participantes && ev.participantes.length > 0 ? `\n👥 ${ev.participantes.join(', ')}` : '') +
+        (ev.participantes && ev.participantes.length > 0
+          ? `\n👥 ${ev.participantes.join(', ')}`
+          : '') +
         (ev.descripcion ? `\n📝 ${ev.descripcion}` : '') +
         // Transparencia IA (EU AI Act): la propuesta proviene del modelo
         `\n\n🤖 Propuesta generada por IA — revísala antes de confirmar.`;
@@ -187,24 +238,61 @@ export default function CalendarScreen() {
   // Render de una tarjeta de evento. Soporta VARIOS eventos por hora (B2) y la
   // sección "Fuera de horario" (B3).
   const renderEventoCard = (evento: EventoItem) => {
-    const hasConflict = conflictos.some((c) => c.evento_a.id === evento.id || c.evento_b.id === evento.id);
+    const hasConflict = conflictos.some(
+      (c) => c.evento_a.id === evento.id || c.evento_b.id === evento.id
+    );
     const st = getEventoStyle(evento, hasConflict);
     return (
-      <View key={evento.id} style={{ backgroundColor: st.bg, borderWidth: 1, borderColor: st.border, borderRadius: radius.xl, padding: spacing.md }}>
+      <View
+        key={evento.id}
+        style={{
+          backgroundColor: st.bg,
+          borderWidth: 1,
+          borderColor: st.border,
+          borderRadius: radius.xl,
+          padding: spacing.md,
+        }}
+      >
         <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
-          <View style={{ width: 34, height: 34, borderRadius: radius.md, backgroundColor: colors.white, alignItems: 'center', justifyContent: 'center', marginRight: spacing.md }}>
+          <View
+            style={{
+              width: 34,
+              height: 34,
+              borderRadius: radius.md,
+              backgroundColor: colors.white,
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginRight: spacing.md,
+            }}
+          >
             <Icon name={st.icon} size={18} color={st.fg} />
           </View>
           <View style={{ flex: 1, marginRight: spacing.sm }}>
-            <AppText variant="captionStrong" color={st.fg} numberOfLines={1}>{evento.titulo}</AppText>
+            <AppText variant="captionStrong" color={st.fg} numberOfLines={1}>
+              {evento.titulo}
+            </AppText>
             <AppText variant="micro" color={colors.inkMuted} style={{ marginTop: 1 }}>
               {formatHora(evento.fecha_inicio)} – {formatHora(evento.fecha_fin)}
             </AppText>
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
             {evento.participantes?.slice(0, 3).map((partName, idx) => (
-              <View key={`${evento.id}-${partName}-${idx}`} style={{ width: 24, height: 24, borderRadius: radius.pill, backgroundColor: colors.white, borderWidth: 1, borderColor: st.border, alignItems: 'center', justifyContent: 'center' }}>
-                <AppText variant="micro" color={st.fg} style={{ fontSize: 9 }}>{getInitials(partName)}</AppText>
+              <View
+                key={`${evento.id}-${partName}-${idx}`}
+                style={{
+                  width: 24,
+                  height: 24,
+                  borderRadius: radius.pill,
+                  backgroundColor: colors.white,
+                  borderWidth: 1,
+                  borderColor: st.border,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <AppText variant="micro" color={st.fg} style={{ fontSize: 9 }}>
+                  {getInitials(partName)}
+                </AppText>
               </View>
             ))}
             <IconButton
@@ -215,19 +303,34 @@ export default function CalendarScreen() {
               diameter={26}
               accessibilityLabel={`Eliminar ${evento.titulo}`}
               onPress={() => {
-                Alert.alert('Confirmar eliminación', `¿Deseas eliminar "${evento.titulo}" del calendario?`, [
-                  { text: 'No', style: 'cancel' },
-                  { text: 'Sí', style: 'destructive', onPress: () => deleteEvento(evento.id) },
-                ]);
+                Alert.alert(
+                  'Confirmar eliminación',
+                  `¿Deseas eliminar "${evento.titulo}" del calendario?`,
+                  [
+                    { text: 'No', style: 'cancel' },
+                    { text: 'Sí', style: 'destructive', onPress: () => deleteEvento(evento.id) },
+                  ]
+                );
               }}
             />
           </View>
         </View>
         {evento.descripcion ? (
-          <AppText variant="micro" color={colors.inkMuted} numberOfLines={2} style={{ marginTop: 6 }}>{evento.descripcion}</AppText>
+          <AppText
+            variant="micro"
+            color={colors.inkMuted}
+            numberOfLines={2}
+            style={{ marginTop: 6 }}
+          >
+            {evento.descripcion}
+          </AppText>
         ) : null}
         {hasConflict ? (
-          <AppText variant="micro" color={colors.danger} style={{ marginTop: 6, fontWeight: '700' }}>
+          <AppText
+            variant="micro"
+            color={colors.danger}
+            style={{ marginTop: 6, fontWeight: '700' }}
+          >
             Conflicto: colisión horaria. Revisa las alertas abajo.
           </AppText>
         ) : null}
@@ -247,19 +350,42 @@ export default function CalendarScreen() {
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <Screen bottomExtra={72} refreshing={isLoading} onRefresh={refetch}>
         {/* Cabecera */}
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: spacing.md }}>
+        <View
+          style={{
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            alignItems: 'flex-start',
+            marginBottom: spacing.md,
+          }}
+        >
           <View style={{ flex: 1, paddingRight: spacing.md }}>
-            <AppText variant="title" style={{ textTransform: 'capitalize' }}>{formatFechaLarga(new Date())}</AppText>
+            <AppText variant="title" style={{ textTransform: 'capitalize' }}>
+              {formatFechaLarga(new Date())}
+            </AppText>
             <AppText variant="caption" color={colors.inkMuted} style={{ marginTop: 2 }}>
               {eventos.length} evento(s) · {conflictos.length} conflicto(s)
             </AppText>
           </View>
-          <IconButton name="refresh" size={20} color={colors.brand} bg={colors.brandSoft} onPress={refetch} accessibilityLabel="Actualizar agenda" />
+          <IconButton
+            name="refresh"
+            size={20}
+            color={colors.brand}
+            bg={colors.brandSoft}
+            onPress={refetch}
+            accessibilityLabel="Actualizar agenda"
+          />
         </View>
 
         {/* Filtro por miembros */}
         {miembros.length > 0 ? (
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.lg }}>
+          <View
+            style={{
+              flexDirection: 'row',
+              flexWrap: 'wrap',
+              gap: spacing.sm,
+              marginBottom: spacing.lg,
+            }}
+          >
             {miembros.map((member) => {
               const isSelected = selectedMembers.includes(member);
               return (
@@ -278,10 +404,27 @@ export default function CalendarScreen() {
                     borderColor: isSelected ? colors.calendar : colors.borderStrong,
                   }}
                 >
-                  <View style={{ width: 22, height: 22, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center', backgroundColor: isSelected ? colors.white : colors.brandSoft }}>
-                    <AppText variant="micro" color={isSelected ? colors.calendar : colors.brand} style={{ fontSize: 9 }}>{getInitials(member)}</AppText>
+                  <View
+                    style={{
+                      width: 22,
+                      height: 22,
+                      borderRadius: radius.pill,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      backgroundColor: isSelected ? colors.white : colors.brandSoft,
+                    }}
+                  >
+                    <AppText
+                      variant="micro"
+                      color={isSelected ? colors.calendar : colors.brand}
+                      style={{ fontSize: 9 }}
+                    >
+                      {getInitials(member)}
+                    </AppText>
                   </View>
-                  <AppText variant="captionStrong" color={isSelected ? colors.white : colors.ink}>{member}</AppText>
+                  <AppText variant="captionStrong" color={isSelected ? colors.white : colors.ink}>
+                    {member}
+                  </AppText>
                 </Pressable>
               );
             })}
@@ -294,13 +437,22 @@ export default function CalendarScreen() {
             const hourNumber = parseInt(hour.split(':')[0], 10);
             // B2: todos los eventos de la franja, no solo el primero.
             const eventosHora = eventos
-              .filter((e) => new Date(e.fecha_inicio).getHours() === hourNumber && pasaFiltroMiembro(e))
-              .sort((a, b) => new Date(a.fecha_inicio).getTime() - new Date(b.fecha_inicio).getTime());
+              .filter(
+                (e) => new Date(e.fecha_inicio).getHours() === hourNumber && pasaFiltroMiembro(e)
+              )
+              .sort(
+                (a, b) => new Date(a.fecha_inicio).getTime() - new Date(b.fecha_inicio).getTime()
+              );
 
             return (
-              <View key={hour} style={{ flexDirection: 'row', marginBottom: spacing.md, minHeight: 36 }}>
+              <View
+                key={hour}
+                style={{ flexDirection: 'row', marginBottom: spacing.md, minHeight: 36 }}
+              >
                 <View style={{ width: 48, paddingTop: 2 }}>
-                  <AppText variant="micro" color={colors.inkFaint} style={{ fontWeight: '700' }}>{hour}</AppText>
+                  <AppText variant="micro" color={colors.inkFaint} style={{ fontWeight: '700' }}>
+                    {hour}
+                  </AppText>
                 </View>
                 <View style={{ flex: 1, gap: spacing.sm }}>
                   {eventosHora.length > 0 ? (
@@ -320,18 +472,31 @@ export default function CalendarScreen() {
             <AppText variant="label" color={colors.inkFaint} style={{ marginBottom: spacing.sm }}>
               Fuera de horario ({eventosFueraHorario.length})
             </AppText>
-            <View style={{ gap: spacing.sm }}>{eventosFueraHorario.map((ev) => renderEventoCard(ev))}</View>
+            <View style={{ gap: spacing.sm }}>
+              {eventosFueraHorario.map((ev) => renderEventoCard(ev))}
+            </View>
           </View>
         ) : null}
 
         {/* Alertas de conflicto */}
         <Card style={{ marginBottom: spacing.lg }}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md }}>
+          <View
+            style={{
+              flexDirection: 'row',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: spacing.md,
+            }}
+          >
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
               <Icon name="warning-outline" size={16} color={colors.danger} />
               <AppText variant="h2">Conflictos</AppText>
             </View>
-            <Badge label={`${conflictos.length}`} color={conflictos.length > 0 ? colors.danger : colors.success} bg={conflictos.length > 0 ? colors.dangerSoft : colors.successSoft} />
+            <Badge
+              label={`${conflictos.length}`}
+              color={conflictos.length > 0 ? colors.danger : colors.success}
+              bg={conflictos.length > 0 ? colors.dangerSoft : colors.successSoft}
+            />
           </View>
 
           {conflictos.length > 0 ? (
@@ -339,33 +504,71 @@ export default function CalendarScreen() {
               const horaA = formatHora(conf.evento_a.fecha_inicio);
               const horaB = formatHora(conf.evento_b.fecha_inicio);
               return (
-                <View key={idx} style={{ backgroundColor: colors.dangerSoft, borderWidth: 1, borderColor: '#FBD5D5', borderRadius: radius.lg, padding: spacing.md, marginBottom: spacing.sm }}>
+                <View
+                  key={idx}
+                  style={{
+                    backgroundColor: colors.dangerSoft,
+                    borderWidth: 1,
+                    borderColor: '#FBD5D5',
+                    borderRadius: radius.lg,
+                    padding: spacing.md,
+                    marginBottom: spacing.sm,
+                  }}
+                >
                   <AppText variant="captionStrong" color={colors.danger} style={{ lineHeight: 18 }}>
                     {conf.evento_a.titulo} ({horaA}) ↔ {conf.evento_b.titulo} ({horaB})
                   </AppText>
                   <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md }}>
                     <View style={{ flex: 1 }}>
-                      <Button label={`Borrar ${conf.evento_a.titulo.slice(0, 10)}`} variant="danger" size="sm" onPress={() => {
-                        Alert.alert('Confirmar eliminación', `¿Deseas eliminar "${conf.evento_a.titulo}" (${horaA})?`, [
-                          { text: 'No', style: 'cancel' },
-                          { text: 'Sí', style: 'destructive', onPress: () => deleteEvento(conf.evento_a.id) },
-                        ]);
-                      }} />
+                      <Button
+                        label={`Borrar ${conf.evento_a.titulo.slice(0, 10)}`}
+                        variant="danger"
+                        size="sm"
+                        onPress={() => {
+                          Alert.alert(
+                            'Confirmar eliminación',
+                            `¿Deseas eliminar "${conf.evento_a.titulo}" (${horaA})?`,
+                            [
+                              { text: 'No', style: 'cancel' },
+                              {
+                                text: 'Sí',
+                                style: 'destructive',
+                                onPress: () => deleteEvento(conf.evento_a.id),
+                              },
+                            ]
+                          );
+                        }}
+                      />
                     </View>
                     <View style={{ flex: 1 }}>
-                      <Button label={`Borrar ${conf.evento_b.titulo.slice(0, 10)}`} variant="danger" size="sm" onPress={() => {
-                        Alert.alert('Confirmar eliminación', `¿Deseas eliminar "${conf.evento_b.titulo}" (${horaB})?`, [
-                          { text: 'No', style: 'cancel' },
-                          { text: 'Sí', style: 'destructive', onPress: () => deleteEvento(conf.evento_b.id) },
-                        ]);
-                      }} />
+                      <Button
+                        label={`Borrar ${conf.evento_b.titulo.slice(0, 10)}`}
+                        variant="danger"
+                        size="sm"
+                        onPress={() => {
+                          Alert.alert(
+                            'Confirmar eliminación',
+                            `¿Deseas eliminar "${conf.evento_b.titulo}" (${horaB})?`,
+                            [
+                              { text: 'No', style: 'cancel' },
+                              {
+                                text: 'Sí',
+                                style: 'destructive',
+                                onPress: () => deleteEvento(conf.evento_b.id),
+                              },
+                            ]
+                          );
+                        }}
+                      />
                     </View>
                   </View>
                 </View>
               );
             })
           ) : (
-            <AppText variant="caption" color={colors.inkFaint}>No se han detectado conflictos en la agenda.</AppText>
+            <AppText variant="caption" color={colors.inkFaint}>
+              No se han detectado conflictos en la agenda.
+            </AppText>
           )}
         </Card>
 
@@ -375,14 +578,28 @@ export default function CalendarScreen() {
             <Icon name="sparkles" size={16} color={colors.brand} />
             <AppText variant="h2">Evento rápido con IA</AppText>
           </View>
-          <AppText variant="micro" color={colors.inkMuted} style={{ marginBottom: spacing.md, lineHeight: 15 }}>
+          <AppText
+            variant="micro"
+            color={colors.inkMuted}
+            style={{ marginBottom: spacing.md, lineHeight: 15 }}
+          >
             Descríbelo en tus palabras y la IA propondrá fecha y hora. Tú siempre confirmas.
           </AppText>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
             <TextInput
               placeholder='Ej: "cena con mis padres el viernes a las 21h"'
               placeholderTextColor={colors.inkFaint}
-              style={{ flex: 1, backgroundColor: colors.cardAlt, borderWidth: 1, borderColor: colors.borderStrong, borderRadius: radius.md, paddingHorizontal: spacing.md, paddingVertical: 11, fontSize: 14, color: colors.ink }}
+              style={{
+                flex: 1,
+                backgroundColor: colors.cardAlt,
+                borderWidth: 1,
+                borderColor: colors.borderStrong,
+                borderRadius: radius.md,
+                paddingHorizontal: spacing.md,
+                paddingVertical: 11,
+                fontSize: 14,
+                color: colors.ink,
+              }}
               value={quickInput}
               onChangeText={setQuickInput}
               onSubmitEditing={handleQuickAdd}
@@ -392,33 +609,107 @@ export default function CalendarScreen() {
               onPress={handleQuickAdd}
               disabled={quickLoading}
               accessibilityLabel="Interpretar evento con IA"
-              style={{ width: 46, height: 46, borderRadius: radius.md, backgroundColor: colors.brand, alignItems: 'center', justifyContent: 'center' }}
+              style={{
+                width: 46,
+                height: 46,
+                borderRadius: radius.md,
+                backgroundColor: colors.brand,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
             >
-              {quickLoading ? <ActivityIndicator size="small" color={colors.white} /> : <Icon name="sparkles" size={20} color={colors.white} />}
+              {quickLoading ? (
+                <ActivityIndicator size="small" color={colors.white} />
+              ) : (
+                <Icon name="sparkles" size={20} color={colors.white} />
+              )}
             </Pressable>
           </View>
         </Card>
       </Screen>
 
-      <Fab icon="add" color={colors.calendar} onPress={() => setModalVisible(true)} accessibilityLabel="Añadir evento al calendario" />
+      <Fab
+        icon="add"
+        color={colors.calendar}
+        onPress={() => setModalVisible(true)}
+        accessibilityLabel="Añadir evento al calendario"
+      />
 
       {/* Modal Crear evento */}
-      <Modal visible={modalVisible} transparent animationType="slide" onRequestClose={() => setModalVisible(false)}>
+      <Modal
+        visible={modalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setModalVisible(false)}
+      >
         <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: colors.overlay }}>
-          <View style={{ backgroundColor: colors.card, borderTopLeftRadius: radius.xxl, borderTopRightRadius: radius.xxl, padding: spacing.xl, paddingBottom: spacing.xxxl, maxHeight: '88%' }}>
+          <View
+            style={{
+              backgroundColor: colors.card,
+              borderTopLeftRadius: radius.xxl,
+              borderTopRightRadius: radius.xxl,
+              padding: spacing.xl,
+              paddingBottom: spacing.xxxl,
+              maxHeight: '88%',
+            }}
+          >
             <View style={{ alignItems: 'center', marginBottom: spacing.md }}>
-              <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: colors.borderStrong }} />
+              <View
+                style={{
+                  width: 40,
+                  height: 4,
+                  borderRadius: 2,
+                  backgroundColor: colors.borderStrong,
+                }}
+              />
             </View>
-            <AppText variant="h2" style={{ marginBottom: spacing.lg }}>Nuevo evento</AppText>
+            <AppText variant="h2" style={{ marginBottom: spacing.lg }}>
+              Nuevo evento
+            </AppText>
             <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-              <Field label="Título *" placeholder="Ej: Reunión escolar" value={titulo} onChangeText={setTitulo} />
-              <Field label="Descripción" placeholder="Opcional" value={descripcion} onChangeText={setDescripcion} />
+              <Field
+                label="Título *"
+                placeholder="Ej: Reunión escolar"
+                value={titulo}
+                onChangeText={setTitulo}
+              />
+              <Field
+                label="Descripción"
+                placeholder="Opcional"
+                value={descripcion}
+                onChangeText={setDescripcion}
+              />
               <View style={{ flexDirection: 'row', gap: spacing.md }}>
-                <View style={{ flex: 1 }}><Field label="Inicio (HH:MM) *" placeholder="10:00" value={horaInicio} onChangeText={setHoraInicio} /></View>
-                <View style={{ flex: 1 }}><Field label="Fin (HH:MM) *" placeholder="11:00" value={horaFin} onChangeText={setHoraFin} /></View>
+                <View style={{ flex: 1 }}>
+                  <Field
+                    label="Inicio (HH:MM) *"
+                    placeholder="10:00"
+                    value={horaInicio}
+                    onChangeText={setHoraInicio}
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Field
+                    label="Fin (HH:MM) *"
+                    placeholder="11:00"
+                    value={horaFin}
+                    onChangeText={setHoraFin}
+                  />
+                </View>
               </View>
-              <Field label="Participantes (coma)" placeholder="Mamá, Papá, Juan" value={participantes} onChangeText={setParticipantes} containerStyle={{ marginBottom: spacing.xl }} />
-              <Button label="Crear evento" icon="add" onPress={handleAdd} style={{ marginBottom: spacing.sm }} />
+              <Field
+                label="Participantes (coma)"
+                placeholder="Mamá, Papá, Juan"
+                value={participantes}
+                onChangeText={setParticipantes}
+                containerStyle={{ marginBottom: spacing.xl }}
+              />
+              <Button
+                label="Crear evento"
+                icon="add"
+                onPress={handleAdd}
+                style={{ marginBottom: spacing.sm }}
+              />
               <Button label="Cancelar" variant="ghost" onPress={() => setModalVisible(false)} />
             </ScrollView>
           </View>
@@ -426,33 +717,95 @@ export default function CalendarScreen() {
       </Modal>
 
       {/* Modal de conflicto al guardar */}
-      <Modal visible={!!conflictoModal} transparent animationType="fade" onRequestClose={() => setConflictoModal(null)}>
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.overlay, paddingHorizontal: spacing.xl }}>
-          <View style={{ backgroundColor: colors.card, borderRadius: radius.xxl, padding: spacing.xl, width: '100%' }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: spacing.md }}>
+      <Modal
+        visible={!!conflictoModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setConflictoModal(null)}
+      >
+        <View
+          style={{
+            flex: 1,
+            justifyContent: 'center',
+            alignItems: 'center',
+            backgroundColor: colors.overlay,
+            paddingHorizontal: spacing.xl,
+          }}
+        >
+          <View
+            style={{
+              backgroundColor: colors.card,
+              borderRadius: radius.xxl,
+              padding: spacing.xl,
+              width: '100%',
+            }}
+          >
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 8,
+                marginBottom: spacing.md,
+              }}
+            >
               <Icon name="warning" size={20} color={colors.danger} />
-              <AppText variant="h2" color={colors.danger}>Conflicto de horario</AppText>
-            </View>
-            <AppText variant="caption" color={colors.inkMuted} style={{ lineHeight: 19, marginBottom: spacing.md }}>
-              El evento "{conflictoModal?.evento_nuevo.titulo}" se solapa con un evento existente:
-            </AppText>
-            <View style={{ backgroundColor: colors.dangerSoft, borderWidth: 1, borderColor: '#FBD5D5', borderRadius: radius.lg, padding: spacing.md, marginBottom: spacing.lg }}>
-              <AppText variant="captionStrong" color={colors.danger}>{conflictoModal?.evento_conflictivo.titulo}</AppText>
-              <AppText variant="micro" color={colors.danger} style={{ marginTop: 2 }}>
-                {conflictoModal ? formatHora(conflictoModal.evento_conflictivo.fecha_inicio) : ''} – {conflictoModal ? formatHora(conflictoModal.evento_conflictivo.fecha_fin) : ''}
+              <AppText variant="h2" color={colors.danger}>
+                Conflicto de horario
               </AppText>
             </View>
-            <AppText variant="caption" color={colors.inkMuted} style={{ marginBottom: spacing.lg }}>¿Deseas añadirlo igualmente ignorando el conflicto?</AppText>
+            <AppText
+              variant="caption"
+              color={colors.inkMuted}
+              style={{ lineHeight: 19, marginBottom: spacing.md }}
+            >
+              El evento «{conflictoModal?.evento_nuevo.titulo}» se solapa con un evento existente:
+            </AppText>
+            <View
+              style={{
+                backgroundColor: colors.dangerSoft,
+                borderWidth: 1,
+                borderColor: '#FBD5D5',
+                borderRadius: radius.lg,
+                padding: spacing.md,
+                marginBottom: spacing.lg,
+              }}
+            >
+              <AppText variant="captionStrong" color={colors.danger}>
+                {conflictoModal?.evento_conflictivo.titulo}
+              </AppText>
+              <AppText variant="micro" color={colors.danger} style={{ marginTop: 2 }}>
+                {conflictoModal ? formatHora(conflictoModal.evento_conflictivo.fecha_inicio) : ''} –{' '}
+                {conflictoModal ? formatHora(conflictoModal.evento_conflictivo.fecha_fin) : ''}
+              </AppText>
+            </View>
+            <AppText variant="caption" color={colors.inkMuted} style={{ marginBottom: spacing.lg }}>
+              ¿Deseas añadirlo igualmente ignorando el conflicto?
+            </AppText>
             <View style={{ flexDirection: 'row', gap: spacing.md }}>
-              <View style={{ flex: 1 }}><Button label="Cancelar" variant="ghost" onPress={() => setConflictoModal(null)} /></View>
               <View style={{ flex: 1 }}>
-                <Button label="Añadir igual" variant="danger" onPress={() => {
-                  const ev = conflictoModal?.evento_nuevo;
-                  setConflictoModal(null);
-                  if (ev) {
-                    crearEvento({ titulo: ev.titulo, descripcion: ev.descripcion, fecha_inicio: ev.fecha_inicio, fecha_fin: ev.fecha_fin, participantes: ev.participantes }, true);
-                  }
-                }} />
+                <Button label="Cancelar" variant="ghost" onPress={() => setConflictoModal(null)} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Button
+                  label="Añadir igual"
+                  variant="danger"
+                  onPress={() => {
+                    const ev = conflictoModal?.evento_nuevo;
+                    setConflictoModal(null);
+                    if (ev) {
+                      crearEvento(
+                        {
+                          titulo: ev.titulo,
+                          descripcion: ev.descripcion,
+                          fecha_inicio: ev.fecha_inicio,
+                          fecha_fin: ev.fecha_fin,
+                          participantes: ev.participantes,
+                        },
+                        true
+                      );
+                    }
+                  }}
+                />
               </View>
             </View>
           </View>

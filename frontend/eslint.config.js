@@ -10,4 +10,15 @@ module.exports = [
   {
     ignores: ['node_modules/*', '.expo/*', 'dist/*', 'babel.config.js', 'metro.config.js'],
   },
+  {
+    // Hooks de datos (use{Dashboard,Pantry,Calendar,Tasks}): el patrón canónico de
+    // fetch-on-mount con AbortController llama setLoading(true) de forma síncrona al
+    // arrancar el efecto. La regla react-hooks/set-state-in-effect lo marca como falso
+    // positivo: aquí el efecto SÍ sincroniza con un sistema externo (la API) y limpia
+    // con ctrl.abort(). Desactivada solo en esta carpeta para no bloquear commits.
+    files: ['src/hooks/**/*.{ts,tsx}'],
+    rules: {
+      'react-hooks/set-state-in-effect': 'off',
+    },
+  },
 ];
