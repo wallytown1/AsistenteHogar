@@ -12,7 +12,7 @@ import {
   RecetaSugerida,
   SugerenciasResponse,
 } from '../types/types';
-import { apiRequest } from '../api/api';
+import { apiRequest, TIMEOUT } from '../api/api';
 import AIDisclaimerBanner from '../components/AIDisclaimerBanner';
 import { colors, radius, spacing } from '../theme/tokens';
 import {
@@ -147,7 +147,7 @@ export default function PantryScreen() {
       const res = await apiRequest<InterpretarDespensaResponse>('/pantry/interpretar', {
         method: 'POST',
         json: { texto: textoIA.trim(), fecha_referencia: hoy },
-        timeoutMs: 45000,
+        timeoutMs: TIMEOUT.AI,
       });
       if (res.alimentos.length > 0) {
         setPropuestasIA(res.alimentos);
@@ -294,7 +294,7 @@ export default function PantryScreen() {
     setPlanMensaje(null);
     try {
       const res = await apiRequest<SugerenciasResponse>('/pantry/sugerencias', {
-        timeoutMs: 90000,
+        timeoutMs: TIMEOUT.OCR_FULL,
       });
       setRecetas(res.recetas.recetas);
       setRecetasGeneradasPorIA(res.recetas.generado_por_ia);

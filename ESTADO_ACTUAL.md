@@ -1,5 +1,36 @@
 # ESTADO ACTUAL — AsistenteHogar (2026-06-16)
 
+## 🔧 Sesión 2026-06-16 (noche tardía) — Bloque de pulido #4–#8
+
+Trabajo en rama `feat/mejoras-servicio`.
+
+**Mejora #4 — OCR ticket: FAB dedicado + revisión en lote** (`frontend/src/screens/PantryScreen.tsx`)
+- Segundo FAB `receipt-outline` en la pantalla principal de Despensa (no dentro del modal).
+- Modal de revisión en lote: lista de productos detectados con checkboxes individuales + "Añadir seleccionados".
+- Estados nuevos: `ocrScanning`, `ocrReviewVisible`, `ocrReviewItems`, `ocrAdding`.
+- Timeout: 90 s para el endpoint de visión (ahora `TIMEOUT.OCR_FULL`).
+
+**Mejora #5 — Endpoint `/pantry/sugerencias` unificado** (`backend/app/api/routers/pantry.py`)
+- Nuevo endpoint `GET /pantry/sugerencias` que lanza `generate_recipe_suggestions` y `generate_meal_plan`
+  en paralelo con `asyncio.gather()`, reutilizando las cachés individuales de cada función.
+- Schema `SugerenciasResponse` añadido a `schemas.py` y `types.ts`.
+- `PantryScreen` prefetcha en background al montar si `isPremium && items.length > 0` (ref guard).
+
+**Mejora #6 — Duración del solapamiento en Calendario** (`frontend/src/screens/CalendarScreen.tsx`)
+- Cada card de conflicto ahora muestra "Solapamiento: X min" bajo los títulos de los eventos.
+- Usa `conf.duracion_solapamiento_segundos / 60` redondeado; el campo ya existía en `ConflictoDetalle`.
+
+**Mejora #7 — Descartada** (falso positivo)
+- `generate_recipe_suggestions()` y `generate_meal_plan()` solo reciben nombres de alimentos,
+  nunca `asignado_a`/`participantes`. No hay nombres personales que anonimizar.
+
+**Mejora #8 — Timeouts consistentes** (`frontend/src/api/api.ts` + 4 consumidores)
+- Exportada constante `TIMEOUT = { DEFAULT: 15_000, AI: 45_000, OCR: 60_000, OCR_FULL: 90_000 }`.
+- Sustituidos todos los valores literales en `useDashboard`, `usePantry`, `PantryScreen`, `TasksScreen`.
+- El fallback interno de `apiRequest` ahora usa `TIMEOUT.DEFAULT` en lugar de `15000`.
+
+---
+
 ## 🔧 Sesión 2026-06-16 (noche) — Mejoras de servicio #2 y #3
 
 Trabajo en rama `feat/mejoras-servicio`.

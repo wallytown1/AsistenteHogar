@@ -11,69 +11,31 @@ Ordenadas por impacto. Las completadas se moverán al `CHANGELOG.md`.
 |---|--------|------|--------|
 | 1 | Conflictos de agenda incluidos en el briefing matutino | `feat/mejoras-servicio` | `f1d0247` |
 | 2 | `ultimo_completado` visible en tareas: badge, próxima ejecución, orden por urgencia | `feat/mejoras-servicio` | `9a591f5` |
-| 3 | Gate premium consistente: `requiere_premium` añadido a `/calendar/interpretar` | `feat/mejoras-servicio` | pendiente |
+| 3 | Gate premium consistente: `requiere_premium` añadido a `/calendar/interpretar` | `feat/mejoras-servicio` | `e7ed746` |
+| 4 | OCR de ticket: FAB dedicado + modal de revisión en lote con checkboxes | `feat/mejoras-servicio` | `b81ee99` |
+| 5 | Endpoint `/pantry/sugerencias` unificado (`asyncio.gather`) + precarga en background | `feat/mejoras-servicio` | `9b938dd` |
+| 6 | Duración del solapamiento visible en Calendario: "Solapamiento: X min" | `feat/mejoras-servicio` | pendiente |
+| 7 | Anonimización RGPD en `generate_recipe_suggestions`/`generate_meal_plan` | N/A | — |
+| 8 | Timeouts consistentes: constante `TIMEOUT` exportada desde `api.ts` | `feat/mejoras-servicio` | pendiente |
+
+> **Nota #7:** Falso positivo. `generate_recipe_suggestions()` y `generate_meal_plan()` solo reciben
+> `InventarioAlimentoResponse` (nombres de alimentos como "leche", "manzanas"), nunca `asignado_a`
+> ni `participantes`. No hay datos personales que anonimizar en esas rutas.
 
 ---
 
-### #4 — OCR de ticket: flujo tedioso y característica poco visible
-**Problema:** el OCR está enterrado 3 niveles dentro del modal de despensa. Los alimentos
-detectados se confirman uno a uno en lugar de en lote.
-
-**Solución:**
-- FAB dedicado o botón destacado en la pantalla principal de Despensa (no dentro del modal).
-- Pantalla/modal de "revisión en lote": lista editable de todos los alimentos detectados
-  (cantidad, categoría) y un único botón "Añadir todos" al final.
-
-**Archivos:** `frontend/src/screens/PantryScreen.tsx`, posiblemente nueva
-`frontend/src/screens/OcrReviewScreen.tsx`.
-**Esfuerzo:** Medio (refactor UI + gestión de estado del lote).
-
----
-
-### #5 — Plan de comidas y recetas: dos llamadas separadas, sin precarga
-**Problema:** `/pantry/recetas` y `/pantry/plan-comidas` son endpoints independientes
-que el usuario lanza manualmente uno a uno.
-
-**Solución:**
-- Nuevo endpoint `/pantry/sugerencias` que devuelve `{recetas, plan_comidas}` en paralelo
-  (`asyncio.gather()`), misma clave de caché hash.
-- Precarga en background al abrir PantryScreen si `isPremium && items.length > 0`.
-
-**Archivos:** `backend/app/api/routers/pantry.py` (nuevo endpoint),
-`backend/app/services/llm.py`, `frontend/src/hooks/usePantry.ts`.
-**Esfuerzo:** Medio.
-
----
-
-## 🟡 Mejoras menores (pulido)
-
-### #6 — Duración del solapamiento no mostrada en Calendario
-`ConflictoDetalle.duracion_solapamiento_segundos` se calcula pero la UI solo dice
-"hay conflicto". Añadir "Solapamiento: X min" en `AgendaScreen`.
-**Esfuerzo:** Bajo (<10 líneas).
-
-### #7 — Anonimización RGPD incompleta en LLM
-`generate_morning_briefing()` anonimiza nombres. `generate_meal_plan()` y
-`generate_recipe_suggestions()` no. Si el plan menciona participantes, sus nombres
-van directos a Gemini.
-**Esfuerzo:** Bajo-Medio (extender `AnonimizadorLLM` a 2 funciones más).
-
-### #8 — Timeouts inconsistentes entre hooks
-`useDashboard` → 45 s; OCR → 60 s; CRUD pantry/calendar/tasks → 15 s (default).
-Debería haber una constante por categoría de operación.
-**Esfuerzo:** Bajo (constantes en `api.ts` o config).
+## 🟡 Pendiente
 
 ### #9 — Umbral de stock hardcodeado (`timedelta(days=6)`)
 `PantryService.get_stock_metrics()` usa 6 días fijo. Algunos hogares quieren 3 días
 (compra frecuente), otros 14 (congelador).
-**Esfuerzo:** Medio (nueva tabla `HogarSettings` o campo en `Hogar` + migración).
+**Esfuerzo:** Medio (nueva tabla `HogarSettings` o campo en `Hogar` + migración Alembic).
+**Decisión:** Diferido a F6 o fase posterior; requiere diseño del modelo de configuración por hogar.
 
 ---
 
 ## 📋 Notas
 
-- Los items #2–#5 son los de mayor retorno sobre esfuerzo.
-- Los items #6–#9 pueden agruparse en un único PR de pulido.
-- Ninguno de estos cambios toca la arquitectura ni el modelo de datos principal
-  (salvo #9, que requiere migración).
+- El bloque de pulido (#6–#9) queda cerrado salvo #9 que requiere migración.
+- Rama `feat/mejoras-servicio` lista para PR → `main` una vez validado.
 - Actualizar este archivo al completar cada mejora y mover la entrada a CHANGELOG.

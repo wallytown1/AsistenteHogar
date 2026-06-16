@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Modal, ScrollView, Alert, Pressable, ActivityIndicator } from 'react-native';
 import { useTasks } from '../hooks/useTasks';
 import { TareaItem, TareaInterpretada, InterpretarTareaResponse } from '../types/types';
-import { apiRequest } from '../api/api';
+import { apiRequest, TIMEOUT } from '../api/api';
 import AIDisclaimerBanner from '../components/AIDisclaimerBanner';
 import { colors, radius, spacing } from '../theme/tokens';
 import {
@@ -148,7 +148,7 @@ export default function TasksScreen() {
       const res = await apiRequest<InterpretarTareaResponse>('/tasks/interpretar', {
         method: 'POST',
         json: { texto: textoIA.trim() },
-        timeoutMs: 45000,
+        timeoutMs: TIMEOUT.AI,
       });
       if (res.tarea) {
         setPropuestaIA(res.tarea);

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { AlimentoItem, PantryStockMetrics } from '../types/types';
-import { apiRequest } from '../api/api';
+import { apiRequest, TIMEOUT } from '../api/api';
 
 /**
  * Retorna los días restantes para la caducidad de un alimento.
@@ -123,7 +123,7 @@ export function usePantry() {
       const data = await apiRequest<{ alimentos: any[] }>('/pantry/ocr-ticket', {
         method: 'POST',
         json: { imagen_base64: imagenBase64, fecha_referencia: hoy },
-        timeoutMs: 60000,
+        timeoutMs: TIMEOUT.OCR,
       });
       return data.alimentos || [];
     } catch (err: any) {

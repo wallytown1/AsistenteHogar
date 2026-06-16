@@ -2,6 +2,13 @@ import { Alert } from 'react-native';
 import { API_BASE_URL } from '../config/config';
 import { useAuthStore } from '../state/authStore';
 
+export const TIMEOUT = {
+  DEFAULT: 15_000,
+  AI: 45_000,
+  OCR: 60_000,
+  OCR_FULL: 90_000,
+} as const;
+
 interface RequestOptions extends RequestInit {
   json?: any;
   timeoutMs?: number;
@@ -38,7 +45,7 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
 
   let signal = options.signal;
   let timeoutId: NodeJS.Timeout | undefined;
-  const timeoutMs = options.timeoutMs ?? 15000;
+  const timeoutMs = options.timeoutMs ?? TIMEOUT.DEFAULT;
 
   const controller = new AbortController();
   timeoutId = setTimeout(() => controller.abort(), timeoutMs);
