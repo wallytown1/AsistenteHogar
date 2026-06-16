@@ -64,6 +64,7 @@ jobs:
       - name: Schemathesis (API schema fuzzing)
         env:
           PYTHONPATH: .
+          DATABASE_URL: sqlite+aiosqlite:///./schemathesis_test.db
         run: |
           schemathesis run \
             --app=app.main:app \
