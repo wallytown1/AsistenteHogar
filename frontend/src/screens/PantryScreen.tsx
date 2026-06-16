@@ -33,6 +33,9 @@ import {
 } from '../components/ui';
 import { getCategoriaIcon } from '../lib/categoria';
 import { haptics } from '../lib/haptics';
+import { usePurchasesStore } from '../state/purchasesStore';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 const UMBRAL_BAJO_STOCK = 1;
 
@@ -60,6 +63,17 @@ export default function PantryScreen() {
   // Programa notificaciones locales para alimentos próximos a caducar (≤3 días).
   useExpiryNotifications(items);
   const [modalVisible, setModalVisible] = useState(false);
+
+  const { isPremium } = usePurchasesStore();
+  const navigation = useNavigation<NativeStackNavigationProp<any>>();
+
+  const checkPremiumGate = () => {
+    if (!isPremium) {
+      navigation.navigate('Paywall');
+      return false;
+    }
+    return true;
+  };
 
   const [filtroCategoria, setFiltroCategoria] = useState('');
   const [soloBajoStock, setSoloBajoStock] = useState(false);
@@ -109,6 +123,7 @@ export default function PantryScreen() {
   };
 
   const handleInterpretarDespensa = async () => {
+    if (!checkPremiumGate()) return;
     if (textoIA.trim().length < 3) {
       Alert.alert('Texto muy corto', 'Describe al menos 3 caracteres.');
       return;
@@ -151,6 +166,7 @@ export default function PantryScreen() {
   };
 
   const handleSugerirMetadata = async () => {
+    if (!checkPremiumGate()) return;
     if (nombre.trim().length < 2) return;
     setSugirendoMetadata(true);
     try {
@@ -169,6 +185,7 @@ export default function PantryScreen() {
   };
 
   const fetchPlanComidas = async () => {
+    if (!checkPremiumGate()) return;
     setPlanLoading(true);
     setPlanMensaje(null);
     try {
@@ -188,6 +205,7 @@ export default function PantryScreen() {
   };
 
   const fetchRecetas = async () => {
+    if (!checkPremiumGate()) return;
     setRecetasLoading(true);
     setRecetasMensaje(null);
     try {

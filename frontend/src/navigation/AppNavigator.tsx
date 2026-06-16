@@ -3,6 +3,7 @@ import {
   createBottomTabNavigator,
   BottomTabNavigationOptions,
 } from '@react-navigation/bottom-tabs';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { ActivityIndicator, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -14,7 +15,9 @@ import TasksScreen from '../screens/TasksScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import AuthScreen from '../screens/AuthScreen';
 import OnboardingScreen, { hasSeenOnboarding } from '../screens/OnboardingScreen';
+import PaywallScreen from '../screens/PaywallScreen';
 import { useAuthStore } from '../state/authStore';
+import { usePurchasesStore } from '../state/purchasesStore';
 import { colors } from '../theme/tokens';
 
 type RootTabParamList = {
@@ -25,9 +28,14 @@ type RootTabParamList = {
   Ajustes: undefined;
 };
 
-const Tab = createBottomTabNavigator<RootTabParamList>();
+type RootStackParamList = {
+  MainTabs: undefined;
+  Paywall: undefined;
+};
 
-// Par de iconos (relleno cuando está activo, contorno cuando no) por pestaña.
+const Tab = createBottomTabNavigator<RootTabParamList>();
+const Stack = createNativeStackNavigator<RootStackParamList>();
+
 const ICONS: Record<
   keyof RootTabParamList,
   { on: keyof typeof Ionicons.glyphMap; off: keyof typeof Ionicons.glyphMap }
@@ -39,51 +47,8 @@ const ICONS: Record<
   Ajustes: { on: 'settings', off: 'settings-outline' },
 };
 
-export default function AppNavigator() {
-  const token = useAuthStore((s) => s.token);
-  const hydrated = useAuthStore((s) => s.hydrated);
-  const hydrate = useAuthStore((s) => s.hydrate);
+function MainTabs() {
   const insets = useSafeAreaInsets();
-  const [onboardingChecked, setOnboardingChecked] = useState(false);
-  const [showOnboarding, setShowOnboarding] = useState(false);
-
-  useEffect(() => {
-    hydrate();
-  }, [hydrate]);
-
-  useEffect(() => {
-    hasSeenOnboarding().then((seen) => {
-      setShowOnboarding(!seen);
-      setOnboardingChecked(true);
-    });
-  }, []);
-
-  // Restaurando la sesión persistida y comprobando el onboarding (SecureStore)
-  if (!hydrated || !onboardingChecked) {
-    return (
-      <View
-        style={{
-          flex: 1,
-          backgroundColor: colors.bg,
-          justifyContent: 'center',
-          alignItems: 'center',
-        }}
-      >
-        <ActivityIndicator size="large" color={colors.brand} />
-      </View>
-    );
-  }
-
-  // Primera ejecución: intro de 3 slides antes del acceso
-  if (showOnboarding) {
-    return <OnboardingScreen onDone={() => setShowOnboarding(false)} />;
-  }
-
-  // Sin sesión: pantalla de acceso (login / crear hogar)
-  if (!token) {
-    return <AuthScreen />;
-  }
-
   return (
     <Tab.Navigator
       screenOptions={({
@@ -122,5 +87,72 @@ export default function AppNavigator() {
       <Tab.Screen name="Tareas" component={TasksScreen} />
       <Tab.Screen name="Ajustes" component={SettingsScreen} />
     </Tab.Navigator>
+  );
+}
+
+export default function AppNavigator() {
+  const token = useAuthStore((s) => s.token);
+  const usuario = useAuthStore((s) => s.usuario);
+  const hydrated = useAuthStore((s) => s.hydrated);
+  const hydrate = useAuthStore((s) => s.hydrate);
+  const { configure, logIn } = usePurchasesStore();
+  const [onboardingChecked, setOnboardingChecked] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+
+  // Inicializar RevenueCat globalmente
+  useEffect(() => {
+    configure();
+  }, [configure]);
+
+  // Si hay usuario logueado, sincronizarlo con RevenueCat
+  useEffect(() => {
+    if (usuario) {
+      logIn(usuario.id);
+    }
+  }, [usuario, logIn]);
+
+  useEffect(() => {
+    hydrate();
+  }, [hydrate]);
+
+  useEffect(() => {
+    hasSeenOnboarding().then((seen) => {
+      setShowOnboarding(!seen);
+      setOnboardingChecked(true);
+    });
+  }, []);
+
+  if (!hydrated || !onboardingChecked) {
+    return (
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: colors.bg,
+          justifyContent: 'center',
+          alignItems: 'center',
+        }}
+      >
+        <ActivityIndicator size="large" color={colors.brand} />
+      </View>
+    );
+  }
+
+  if (showOnboarding) {
+    return <OnboardingScreen onDone={() => setShowOnboarding(false)} />;
+  }
+
+  if (!token) {
+    return <AuthScreen />;
+  }
+
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="MainTabs" component={MainTabs} />
+      <Stack.Screen
+        name="Paywall"
+        component={PaywallScreen}
+        options={{ presentation: 'fullScreenModal' }}
+      />
+    </Stack.Navigator>
   );
 }

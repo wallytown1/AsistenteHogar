@@ -195,13 +195,14 @@ IDOR) y se actualizó al diseño real (tenant del JWT) + la arquitectura de comp
 **Verificación**: `smoke_test_legal.py` nuevo (**26/26**), suite completa anterior
 (12+30+20+20) en verde, `npm run ts:check` → **0 errores**.
 
-## 🚀 Próximo paso: F4 — Freemium
+## 🚀 Fase actual: F4 — Freemium (✅ Completada)
 
-**Descripción:** Integración RevenueCat (IAP iOS/Android) + límites free vs premium en backend.
+**Descripción:** Integración RevenueCat (IAP iOS/Android) + Paywall + Límites premium en frontend.
 
-**Requiere:** Cuenta en https://app.revenuecat.com
-
-**No iniciado aún.** Esperar instrucción del usuario.
+- [x] Configuración de RevenueCat en frontend (`react-native-purchases`).
+- [x] Lógica de estado `purchasesStore` (Zustand).
+- [x] Diseño y enrutamiento de la `PaywallScreen`.
+- [x] Bloqueo de funciones de IA (Sugerir metadatos, Plan de comidas, Tareas NL) hasta tener suscripción.
 
 ---
 

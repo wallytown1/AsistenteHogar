@@ -22,6 +22,9 @@ import {
   ErrorView,
 } from '../components/ui';
 import { haptics } from '../lib/haptics';
+import { usePurchasesStore } from '../state/purchasesStore';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 type FiltroEstado = 'todas' | 'pendiente' | 'completado';
 
@@ -64,6 +67,18 @@ export default function TasksScreen() {
   const [propuestaIA, setPropuestaIA] = useState<TareaInterpretada | null>(null);
   const [interpretandoIA, setInterpretandoIA] = useState(false);
   const [mensajeIA, setMensajeIA] = useState<string | null>(null);
+
+  const { isPremium } = usePurchasesStore();
+  const navigation = useNavigation<NativeStackNavigationProp<any>>();
+
+  const checkPremiumGate = () => {
+    if (!isPremium) {
+      navigation.navigate('Paywall');
+      setModalVisible(false); // Cierra el modal de añadir tarea
+      return false;
+    }
+    return true;
+  };
 
   const resetForm = () => {
     setNombre('');
@@ -406,7 +421,11 @@ export default function TasksScreen() {
               <Chip
                 label="Describir con IA"
                 active={modoModal === 'ia'}
-                onPress={() => setModoModal('ia')}
+                onPress={() => {
+                  if (checkPremiumGate()) {
+                    setModoModal('ia');
+                  }
+                }}
                 activeColor={colors.brand}
                 flex
               />

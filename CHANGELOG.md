@@ -6,6 +6,26 @@ Formato: `[FECHA] [ÁREA] [TIPO] Descripción`
 
 ---
 
+## [2026-06-16] — FASE F4: Freemium y RevenueCat
+
+### Decisiones clave
+- **RevenueCat SDK**: Se implementó `react-native-purchases` en el frontend para gestionar IAP (In-App Purchases) de Apple y Google.
+- **Paywall Inteligente**: Se creó `PaywallScreen.tsx` (como Modal fullScreen nativo sobre las pestañas) que levanta de forma remota los paquetes configurados (Offerings) desde el panel de RevenueCat.
+- **Restricción de IA**: La inteligencia artificial se ha agrupado como función "Pro". Si el estado local `isPremium` es falso, funciones como "Sugerir con IA" o "Plan de Comidas" se bloquean e invocan automáticamente el Paywall.
+
+### Archivos
+- `ADD` frontend/src/screens/PaywallScreen.tsx — interfaz del Paywall nativo.
+- `ADD` frontend/src/state/purchasesStore.ts — estado Zustand para Purchases (init, login, checkPremium).
+- `MOD` frontend/src/navigation/AppNavigator.tsx — envoltura de Tabs en un RootStack; inyección del modal Paywall y `configure()` de RevenueCat.
+- `MOD` frontend/src/screens/PantryScreen.tsx — inyección del Paywall `checkPremiumGate` para limitar IA.
+- `MOD` frontend/src/screens/TasksScreen.tsx — inyección del Paywall para limitar interpretación de IA.
+- `MOD` backend/.env — Se retiró la variable pública `REVENUE_CAT` (pertenece al frontend).
+- `MOD` frontend/.env.development / frontend/.env.production — Se añadió `EXPO_PUBLIC_RC_KEY`.
+
+### Verificación: 0 errores de TypeScript en frontend; Paywall modal comprobado nativamente.
+
+---
+
 ## [2026-06-16] — FASE F5: Migración a Redis y Despliegue en la Nube (Railway)
 
 ### Decisiones clave
