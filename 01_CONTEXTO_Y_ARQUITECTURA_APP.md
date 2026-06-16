@@ -13,8 +13,8 @@ AsistenteHogar/
 ├── backend/
 │   ├── app/
 │   │   ├── api/
-│   │   │   ├── routers/           # auth, dashboard, pantry, calendar, tasks (FastAPI)
-│   │   │   └── deps.py            # Inyección: sesión DB, get_current_user, get_hogar_id (JWT)
+│   │   │   ├── routers/           # admin, auth, dashboard, pantry, calendar, tasks (FastAPI)
+│   │   │   └── deps.py            # Inyección: sesión DB, get_current_user, get_hogar_id, verify_admin_key
 │   │   ├── core/                  # config, security (JWT/bcrypt), rate_limit, logging, utils
 │   │   ├── models/                # Modelos SQLAlchemy 2.0 async (models.py)
 │   │   ├── repositories/          # Acceso a datos (Patrón Repositorio) + exceptions tipadas
@@ -29,6 +29,7 @@ AsistenteHogar/
 │   ├── docker-compose.yml         # PostgreSQL 16 (producción/local opcional)
 │   ├── requirements.txt
 │   └── .env.example
+├── admin-web/               # F-ADMIN: Panel de control God Mode (React 18 + Vite + TypeScript)
 ├── frontend/
 │   ├── src/
 │   │   ├── api/                   # api.ts — cliente fetch con Bearer token + timeout 15s
@@ -189,6 +190,7 @@ Prefijo global `/api/v1`. Autenticación Bearer JWT (HS256, expiración 30 días
 | Despensa | `GET /pantry`, `GET /pantry/recetas`, `POST /pantry`, `PATCH /pantry/{id}`, `DELETE /pantry/{id}` 🔒 | Recetas = IA pasiva |
 | Calendario | `GET /calendar`, `POST /calendar`, `POST /calendar/interpretar`, `PATCH /calendar/{id}`, `DELETE /calendar/{id}` 🔒 | Conflictos reportados en el GET (`conflictos[]`), no como 409 en el POST |
 | Tareas | `GET /tasks`, `POST /tasks`, `PATCH /tasks/{id}`, `DELETE /tasks/{id}` 🔒 | |
+| Admin | `GET /admin/users`, `GET /admin/hogares`, `DELETE /admin/hogar/{id}` 🔒 | God Mode. Protegido por ADMIN_API_KEY. |
 | Salud | `GET /health`, `GET /` | Sin auth |
 
 Decisiones de contrato que sustituyen al diseño original (v1.0 de este documento):
