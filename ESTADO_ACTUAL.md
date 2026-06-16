@@ -1,4 +1,4 @@
-# ESTADO ACTUAL — AsistenteHogar (2026-06-12)
+# ESTADO ACTUAL — AsistenteHogar (2026-06-16)
 
 ## ✅ Completado
 
@@ -17,6 +17,31 @@
 | F-IA-2 | Optimización del flujo Gemini + 4 funciones de IA nuevas (tareas/despensa NL, metadata, plan de comidas) | backend/app/services/llm.py, backend/app/api/routers/{tasks,pantry}.py, backend/app/core/rate_limit.py |
 | F-UI 🎨 | Rediseño visual nativo iOS/Android | frontend/src/theme/, frontend/src/components/ui/, frontend/src/lib/, las 6 pantallas |
 | F5 | Migración a Redis (caché y rate limit distribuidos) | backend/app/core/redis_client.py, backend/app/core/rate_limit.py, backend/app/services/llm.py |
+| F4 | Freemium: RevenueCat IAP + Paywall + gate server-side | frontend/src/state/purchasesStore.ts, frontend/src/screens/PaywallScreen.tsx, backend/app/services/premium.py |
+| F-AUDIT2 | Hardening post-F4/F5: gate premium server-side, DATABASE_URL Railway, resiliencia Redis, migraciones en arranque | backend/app/{database,main,core/redis_client,services/premium}.py |
+| F-OCR | OCR de tickets con Gemini Vision (premium) | backend/app/services/llm.py, backend/app/api/routers/pantry.py, frontend/src/screens/PantryScreen.tsx |
+| F-AGENDA | AgendaScreen: Tareas + Calendario unificados en una tab | frontend/src/screens/AgendaScreen.tsx, frontend/src/navigation/AppNavigator.tsx |
+
+## 🔧 Sesión 2026-06-16 (tarde) — Auditoría de servicios + fixes + workflow de ramas
+
+**Workflow de ramas cambiado:** eliminadas las ramas `claude` y `gemini` (por agente).
+Adoptado flujo por feature/fix (`feat/<x>`, `fix/<x>`). Ver `AGENTS.md`.
+
+**Ramas publicadas:**
+- `fix/api-timeout` — regresión timeout: `AbortController.abort()` lanzaba `AbortError`
+  (igual que cancelación por desmontaje), timeouts silenciosos. Corregido con flag `didTimeout`
+  que convierte el abort del timer en `TimeoutError`, activando el mensaje de red en los 4 hooks.
+- `feat/mejoras-servicio` — mejora #1 de la auditoría de servicios: conflictos de agenda
+  incluidos en el prompt de Gemini y en el fallback del briefing.
+
+**Auditoría de servicios (resultado):** ver `MEJORAS_PENDIENTES.md` para el backlog
+priorizado con esfuerzo estimado. Mejoras pendientes: `ultimo_completado` en tareas,
+gate premium consistente, OCR en lote, plan/recetas unificados.
+
+**Documentación actualizada:** `AGENTS.md`, `CLAUDE.md`, `CHANGELOG.md`, `ENDPOINTS.md`,
+`ESTADO_ACTUAL.md` (este archivo), `MEJORAS_PENDIENTES.md` (nuevo).
+
+---
 
 ## 🔍 Sesión 2026-06-16 — Auditoría post-F4/F5 (hardening) + verificación Railway
 

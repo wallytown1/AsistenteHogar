@@ -21,6 +21,7 @@ Contrato de los endpoints REST del backend, derivado del código real
 | 404 | Recurso inexistente o de otro hogar (cross-tenant) |
 | 409 | Conflicto (email ya registrado) |
 | 422 | Error de validación (tipo inválido, campo extra, ID no-UUID, regla de negocio) |
+| 402 | Función de pago — requiere suscripción premium activa (`requiere_premium`) |
 | 429 | Límite de peticiones superado (rate limiting) |
 
 ---
@@ -131,6 +132,16 @@ Sugiere categoría y caducidad estimada para un alimento dado su nombre (ayuda d
 ```
 **200** → `SugerenciaMetadataResponse` `{ categoria, dias_estimados, fecha_caducidad_estimada, generado_por_ia, mensaje }`.
 Rate limit: 40/5 min por IP.
+
+### `POST /api/v1/pantry/ocr-ticket` 🔒 ⭐ Premium
+Escanea una imagen de ticket de compra con Gemini Vision y extrae los alimentos detectados como propuesta (IA pasiva — el usuario confirma antes de añadir).
+**Body** (`TicketOcrRequest`):
+```json
+{ "imagen_base64": "<JPEG en base64>", "fecha_referencia": "2026-06-16" }
+```
+**200** → `TicketOcrResponse` `{ alimentos[], mensaje }` — lista de `AlimentoInterpretado` con nombre, cantidad, unidad, categoría y caducidad estimada.
+Rate limit: 20/5 min por IP (compartido con `/interpretar`). Requiere `GEMINI_API_KEY`.
+**402** si el usuario no tiene suscripción premium activa.
 
 ### `POST /api/v1/pantry` 🔒
 **Body** (`InventarioAlimentoCreate`):

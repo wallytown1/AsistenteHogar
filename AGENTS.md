@@ -13,9 +13,23 @@ Rules:
 
 ## Git Workflow para Asistentes IA
 
-El proyecto utiliza un flujo de trabajo basado en ramas separadas para evitar colisiones entre distintos asistentes de Inteligencia Artificial.
+El proyecto usa **ramas por feature/fix**, no por agente. Así se evitan conflictos cuando dos agentes
+tocan los mismos archivos y el historial queda semánticamente limpio.
 
-Reglas:
-- **Claude**: Debes trabajar única y exclusivamente en la rama `claude`. Asegúrate de estar en esta rama y hacer `git push origin claude` tras tus cambios.
-- **Gemini / Antigravity**: Debes trabajar única y exclusivamente en la rama `gemini`. Asegúrate de estar en esta rama y hacer `git push origin gemini` tras tus cambios.
-- **No commitear a `main`**: Ningún agente debe hacer push directo a `main` a menos que se le ordene explícitamente realizar una Pull Request o un merge de una funcionalidad finalizada.
+### Reglas
+
+- **Una tarea = una rama.** Nombrar `feat/<descripcion>`, `fix/<descripcion>` o `chore/<descripcion>`.
+- **Partir siempre de `main` actualizado** (`git checkout main && git pull && git checkout -b feat/mi-tarea`).
+- **No commitear directamente a `main`** salvo que el usuario lo ordene explícitamente para un merge/PR.
+- **Hacer push de la rama** al terminar; el usuario decide cuándo integrar a `main`.
+- **Antes de empezar**, revisar qué ramas hay abiertas para no solaparse en los mismos archivos.
+- **Repartir por área** cuando sea posible (backend vs. frontend) para minimizar conflictos.
+- **Mergear a `main` con frecuencia** — ciclos cortos evitan divergencias largas.
+
+### Ramas activas (2026-06-16)
+
+| Rama | Agente | Contenido |
+|------|--------|-----------|
+| `feat/admin-web` | Gemini | Panel de administración god-mode (React + Vite) |
+| `feat/mejoras-servicio` | Claude | Mejoras UX de servicios (auditoría 2026-06-16) |
+| `fix/api-timeout` | Claude | Fix regresión timeout en `api.ts` |
