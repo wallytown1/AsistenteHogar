@@ -14,8 +14,6 @@ interface RequestOptions extends RequestInit {
  * local para devolver al usuario a la pantalla de acceso.
  */
 export async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
-  // AbortSignal.timeout lanza TimeoutError (no AbortError); propagamos para que el
-  // caller distinga entre cancelación intencional y timeout de red.
   if (!API_BASE_URL) {
     const errorMsg =
       'La configuración de red del entorno no fue cargada adecuadamente. La variable EXPO_PUBLIC_API_URL no está definida.';
@@ -36,23 +34,22 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
     options.body = JSON.stringify(options.json);
   }
 
-  let signal = options.signal;
-  let timeoutId: NodeJS.Timeout | undefined;
   const timeoutMs = options.timeoutMs ?? 15000;
-
   const controller = new AbortController();
-  timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  let didTimeout = false;
+  const timeoutId = setTimeout(() => {
+    didTimeout = true;
+    controller.abort();
+  }, timeoutMs);
 
-  if (signal) {
-    signal.addEventListener('abort', () => controller.abort());
-  }
-  signal = controller.signal;
+  // Propagar cancelaciones intencionales (p.ej. desmontaje del componente) al controller.
+  options.signal?.addEventListener('abort', () => controller.abort());
 
   try {
     const response = await fetch(url, {
       ...options,
       headers,
-      signal,
+      signal: controller.signal,
     });
 
     if (!response.ok) {
@@ -79,9 +76,18 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
     }
 
     return response.json() as Promise<T>;
-  } finally {
-    if (timeoutId) {
-      clearTimeout(timeoutId);
+  } catch (err: any) {
+    if (didTimeout) {
+      // El AbortError fue provocado por nuestro timer: convertirlo en TimeoutError
+      // para que los hooks lo distingan de una cancelación intencional por desmontaje.
+      const te = new Error(
+        'El servidor tardó demasiado. Comprueba tu conexión e inténtalo de nuevo.'
+      );
+      te.name = 'TimeoutError';
+      throw te;
     }
+    throw err;
+  } finally {
+    clearTimeout(timeoutId);
   }
 }
