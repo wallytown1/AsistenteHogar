@@ -54,9 +54,34 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         )
         sys.exit(1)
 
-    logger.info(
-        "Conexión a la base de datos verificada. API lista para aceptar tráfico."
-    )
+    logger.info("Conexión a la base de datos verificada.")
+
+    # Migraciones automáticas al arranque (opt-in vía RUN_MIGRATIONS_ON_STARTUP=true).
+    # Necesario en plataformas como Railway, donde el start command no ejecuta el
+    # Procfile (alembic upgrade head). Se corre en un SUBPROCESO porque alembic/env.py
+    # usa asyncio.run() y no puede anidarse en el event loop de FastAPI. Desactivado
+    # por defecto: los tests y el desarrollo local gestionan su propio esquema.
+    if os.getenv("RUN_MIGRATIONS_ON_STARTUP", "").lower() == "true":
+        logger.info("Aplicando migraciones (alembic upgrade head)...")
+        proc = await asyncio.create_subprocess_exec(
+            sys.executable,
+            "-m",
+            "alembic",
+            "upgrade",
+            "head",
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.STDOUT,
+        )
+        salida, _ = await proc.communicate()
+        if proc.returncode != 0:
+            logger.critical(
+                "Las migraciones fallaron. Abortando arranque.\n"
+                f"{salida.decode(errors='replace')}"
+            )
+            sys.exit(1)
+        logger.info("Migraciones aplicadas correctamente.")
+
+    logger.info("API lista para aceptar tráfico.")
 
     # Inicializar Redis (caché distribuida + rate-limit compartido).
     # Si falla, la app arranca en modo degradado (caché/rate-limit en memoria).
