@@ -1,0 +1,9 @@
+[allowlist]
+description = "Contraseñas de prueba en smoke tests — no son secretos reales"
+paths = [
+  "backend/smoke_test_auth.py",
+  "backend/smoke_test_modules.py",
+  "backend/smoke_test_legal.py",
+  "backend/smoke_test_dashboard.py",
+  "backend/smoke_test_validation.py",
+]
