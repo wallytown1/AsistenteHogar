@@ -282,7 +282,28 @@ def generate_fallback_briefing(context: DashboardUnifiedContext) -> str:
         lines.append("- No hay eventos programados para hoy.")
     lines.append("")
 
-    # 2. Tareas
+    # 2. Conflictos de agenda
+    if context.conflictos_agenda:
+        lines.append("**⚠️ Conflictos de horario:**")
+        for c in context.conflictos_agenda:
+            hora_a = (
+                c.evento_a.fecha_inicio.strftime("%H:%M")
+                if c.evento_a.fecha_inicio
+                else "?"
+            )
+            hora_b = (
+                c.evento_b.fecha_inicio.strftime("%H:%M")
+                if c.evento_b.fecha_inicio
+                else "?"
+            )
+            mins = round(c.duracion_solapamiento_segundos / 60)
+            lines.append(
+                f"- **{c.evento_a.titulo}** ({hora_a}) y **{c.evento_b.titulo}** ({hora_b}) "
+                f"se solapan {mins} min"
+            )
+        lines.append("")
+
+    # 3. Tareas
     lines.append("**⚡ Tareas pendientes:**")
     if context.tareas_pendientes:
         for t in context.tareas_pendientes:
@@ -323,6 +344,9 @@ async def generate_morning_briefing(
     nombres: list[str | None] = [t.asignado_a for t in context.tareas_pendientes]
     for ev in context.eventos_hoy:
         nombres.extend(ev.participantes or [])
+    for conflicto in context.conflictos_agenda:
+        nombres.extend(conflicto.evento_a.participantes or [])
+        nombres.extend(conflicto.evento_b.participantes or [])
     anonimizador = AnonimizadorLLM(nombres)
 
     # Optimización de tokens para el payload del prompt (enviando solo campos esenciales)
@@ -352,9 +376,25 @@ async def generate_morning_briefing(
         for a in context.alertas_despensa.alertas_caducidad
     ]
 
+    resumen_conflictos = [
+        {
+            "evento_a": conflicto.evento_a.titulo,
+            "hora_a": conflicto.evento_a.fecha_inicio.strftime("%H:%M")
+            if conflicto.evento_a.fecha_inicio
+            else "",
+            "evento_b": conflicto.evento_b.titulo,
+            "hora_b": conflicto.evento_b.fecha_inicio.strftime("%H:%M")
+            if conflicto.evento_b.fecha_inicio
+            else "",
+            "solapamiento_min": round(conflicto.duracion_solapamiento_segundos / 60),
+        }
+        for conflicto in context.conflictos_agenda
+    ]
+
     prompt_usuario = anonimizador.anonimizar(
         f"Fecha: {context.fecha}\n"
         f"Eventos programados para hoy: {resumen_eventos}\n"
+        f"Conflictos de horario detectados (solapamientos): {resumen_conflictos}\n"
         f"Tareas pendientes de hoy: {resumen_tareas}\n"
         f"Alimentos que vencen pronto en despensa: {resumen_alimentos}\n"
     )
@@ -374,7 +414,7 @@ async def generate_morning_briefing(
         "Debes redactar un mensaje conversacional (no uses listas, ni viñetas, ni asteriscos). "
         "Habla en primera persona del singular, con un tono elegante pero muy cercano.\n"
         "Estructura tu mensaje en exactamente 3 párrafos cortos y fluidos separados por saltos de línea:\n"
-        "1. Un saludo matutino inspirador que mencione fluidamente la agenda y si hay algún conflicto o reunión clave.\n"
+        "1. Un saludo matutino inspirador que mencione fluidamente la agenda. Si hay conflictos de horario en los datos, avisa de ellos con naturalidad y urgencia suave (ej: 'ten en cuenta que la reunión de las 10 se solapa con...').\n"
         "2. Un recordatorio suave sobre quién tiene que hacer las tareas más importantes de la casa hoy.\n"
         "3. Una recomendación amable sobre qué alimentos de la despensa aprovechar pronto porque están a punto de caducar.\n\n"
         "Restricciones críticas de seguridad e IA:\n"

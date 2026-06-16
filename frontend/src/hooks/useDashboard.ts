@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { DashboardData } from '../types/types';
-import { apiRequest } from '../api/api';
+import { apiRequest, TIMEOUT } from '../api/api';
 
 /**
  * Hook para la orquestación asíncrona del Dashboard (Informe de la Mañana).
@@ -14,7 +14,7 @@ export function useDashboard() {
     setLoading(true);
     setError(null);
     try {
-      const data = await apiRequest<DashboardData>('/dashboard', { signal, timeoutMs: 45000 });
+      const data = await apiRequest<DashboardData>('/dashboard', { signal, timeoutMs: TIMEOUT.AI });
       setBriefing(data);
     } catch (err: any) {
       if (err.name === 'AbortError') return;

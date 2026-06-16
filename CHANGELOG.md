@@ -6,6 +6,54 @@ Formato: `[FECHA] [ÁREA] [TIPO] Descripción`
 
 ---
 
+## [2026-06-16] — Mejoras de servicio + fixes (ramas en curso)
+
+### feat/mejoras-servicio — Mejora #1: conflictos de agenda en el briefing
+- **MOD** `backend/app/services/llm.py` — `generate_morning_briefing()` ahora incluye
+  `conflictos_agenda` en el prompt de Gemini (título, hora y minutos de solapamiento).
+  Los participantes de los eventos en conflicto se anonomizan igual que el resto (RGPD).
+  `generate_fallback_briefing()` añade sección ⚠️ con detalle de solapamiento.
+  El system_instruction actualizado pide a Gemini que avise de conflictos con tono natural.
+
+### fix/api-timeout — Regresión timeout en `apiRequest`
+- **FIX** `frontend/src/api/api.ts` — el refactor de OCR cambió `AbortSignal.timeout()`
+  (lanza `TimeoutError`) a `AbortController + setTimeout` (lanza `AbortError`, igual que
+  cancelación intencional). Los 4 hooks capturaban `AbortError` primero y hacían `return`
+  silencioso → timeouts invisibles para el usuario. Solución: flag `didTimeout` que
+  convierte el abort del timer en `TimeoutError`, activando el mensaje de red en los hooks.
+
+### Mejoras de servicio pendientes (rama feat/mejoras-servicio)
+Ver `MEJORAS_PENDIENTES.md` para el backlog completo con estimaciones de esfuerzo.
+
+---
+
+## [2026-06-16] — OCR de tickets de compra + AgendaScreen + Rediseño Dashboard
+
+### OCR de tickets (commit `ffaf19b`)
+- **ADD** `backend/app/services/llm.py` — `process_receipt_ocr()`: multimodal Gemini Vision
+  (imagen base64 inline), reutiliza `_DESPENSA_RESPONSE_SCHEMA`, timeout 30 s.
+- **ADD** `backend/app/api/routers/pantry.py` — `POST /pantry/ocr-ticket` (premium + rate-limit).
+- **ADD** `backend/app/schemas/schemas.py` — `TicketOcrRequest` / `TicketOcrResponse`.
+- **MOD** `frontend/src/hooks/usePantry.ts` — `escanearTicketOcr()` con timeout 60 s.
+- **MOD** `frontend/src/screens/PantryScreen.tsx` — flujo OCR: permiso cámara → Alert
+  Cámara/Galería → `ImagePicker` → procesado → modo IA con resultados pre-cargados.
+- **ADD** `frontend/package.json` — `expo-image-picker ~17.0.11`.
+- **MOD** `frontend/babel.config.js` — eliminado `jsxImportSource: 'nativewind'` (limpieza).
+- **ADD** `frontend/.gitignore`, `frontend/.env.example`.
+
+### AgendaScreen — Tareas + Calendario unificados (commit `9148dfc`, Gemini)
+- **ADD** `frontend/src/screens/AgendaScreen.tsx` — nueva pantalla que combina Tareas y
+  Calendario en pestañas internas (`ScrollView` horizontal con `Chip` selector).
+- **MOD** `frontend/src/navigation/AppNavigator.tsx` — sustituye las tabs separadas
+  "Calendario" y "Tareas" por una única tab "Agenda" con `AgendaScreen`.
+
+### Rediseño del briefing matutino (commit `ff0fa15`, Gemini)
+- **MOD** `backend/app/services/llm.py` — system_instruction del briefing reescrita: tono
+  de mayordomo elegante y cercano, 3 párrafos conversacionales sin Markdown, sin listas.
+- **MOD** `frontend/src/screens/DashboardScreen.tsx` — ajustes de layout del card de briefing.
+
+---
+
 ## [2026-06-16] — F-AUDIT2: Hardening post-F4/F5 (freemium server-side + Railway)
 
 ### Decisiones clave
