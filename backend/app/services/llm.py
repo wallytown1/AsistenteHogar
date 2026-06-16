@@ -4,7 +4,7 @@ import hashlib
 import json
 import logging
 import time
-from typing import Any, cast
+from typing import Any
 
 import httpx
 
@@ -426,7 +426,7 @@ async def generate_recipe_suggestions(
     cache_key = _hash_key("recetas", prompt_usuario)
     cached = await _cache_get(cache_key)
     if cached is not None:
-        return cast(RecetasSugeridasResponse, cached)
+        return RecetasSugeridasResponse.model_validate(cached)
 
     system_instruction = (
         "Eres el chef asistente de un hogar en España. A partir del inventario real de la "
@@ -886,7 +886,7 @@ async def generate_meal_plan(
     cache_key = _hash_key("plancomidas", prompt_usuario)
     cached = await _cache_get(cache_key)
     if cached is not None:
-        return cast(PlanComidasResponse, cached)
+        return PlanComidasResponse.model_validate(cached)
 
     system_instruction = (
         "Eres el planificador de comidas de un hogar en España. A partir del inventario real de la "
