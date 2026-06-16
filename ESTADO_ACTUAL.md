@@ -18,6 +18,34 @@
 | F-UI 🎨 | Rediseño visual nativo iOS/Android | frontend/src/theme/, frontend/src/components/ui/, frontend/src/lib/, las 6 pantallas |
 | F5 | Migración a Redis (caché y rate limit distribuidos) | backend/app/core/redis_client.py, backend/app/core/rate_limit.py, backend/app/services/llm.py |
 
+## 🔍 Sesión 2026-06-16 — Auditoría post-F4/F5 (hardening) + verificación Railway
+
+Auditoría de los cambios de F4 (freemium) y F5 (Redis/Railway). Trabajo en la rama
+`fix/auditoria-f4-f5` (**pendiente de merge a main**).
+
+**Corregido (commit `447248f`)**
+- 🔴 **Freemium server-side:** el gate de la UI era evitable llamando a la API. Nueva
+  dependencia `requiere_premium` (`backend/app/services/premium.py` + `deps.py`) que
+  valida el entitlement contra la API REST de RevenueCat (cache Redis 5 min, fail-open)
+  en los 5 endpoints de IA. Desactivada sin `REVENUECAT_SECRET_KEY` (dev/tests intactos).
+- 🔴 **DATABASE_URL Railway:** `database.py` reescribe `postgres://`/`postgresql://` a
+  `+asyncpg` para aceptar la variable inyectada.
+- 🟡 **Procfile** (Nixpacks): `alembic upgrade head` + uvicorn a `0.0.0.0:$PORT`.
+- 🟡 **Redis:** reconexión perezosa con cooldown + `socket_timeout` 5 s → 2 s.
+- 🟡 **Rate-limit:** miembro del sorted set con `uuid4` (evita colisión/subconteo).
+- 🟡 **Frontend:** cleanup del listener RevenueCat, selectores Zustand, loaders por
+  paquete en el Paywall; `.gitignore` + `.env.example`; envs desindexados.
+- **Verificación:** 120/120 smoke tests, 0 errores TS, Ruff + Mypy strict OK.
+
+**Verificación del despliegue en Railway (CLI)**
+- Servicio `AsistenteHogar` (proyecto `nurturing-tranquility`) **Online**, `/health` → 200 (~0,5 s).
+- Variables presentes: `DATABASE_URL`, `JWT_SECRET_KEY`, `REDIS_URL` (DB + Redis cableados).
+- ⚠️ **Faltan en Railway:** `ENVIRONMENT=production` (hoy `/docs` y `/openapi.json` están
+  expuestos públicamente y el CORS opera en modo dev), `GEMINI_API_KEY` (IA en fallback
+  estático en producción) y `REVENUECAT_SECRET_KEY` (el gate premium quedaría desactivado).
+- ⚠️ **La rama de fixes NO está desplegada:** Railway auto-despliega `main`; el Procfile,
+  el rewrite de DATABASE_URL y el gate premium no estarán vivos hasta hacer merge.
+
 ## ⚡ Sesión 2026-06-16 — Migración a Redis (F5) e Infraestructura
 
 Se adelantó la Fase F5 para hacer el backend "Stateless" y prepararlo para producción de forma escalable (multi-worker / multi-instancia):
@@ -281,6 +309,10 @@ npm run ts:check  # Debe retornar 0 errores
 
 | Problema | Ubicación | Impacto | Solución |
 |----------|-----------|--------|----------|
+| `ENVIRONMENT` sin definir en Railway | panel Railway | **Alto**: `/docs` + `/openapi.json` públicos, CORS en modo dev | Añadir `ENVIRONMENT=production` |
+| `GEMINI_API_KEY` sin definir en Railway | panel Railway | Medio: IA en fallback estático en prod | Añadir la clave (proyecto con billing) |
+| `REVENUECAT_SECRET_KEY` sin definir en Railway | panel Railway | Medio: gate premium desactivado en prod | Añadir la secret key tras mergear los fixes |
+| Fixes de auditoría sin desplegar | rama `fix/auditoria-f4-f5` | Medio: Procfile/gate/rewrite no vivos | Merge a `main` (auto-deploy) |
 | Fotos unsplash de URLs | frontend/src/screens/ | Bajo (RN cachea) | Mover a assets/ |
 
 Ver [[technical_debt]] en memoria para detalles.

@@ -2,7 +2,7 @@ import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Path, status
 
-from app.api.deps import get_hogar_id, get_task_repository
+from app.api.deps import get_hogar_id, get_task_repository, requiere_premium
 from app.core.rate_limit import interpretar_rate_limiter
 from app.core.utils import sanitize_text
 from app.models import TareaHogar
@@ -51,7 +51,7 @@ async def create_task(
 @router.post(
     "/tasks/interpretar",
     response_model=InterpretarTareaResponse,
-    dependencies=[Depends(interpretar_rate_limiter)],
+    dependencies=[Depends(requiere_premium), Depends(interpretar_rate_limiter)],
 )
 async def interpretar_tarea(
     schema: InterpretarTareaRequest,

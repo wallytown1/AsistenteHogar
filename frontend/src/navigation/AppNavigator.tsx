@@ -95,7 +95,8 @@ export default function AppNavigator() {
   const usuario = useAuthStore((s) => s.usuario);
   const hydrated = useAuthStore((s) => s.hydrated);
   const hydrate = useAuthStore((s) => s.hydrate);
-  const { configure, logIn } = usePurchasesStore();
+  const configure = usePurchasesStore((s) => s.configure);
+  const logIn = usePurchasesStore((s) => s.logIn);
   const [onboardingChecked, setOnboardingChecked] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
 

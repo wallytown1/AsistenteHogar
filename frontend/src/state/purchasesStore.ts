@@ -1,8 +1,16 @@
 import { create } from 'zustand';
-import Purchases, { CustomerInfo, PurchasesPackage } from 'react-native-purchases';
+import Purchases, {
+  CustomerInfo,
+  CustomerInfoUpdateListener,
+  PurchasesPackage,
+} from 'react-native-purchases';
 import { Platform } from 'react-native';
 
 const RC_API_KEY = process.env.EXPO_PUBLIC_RC_KEY || '';
+
+// Referencia al listener activo para poder desuscribirlo y evitar duplicados
+// (fuga de memoria si `configure` se reejecutara o en hot-reload de desarrollo).
+let customerInfoListener: CustomerInfoUpdateListener | null = null;
 
 interface PurchasesState {
   isConfigured: boolean;
@@ -36,10 +44,16 @@ export const usePurchasesStore = create<PurchasesState>((set, get) => ({
         Purchases.configure({ apiKey: RC_API_KEY });
         set({ isConfigured: true });
 
-        // Listener de actualización (cuando la suscripción cambia en background)
-        Purchases.addCustomerInfoUpdateListener((info) => {
+        // Listener de actualización (cuando la suscripción cambia en background).
+        // Quitamos cualquier listener previo antes de registrar el nuevo para no
+        // acumular suscripciones duplicadas.
+        if (customerInfoListener) {
+          Purchases.removeCustomerInfoUpdateListener(customerInfoListener);
+        }
+        customerInfoListener = (info) => {
           get().checkPremium(info);
-        });
+        };
+        Purchases.addCustomerInfoUpdateListener(customerInfoListener);
 
         // Verificación inicial
         await get().checkPremium();

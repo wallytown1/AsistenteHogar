@@ -22,6 +22,16 @@ if not DATABASE_URL:
     )
     sys.exit(1)
 
+# Railway/Heroku inyectan DATABASE_URL con el esquema síncrono (postgres:// o
+# postgresql://). El engine asíncrono exige el driver asyncpg: reescribimos el
+# prefijo para aceptar la variable inyectada sin tocar la configuración del panel.
+if DATABASE_URL.startswith("postgresql+"):
+    pass  # ya trae driver explícito (p. ej. postgresql+asyncpg://)
+elif DATABASE_URL.startswith("postgresql://"):
+    DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
+elif DATABASE_URL.startswith("postgres://"):  # alias legacy de Railway/Heroku
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+asyncpg://", 1)
+
 # Crear motor asíncrono de base de datos
 engine = create_async_engine(
     DATABASE_URL,

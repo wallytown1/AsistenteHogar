@@ -40,3 +40,12 @@ GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
 # Redis. Opcional: sin ella la caché y el rate-limit operan en memoria (instancia
 # única). En producción con múltiples workers debe apuntar a un Redis compartido.
 REDIS_URL = os.getenv("REDIS_URL")
+
+# RevenueCat (freemium). Clave SECRETA del servidor (NO la SDK key pública del
+# cliente): se usa para validar suscripciones contra la API REST de RevenueCat.
+# Si NO está configurada, el gate premium se desactiva y todos los endpoints de
+# IA quedan accesibles (modo desarrollo/test). En producción debe estar definida
+# para que el freemium se aplique en el servidor y no solo en la UI.
+REVENUECAT_SECRET_KEY = os.getenv("REVENUECAT_SECRET_KEY")
+# Identificador del entitlement premium configurado en RevenueCat.
+REVENUECAT_ENTITLEMENT = os.getenv("REVENUECAT_ENTITLEMENT", "premium")
