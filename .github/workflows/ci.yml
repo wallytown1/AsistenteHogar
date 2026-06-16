@@ -1,0 +1,124 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Cancela ejecuciones antiguas de la misma rama/PR cuando llega un push nuevo.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Backend: lint (ruff) + formato + tipos (mypy strict) + 5 smoke tests
+  # ---------------------------------------------------------------------------
+  backend:
+    name: Backend (lint + types + smoke)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      # Requerido por config.py al importar la app. Valor ficticio: los smoke
+      # tests usan SQLite temporal y fuerzan GEMINI_API_KEY="" (modo fallback).
+      JWT_SECRET_KEY: ci-dummy-secret-not-used-in-production
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configurar Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Instalar dependencias + herramientas del escudo
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install "ruff==0.1.9" "mypy==1.8.0" types-redis
+
+      - name: Ruff (lint)
+        run: ruff check app/
+
+      - name: Ruff (formato)
+        run: ruff format --check app/
+
+      - name: Mypy (strict)
+        run: mypy --config-file=pyproject.toml app/
+
+      - name: Smoke tests (122 checks)
+        run: |
+          python smoke_test_auth.py
+          python smoke_test_modules.py
+          python smoke_test_dashboard.py
+          python smoke_test_validation.py
+          python smoke_test_legal.py
+
+  # ---------------------------------------------------------------------------
+  # Frontend: TypeScript (tsc) + ESLint
+  # ---------------------------------------------------------------------------
+  frontend:
+    name: Frontend (tsc + eslint)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configurar Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: TypeScript (0 errores)
+        run: npm run ts:check
+
+      - name: ESLint
+        run: npm run lint
+
+  # ---------------------------------------------------------------------------
+  # Seguridad: CVEs en dependencias + secretos en el historial
+  # ---------------------------------------------------------------------------
+  security:
+    name: Security (deps + secrets)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # gitleaks necesita el historial completo, no solo el último commit.
+          fetch-depth: 0
+
+      - name: Configurar Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: pip-audit (CVEs backend)
+        run: |
+          pip install pip-audit
+          pip-audit -r backend/requirements.txt
+
+      - name: Configurar Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      # Solo bloquea ante vulnerabilidades high/critical. Las 19 moderate
+      # actuales están en el toolchain de Expo/RN (build, no runtime).
+      - name: npm audit (high/critical)
+        working-directory: frontend
+        run: npm audit --audit-level=high
+
+      - name: gitleaks (secretos en el historial)
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,5 +1,30 @@
 # ESTADO ACTUAL — AsistenteHogar (2026-06-16)
 
+## 🛡️ Sesión 2026-06-16 — F-QA2: Auditoría y blindaje pre-producción (en curso)
+
+Nueva fase **antes de F6** para auditar seguridad/calidad antes del build de producción.
+Plan reajustado tras revisión crítica: se descartó SonarCloud (redundante con el escudo
+Ruff+Mypy+ESLint ya existente) y Maestro E2E (prematuro/frágil sobre UI que aún cambiará);
+se añadió secret-scanning (gitleaks) y CI en remoto como prioridades. Trabajo directo en `main`.
+
+**Bloque 1+2 — Dependencias y secretos (completado)**
+- `pip-audit`: solo `pip` vulnerable (no deps de la app). `npm audit`: 19 moderate en
+  toolchain Expo/RN (build, no runtime) — aceptadas hasta migrar a SDK 56.
+- `gitleaks` sobre 55 commits: 12 falsos positivos (passwords de prueba en smoke tests).
+  **0 secretos reales en el historial.** Añadido `.gitleaks.toml` con allowlist.
+
+**Bloque 3 — CI GitHub Actions (completado)**
+- `.github/workflows/ci.yml`: 3 jobs paralelos (backend lint+types+smoke, frontend tsc+eslint,
+  security deps+gitleaks) en cada push/PR a `main`. Valida en remoto, no solo en pre-commit local.
+
+**Pendiente de F-QA2:**
+- Bloque 4 — Schemathesis (tests de API desde el OpenAPI, integrar en el job security del CI).
+- Bloque 5 — Revisión de seguridad enfocada → `SECURITY.md` (multi-tenant, auth, LLM, secretos).
+- Bloque 6 — OWASP ZAP (una pasada contra Railway, baja prioridad).
+- Diferidos a post-lanzamiento: SonarCloud, Maestro E2E, Langfuse.
+
+---
+
 ## 🔧 Sesión 2026-06-16 (noche tardía) — Bloque de pulido #4–#8
 
 Trabajo en rama `feat/mejoras-servicio`.

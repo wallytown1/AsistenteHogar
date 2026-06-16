@@ -6,6 +6,30 @@ Formato: `[FECHA] [ÁREA] [TIPO] Descripción`
 
 ---
 
+## [2026-06-16] — F-QA2: Auditoría y blindaje pre-producción (en curso)
+
+### Bloque 1+2 — Auditoría de dependencias y secretos
+- **ADD** `.gitleaks.toml` — allowlist de los archivos `smoke_test_*.py`. El escaneo del
+  historial git (55 commits, 123 MB) reportó 12 hallazgos, todos falsos positivos:
+  contraseñas de prueba (`contrasena_segura_123`) en los smoke tests. **0 secretos reales**.
+- **Auditoría `pip-audit`** (`backend/requirements.txt`): única vulnerabilidad es `pip`
+  en sí mismo (PYSEC-2026-196, fix 26.1.2), no una dependencia de la app. Sin riesgo prod.
+- **Auditoría `npm audit`**: 19 moderate, todas en el toolchain de build de Expo/RN
+  (`js-yaml`, `postcss`, `uuid` vía `@expo/*`). No afectan al runtime; el fix exige saltar
+  a Expo SDK 56 (breaking). Aceptadas hasta la migración de SDK.
+
+### Bloque 3 — Integración continua (GitHub Actions)
+- **ADD** `.github/workflows/ci.yml` — pipeline en cada push/PR a `main`, 3 jobs en paralelo:
+  - **backend**: Ruff (lint+formato) + Mypy strict sobre `app/` + los 5 smoke tests (122 checks).
+  - **frontend**: `tsc` (0 errores) + ESLint sobre todo el proyecto.
+  - **security**: `pip-audit -r requirements.txt`, `npm audit --audit-level=high`
+    (solo bloquea high/critical), y `gitleaks` sobre el historial completo.
+  - `concurrency` cancela ejecuciones antiguas de la misma rama. `JWT_SECRET_KEY` ficticio
+    inyectado en el job backend (smoke tests usan SQLite temporal + `GEMINI_API_KEY=""`).
+- El escudo de calidad deja de ser solo local (pre-commit/husky): ahora se valida en remoto.
+
+---
+
 ## [2026-06-16] — PR #5: Bloque de mejoras de servicio #1–#8 (mergeado a main)
 
 ### Mejora #1 — Conflictos de agenda en el briefing matutino
