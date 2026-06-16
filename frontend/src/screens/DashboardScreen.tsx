@@ -176,16 +176,29 @@ export default function DashboardScreen() {
                 <View
                   style={{
                     backgroundColor: colors.cardAlt,
-                    borderWidth: 1,
-                    borderColor: colors.border,
                     borderRadius: radius.lg,
-                    padding: spacing.lg,
+                    padding: spacing.xl,
                     marginBottom: spacing.sm,
+                    gap: spacing.md,
                   }}
                 >
-                  <AppText variant="caption" color={colors.ink} style={{ lineHeight: 20 }}>
-                    {briefing.briefing_texto}
-                  </AppText>
+                  <View style={{ alignSelf: 'center', marginBottom: spacing.xs }}>
+                    <Icon name="sparkles" size={24} color={colors.brand} />
+                  </View>
+                  {briefing.briefing_texto.split('\n').map((parrafo, index) => {
+                    const textoLimpio = parrafo.trim();
+                    if (!textoLimpio) return null;
+                    return (
+                      <AppText
+                        key={index}
+                        variant="caption"
+                        color={colors.ink}
+                        style={{ lineHeight: 22, fontSize: 15 }}
+                      >
+                        {textoLimpio}
+                      </AppText>
+                    );
+                  })}
                 </View>
                 {/* Transparencia IA (EU AI Act): solo si el texto proviene del modelo, no del fallback */}
                 {briefing.briefing_generado_por_ia ? <AIDisclaimerBanner /> : null}
