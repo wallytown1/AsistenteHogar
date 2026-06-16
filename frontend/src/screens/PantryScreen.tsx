@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { View, Modal, ScrollView, Alert, Switch, Pressable, ActivityIndicator } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { usePantry, getDiasParaCaducar } from '../hooks/usePantry';
@@ -9,9 +9,8 @@ import {
   InterpretarDespensaResponse,
   SugerenciaMetadataResponse,
   DiaPlanComidas,
-  PlanComidasResponse,
   RecetaSugerida,
-  RecetasSugeridasResponse,
+  SugerenciasResponse,
 } from '../types/types';
 import { apiRequest } from '../api/api';
 import AIDisclaimerBanner from '../components/AIDisclaimerBanner';
@@ -92,7 +91,6 @@ export default function PantryScreen() {
 
   const [recetas, setRecetas] = useState<RecetaSugerida[]>([]);
   const [recetasMensaje, setRecetasMensaje] = useState<string | null>(null);
-  const [recetasLoading, setRecetasLoading] = useState(false);
   const [recetasGeneradasPorIA, setRecetasGeneradasPorIA] = useState(false);
 
   // --- Modo del modal: manual o IA ---
@@ -110,8 +108,11 @@ export default function PantryScreen() {
   // --- Plan de comidas semanal ---
   const [planDias, setPlanDias] = useState<DiaPlanComidas[]>([]);
   const [planMensaje, setPlanMensaje] = useState<string | null>(null);
-  const [planLoading, setPlanLoading] = useState(false);
   const [planGeneradoPorIA, setPlanGeneradoPorIA] = useState(false);
+
+  // Estado de carga unificado para recetas + plan (se cargan juntos desde /pantry/sugerencias)
+  const [sugerenciasLoading, setSugerenciasLoading] = useState(false);
+  const autoFetchedRef = useRef(false);
 
   // --- OCR en lote (flujo directo desde FAB de cámara) ---
   const [ocrScanning, setOcrScanning] = useState(false);
@@ -286,45 +287,41 @@ export default function PantryScreen() {
     }
   };
 
-  const fetchPlanComidas = async () => {
-    if (!checkPremiumGate()) return;
-    setPlanLoading(true);
+  const fetchSugerencias = async (manual = false) => {
+    if (manual && !checkPremiumGate()) return;
+    setSugerenciasLoading(true);
+    setRecetasMensaje(null);
     setPlanMensaje(null);
     try {
-      const res = await apiRequest<PlanComidasResponse>('/pantry/plan-comidas');
-      setPlanDias(res.dias);
-      setPlanGeneradoPorIA(res.generado_por_ia);
-      if (res.dias.length === 0) {
-        setPlanMensaje(res.mensaje || 'No hay suficientes datos para generar un plan.');
-      }
+      const res = await apiRequest<SugerenciasResponse>('/pantry/sugerencias', {
+        timeoutMs: 90000,
+      });
+      setRecetas(res.recetas.recetas);
+      setRecetasGeneradasPorIA(res.recetas.generado_por_ia);
+      if (res.recetas.recetas.length === 0)
+        setRecetasMensaje(res.recetas.mensaje || 'No hay sugerencias disponibles.');
+      setPlanDias(res.plan_comidas.dias);
+      setPlanGeneradoPorIA(res.plan_comidas.generado_por_ia);
+      if (res.plan_comidas.dias.length === 0)
+        setPlanMensaje(res.plan_comidas.mensaje || 'No hay suficientes datos para el plan.');
     } catch (err: any) {
-      setPlanDias([]);
-      setPlanGeneradoPorIA(false);
-      setPlanMensaje(err.message || 'Error al generar el plan.');
+      const msg = err.message || 'Error al cargar las sugerencias.';
+      setRecetasMensaje(msg);
+      setPlanMensaje(msg);
     } finally {
-      setPlanLoading(false);
+      setSugerenciasLoading(false);
     }
   };
 
-  const fetchRecetas = async () => {
-    if (!checkPremiumGate()) return;
-    setRecetasLoading(true);
-    setRecetasMensaje(null);
-    try {
-      const res = await apiRequest<RecetasSugeridasResponse>('/pantry/recetas');
-      setRecetas(res.recetas);
-      setRecetasGeneradasPorIA(res.generado_por_ia);
-      if (res.recetas.length === 0) {
-        setRecetasMensaje(res.mensaje || 'No hay sugerencias disponibles en este momento.');
-      }
-    } catch (err: any) {
-      setRecetas([]);
-      setRecetasGeneradasPorIA(false);
-      setRecetasMensaje(err.message || 'No se pudieron generar las recetas.');
-    } finally {
-      setRecetasLoading(false);
+  // Precarga en background cuando los items están listos y el usuario es premium
+  useEffect(() => {
+    if (items.length > 0 && isPremium && !autoFetchedRef.current) {
+      autoFetchedRef.current = true;
+      fetchSugerencias();
     }
-  };
+    // fetchSugerencias es estable dentro del render; autoFetchedRef garantiza ejecución única
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items.length, isPremium]);
 
   // Loader completo solo en carga inicial; en refrescos se usa el spinner nativo.
   if (isLoading && items.length === 0)
@@ -785,21 +782,21 @@ export default function PantryScreen() {
             </View>
             <Button
               label={
-                recetasLoading
-                  ? 'Pensando...'
+                sugerenciasLoading
+                  ? 'Cargando...'
                   : recetas.length > 0
                     ? 'Actualizar'
                     : 'Sugerir con IA'
               }
               size="sm"
               variant="secondary"
-              loading={recetasLoading}
-              onPress={fetchRecetas}
+              loading={sugerenciasLoading}
+              onPress={() => fetchSugerencias(true)}
               fullWidth={false}
             />
           </View>
 
-          {recetasLoading ? (
+          {sugerenciasLoading ? (
             <View style={{ alignItems: 'center', paddingVertical: spacing.lg }}>
               <ActivityIndicator size="small" color={colors.brand} />
               <AppText variant="micro" color={colors.inkMuted} style={{ marginTop: spacing.sm }}>
@@ -808,7 +805,7 @@ export default function PantryScreen() {
             </View>
           ) : null}
 
-          {!recetasLoading && recetasMensaje ? (
+          {!sugerenciasLoading && recetasMensaje ? (
             <AppText
               variant="caption"
               color={colors.inkMuted}
@@ -819,7 +816,7 @@ export default function PantryScreen() {
             </AppText>
           ) : null}
 
-          {!recetasLoading && recetas.length === 0 && !recetasMensaje ? (
+          {!sugerenciasLoading && recetas.length === 0 && !recetasMensaje ? (
             <AppText
               variant="caption"
               color={colors.inkFaint}
@@ -832,11 +829,11 @@ export default function PantryScreen() {
           ) : null}
 
           {/* Transparencia IA (EU AI Act): solo cuando las recetas provienen del modelo */}
-          {!recetasLoading && recetas.length > 0 && recetasGeneradasPorIA ? (
+          {!sugerenciasLoading && recetas.length > 0 && recetasGeneradasPorIA ? (
             <AIDisclaimerBanner texto="Estas recetas han sido generadas por IA y pueden contener imprecisiones." />
           ) : null}
 
-          {!recetasLoading &&
+          {!sugerenciasLoading &&
             recetas.map((receta, idx) => (
               <View
                 key={`${receta.titulo}-${idx}`}
@@ -894,17 +891,21 @@ export default function PantryScreen() {
             </View>
             <Button
               label={
-                planLoading ? 'Generando...' : planDias.length > 0 ? 'Actualizar' : 'Generar con IA'
+                sugerenciasLoading
+                  ? 'Cargando...'
+                  : planDias.length > 0
+                    ? 'Actualizar'
+                    : 'Generar con IA'
               }
               size="sm"
               variant="secondary"
-              loading={planLoading}
-              onPress={fetchPlanComidas}
+              loading={sugerenciasLoading}
+              onPress={() => fetchSugerencias(true)}
               fullWidth={false}
             />
           </View>
 
-          {planLoading ? (
+          {sugerenciasLoading ? (
             <View style={{ alignItems: 'center', paddingVertical: spacing.lg }}>
               <ActivityIndicator size="small" color={colors.brand} />
               <AppText variant="micro" color={colors.inkMuted} style={{ marginTop: spacing.sm }}>
@@ -913,7 +914,7 @@ export default function PantryScreen() {
             </View>
           ) : null}
 
-          {!planLoading && planMensaje ? (
+          {!sugerenciasLoading && planMensaje ? (
             <AppText
               variant="caption"
               color={colors.inkMuted}
@@ -924,7 +925,7 @@ export default function PantryScreen() {
             </AppText>
           ) : null}
 
-          {!planLoading && planDias.length === 0 && !planMensaje ? (
+          {!sugerenciasLoading && planDias.length === 0 && !planMensaje ? (
             <AppText
               variant="caption"
               color={colors.inkFaint}
@@ -935,11 +936,11 @@ export default function PantryScreen() {
             </AppText>
           ) : null}
 
-          {!planLoading && planDias.length > 0 && planGeneradoPorIA ? (
+          {!sugerenciasLoading && planDias.length > 0 && planGeneradoPorIA ? (
             <AIDisclaimerBanner texto="Este plan ha sido generado por IA y puede contener imprecisiones." />
           ) : null}
 
-          {!planLoading &&
+          {!sugerenciasLoading &&
             planDias.map((dia, idx) => (
               <View
                 key={`${dia.dia}-${idx}`}

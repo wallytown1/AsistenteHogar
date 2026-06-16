@@ -561,6 +561,14 @@ class PlanComidasResponse(BaseSchema):
     mensaje: str | None = Field(None)
 
 
+# --- SUGERENCIAS UNIFICADAS (recetas + plan en una sola llamada) ---
+
+
+class SugerenciasResponse(BaseSchema):
+    recetas: RecetasSugeridasResponse
+    plan_comidas: PlanComidasResponse
+
+
 # --- OCR DE TICKETS DE COMPRA (IA) ---
 
 
