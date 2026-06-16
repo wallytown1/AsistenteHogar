@@ -81,8 +81,9 @@ Utilidades: `src/lib/haptics.ts` (wrapper seguro de `expo-haptics`, no-op en web
 ## 5. Decisión técnica: fuera NativeWind `className`
 
 La UI pasó de NativeWind `className` a **StyleSheet + tokens** por tipado robusto y control fino
-(evita la fragilidad de las cadenas de clases dinámicas). NativeWind sigue instalado (babel preset
-+ `global.css`) pero ya **no se usa para estilar**. Regla: no reintroducir `className` en pantallas.
+(evita la fragilidad de las cadenas de clases dinámicas). NativeWind y Tailwind se **desinstalaron
+por completo** (deps, `global.css`, `tailwind.config.js`, `nativewind-env.d.ts` y su cableado en
+`babel.config.js`/`metro.config.js`). Regla: no reintroducir `className` en pantallas.
 
 ---
 

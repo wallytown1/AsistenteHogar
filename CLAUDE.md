@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Asistente del Hogar IA** — a family household management app with an AI assistant (Gemini 2.5-flash). Single family account model (multi-tenant isolation by `hogar_id` derived from JWT). Language: Spanish throughout (UI, logs, AI responses).
 
-Stack: React Native (Expo SDK 54) frontend (UI styled with StyleSheet + design tokens; NativeWind v4 still installed but no longer used for styling), FastAPI + SQLAlchemy 2.0 async backend, PostgreSQL (SQLite for dev/tests).
+Stack: React Native (Expo SDK 54) frontend (UI styled with StyleSheet + design tokens; NativeWind/Tailwind fully removed), FastAPI + SQLAlchemy 2.0 async backend, PostgreSQL (SQLite for dev/tests).
 
 ---
 
@@ -158,7 +158,7 @@ All schemas extend `BaseSchema` which enforces `extra='forbid'` globally. The pa
 - **Componentes UI**: `src/components/ui/` (barrel en `index.ts`): `Screen` (safe-area + pull-to-refresh), `Card`, `Button`, `IconButton`, `Chip`, `StatCard`, `SectionHeader`, `Fab`, `Badge`, `EmptyState`, `Field`, `AppText`, `Icon`/`FoodIcon`, `LoadingView`/`ErrorView`.
 - **Iconos**: vectoriales vía `@expo/vector-icons` (Ionicons + MaterialCommunityIcons para comida). Sin emoji en la UI.
 - **Haptics**: `src/lib/haptics.ts` — wrapper seguro sobre `expo-haptics` (no-op en web).
-- **Importante**: la UI ya **no usa NativeWind `className`**; todo es StyleSheet + tokens. NativeWind sigue instalado (babel preset + `global.css`) pero no se usa para estilar. No reintroducir `className` en pantallas.
+- **Importante**: la UI ya **no usa NativeWind `className`**; todo es StyleSheet + tokens. NativeWind y Tailwind se **desinstalaron por completo** (deps + `global.css` + `tailwind.config.js` + `nativewind-env.d.ts` + cableado en `babel.config.js`/`metro.config.js`). No reintroducir `className` en pantallas.
 
 ### AI passive rule
 
