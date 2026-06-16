@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { View, Modal, ScrollView, Alert, Switch, Pressable, ActivityIndicator } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { usePantry, getDiasParaCaducar } from '../hooks/usePantry';
 import { useExpiryNotifications } from '../hooks/useExpiryNotifications';
 import {
@@ -58,6 +59,7 @@ export default function PantryScreen() {
     addItem,
     updateQuantity,
     deleteItem,
+    escanearTicketOcr,
     refetch,
   } = usePantry();
   // Programa notificaciones locales para alimentos próximos a caducar (≤3 días).
@@ -92,7 +94,7 @@ export default function PantryScreen() {
   const [recetasGeneradasPorIA, setRecetasGeneradasPorIA] = useState(false);
 
   // --- Modo del modal: manual o IA ---
-  const [modoModal, setModoModal] = useState<'manual' | 'ia'>('manual');
+  const [modoModal, setModoModal] = useState<'manual' | 'ia' | 'ticket'>('manual');
 
   // --- Interpretar despensa en lenguaje natural ---
   const [textoIA, setTextoIA] = useState('');
@@ -136,6 +138,7 @@ export default function PantryScreen() {
       const res = await apiRequest<InterpretarDespensaResponse>('/pantry/interpretar', {
         method: 'POST',
         json: { texto: textoIA.trim(), fecha_referencia: hoy },
+        timeoutMs: 45000,
       });
       if (res.alimentos.length > 0) {
         setPropuestasIA(res.alimentos);
@@ -144,6 +147,66 @@ export default function PantryScreen() {
       }
     } catch (err: any) {
       setMensajeIA(err.message || 'Error al interpretar el texto.');
+    } finally {
+      setInterpretandoIA(false);
+    }
+  };
+
+  const handleEscanearTicket = async () => {
+    if (!checkPremiumGate()) return;
+
+    try {
+      const permission = await ImagePicker.requestCameraPermissionsAsync();
+      if (!permission.granted) {
+        Alert.alert('Permiso denegado', 'Necesitamos acceso a la cámara para escanear tickets.');
+        return;
+      }
+
+      Alert.alert('Escanear Ticket', '¿Cómo quieres añadir el ticket?', [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Cámara',
+          onPress: async () => {
+            const result = await ImagePicker.launchCameraAsync({
+              base64: true,
+              quality: 0.6,
+            });
+            procesarImagenTicket(result);
+          },
+        },
+        {
+          text: 'Galería',
+          onPress: async () => {
+            const result = await ImagePicker.launchImageLibraryAsync({
+              base64: true,
+              quality: 0.6,
+            });
+            procesarImagenTicket(result);
+          },
+        },
+      ]);
+    } catch (error) {
+      Alert.alert('Error', 'No se pudo abrir la cámara.');
+    }
+  };
+
+  const procesarImagenTicket = async (result: ImagePicker.ImagePickerResult) => {
+    if (result.canceled || !result.assets[0].base64) return;
+
+    setInterpretandoIA(true);
+    setMensajeIA(null);
+    setPropuestasIA([]);
+
+    try {
+      const alimentos = await escanearTicketOcr(result.assets[0].base64);
+      if (alimentos.length > 0) {
+        setPropuestasIA(alimentos);
+        setModoModal('ia'); // Pasamos al modo IA para revisar la lista extraída
+      } else {
+        setMensajeIA('No se detectaron alimentos en el ticket.');
+      }
+    } catch (error: any) {
+      setMensajeIA(error.message || 'Error analizando la imagen.');
     } finally {
       setInterpretandoIA(false);
     }
@@ -912,7 +975,7 @@ export default function PantryScreen() {
               Añadir producto
             </AppText>
 
-            {/* Tabs: Manual / Con IA */}
+            {/* Tabs: Manual / Con IA / Ticket */}
             <View style={{ flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.lg }}>
               <Chip
                 label="Manual"
@@ -922,16 +985,64 @@ export default function PantryScreen() {
                 flex
               />
               <Chip
-                label="Describir con IA"
+                label="Describir"
                 active={modoModal === 'ia'}
                 onPress={() => setModoModal('ia')}
+                activeColor={colors.brand}
+                flex
+              />
+              <Chip
+                label="Ticket"
+                active={modoModal === 'ticket'}
+                onPress={() => setModoModal('ticket')}
                 activeColor={colors.brand}
                 flex
               />
             </View>
 
             <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-              {modoModal === 'ia' ? (
+              {modoModal === 'ticket' ? (
+                <View style={{ paddingVertical: spacing.md }}>
+                  <View
+                    style={{
+                      backgroundColor: colors.cardAlt,
+                      padding: spacing.lg,
+                      borderRadius: radius.lg,
+                      alignItems: 'center',
+                      marginBottom: spacing.lg,
+                    }}
+                  >
+                    <View style={{ marginBottom: spacing.md }}>
+                      <Icon name="receipt-outline" size={48} color={colors.inkMuted} />
+                    </View>
+                    <AppText
+                      variant="caption"
+                      color={colors.inkMuted}
+                      style={{ textAlign: 'center', marginBottom: spacing.sm }}
+                    >
+                      Sube o haz una foto de tu ticket de compra. La Inteligencia Artificial
+                      extraerá automáticamente los productos.
+                    </AppText>
+                  </View>
+                  <Button
+                    label="Escanear Ticket"
+                    icon="camera-outline"
+                    onPress={handleEscanearTicket}
+                    loading={interpretandoIA}
+                    style={{ marginBottom: spacing.md }}
+                  />
+                  {mensajeIA ? (
+                    <AppText
+                      variant="caption"
+                      color={colors.danger}
+                      style={{ marginTop: spacing.md }}
+                    >
+                      {mensajeIA}
+                    </AppText>
+                  ) : null}
+                  <AIDisclaimerBanner texto="La imagen será analizada de forma segura y privada para extraer los productos, y no será almacenada." />
+                </View>
+              ) : modoModal === 'ia' ? (
                 <>
                   <AIDisclaimerBanner texto="La IA interpretará tu frase y propondrá los productos. Confirma cada uno antes de añadirlo." />
                   <Field

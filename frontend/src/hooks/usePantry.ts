@@ -43,14 +43,16 @@ export function usePantry() {
       setError(
         err.name === 'TimeoutError'
           ? 'El servidor tardó demasiado. Comprueba tu conexión.'
-          : (err.message || 'Error al obtener los datos de la despensa')
+          : err.message || 'Error al obtener los datos de la despensa'
       );
     } finally {
       if (!signal?.aborted) setIsLoading(false);
     }
   }, []);
 
-  const addItem = async (item: Omit<AlimentoItem, 'id' | 'is_deleted' | 'hogar_id' | 'created_at' | 'updated_at'>) => {
+  const addItem = async (
+    item: Omit<AlimentoItem, 'id' | 'is_deleted' | 'hogar_id' | 'created_at' | 'updated_at'>
+  ) => {
     setIsLoading(true);
     setError(null);
     try {
@@ -112,6 +114,26 @@ export function usePantry() {
     return () => ctrl.abort();
   }, [fetchPantry]);
 
+  const escanearTicketOcr = async (imagenBase64: string) => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const hoy = new Date().toISOString().slice(0, 10);
+      // Asumimos que el backend devuelve un objeto con { alimentos: AlimentoItem[] }
+      const data = await apiRequest<{ alimentos: any[] }>('/pantry/ocr-ticket', {
+        method: 'POST',
+        json: { imagen_base64: imagenBase64, fecha_referencia: hoy },
+        timeoutMs: 60000,
+      });
+      return data.alimentos || [];
+    } catch (err: any) {
+      setError(err.message || 'Error al procesar la imagen del ticket');
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return {
     items,
     porcentajeStock,
@@ -122,6 +144,7 @@ export function usePantry() {
     addItem,
     updateQuantity,
     deleteItem,
+    escanearTicketOcr,
     refetch: () => fetchPantry(),
   };
 }

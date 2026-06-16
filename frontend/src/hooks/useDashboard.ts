@@ -14,14 +14,14 @@ export function useDashboard() {
     setLoading(true);
     setError(null);
     try {
-      const data = await apiRequest<DashboardData>('/dashboard', { signal });
+      const data = await apiRequest<DashboardData>('/dashboard', { signal, timeoutMs: 45000 });
       setBriefing(data);
     } catch (err: any) {
       if (err.name === 'AbortError') return;
       setError(
         err.name === 'TimeoutError'
           ? 'El servidor tardó demasiado. Comprueba tu conexión.'
-          : (err.message || 'Error al generar el informe diario del hogar')
+          : err.message || 'Error al generar el informe diario del hogar'
       );
     } finally {
       if (!signal?.aborted) setLoading(false);

@@ -103,6 +103,7 @@ export default function TasksScreen() {
       const res = await apiRequest<InterpretarTareaResponse>('/tasks/interpretar', {
         method: 'POST',
         json: { texto: textoIA.trim() },
+        timeoutMs: 45000,
       });
       if (res.tarea) {
         setPropuestaIA(res.tarea);

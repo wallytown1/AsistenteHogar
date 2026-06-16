@@ -24,6 +24,7 @@ from app.schemas.schemas import (
     RecetaSugerida,
     SugerenciaMetadataResponse,
     TareaInterpretada,
+    TicketOcrResponse,
 )
 from app.services.privacy import AnonimizadorLLM
 
@@ -145,6 +146,7 @@ async def _call_gemini(
     max_output_tokens: int = 400,
     response_schema: dict[str, Any] | None = None,
     timeout: float = 15.0,
+    image_base64: str | None = None,
 ) -> str | None:
     """Llamada a la API de Gemini con reintento acotado ante fallos transitorios.
     Devuelve el texto generado o None si falla definitivamente.
@@ -159,8 +161,21 @@ async def _call_gemini(
         generation_config["responseMimeType"] = "application/json"
         generation_config["responseSchema"] = response_schema
 
+    parts: list[dict[str, Any]] = [{"text": user_prompt}]
+    if image_base64:
+        parts.append(
+            {
+                "inlineData": {
+                    # Se asume JPEG genérico; la API de Gemini es flexible,
+                    # pero idealmente el frontend enviará JPEGs.
+                    "mimeType": "image/jpeg",
+                    "data": image_base64,
+                }
+            }
+        )
+
     payload = {
-        "contents": [{"parts": [{"text": user_prompt}]}],
+        "contents": [{"parts": parts}],
         "generationConfig": generation_config,
         "systemInstruction": {"parts": [{"text": system_instruction}]},
     }
@@ -929,3 +944,71 @@ async def generate_meal_plan(
     )
     await _cache_set(cache_key, respuesta, PLAN_CACHE_TTL)
     return respuesta
+
+
+# --- OCR DE TICKETS DE COMPRA (IA) ---------------------------------------------
+
+
+async def process_receipt_ocr(
+    imagen_base64: str, fecha_referencia: datetime.date
+) -> TicketOcrResponse:
+    """Procesa una imagen (Base64) de un ticket de compra y extrae los alimentos usando Gemini Vision."""
+    if not GEMINI_API_KEY:
+        return TicketOcrResponse(
+            alimentos=[],
+            mensaje="Gemini AI no configurado. Función de escáner deshabilitada.",
+        )
+
+    system_instruction = (
+        "Eres un asistente de hogar experto en extraer compras de tickets de supermercado. "
+        "Analiza la imagen adjunta, que es un ticket de compra. Identifica TODOS los ALIMENTOS o "
+        "productos de hogar. Omite tasas, bolsas o métodos de pago.\n"
+        "Para cada producto:\n"
+        "1. Limpia el nombre (ej: 'LECHE SEMIDESN 1L' -> 'Leche Semidesnatada').\n"
+        "2. Calcula la cantidad y unidad (1 litro, 500 gramos, 6 unidades).\n"
+        "3. Asigna una categoría lógica (Lácteos, Carne, Limpieza, etc.).\n"
+        "4. Estima una fecha_caducidad razonable contando desde la fecha de referencia. "
+        "Si no caduca o dura meses, devuélvelo como nulo.\n"
+        f"Fecha actual de referencia: {fecha_referencia.isoformat()}"
+    )
+
+    user_prompt = "Aquí tienes el ticket de compra. Extrae los productos."
+
+    start_time = time.time()
+    try:
+        raw_json = await _call_gemini(
+            system_instruction=system_instruction,
+            user_prompt=user_prompt,
+            response_schema=_DESPENSA_RESPONSE_SCHEMA,
+            timeout=30.0,
+            image_base64=imagen_base64,
+        )
+        if not raw_json:
+            return TicketOcrResponse(
+                alimentos=[], mensaje="No se pudo procesar la imagen del ticket."
+            )
+
+        data = json.loads(raw_json)
+        alimentos_dict = data.get("alimentos", [])
+        alimentos = [
+            AlimentoInterpretado(**item)
+            for item in alimentos_dict
+            if isinstance(item, dict)
+        ]
+
+        logger.info(
+            f"Ticket procesado en {time.time() - start_time:.2f}s. "
+            f"Extraídos {len(alimentos)} productos."
+        )
+        return TicketOcrResponse(alimentos=alimentos)
+
+    except json.JSONDecodeError:
+        logger.error("Error decodificando respuesta JSON del OCR de ticket.")
+        return TicketOcrResponse(
+            alimentos=[], mensaje="El formato de respuesta de la IA fue inválido."
+        )
+    except Exception as e:
+        logger.error(f"Error parseando OCR de ticket: {e}")
+        return TicketOcrResponse(
+            alimentos=[], mensaje="Error interno procesando el ticket."
+        )

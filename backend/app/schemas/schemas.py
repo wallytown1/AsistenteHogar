@@ -559,3 +559,26 @@ class PlanComidasResponse(BaseSchema):
     )
     generado_por_ia: bool = Field(False)
     mensaje: str | None = Field(None)
+
+
+# --- OCR DE TICKETS DE COMPRA (IA) ---
+
+
+class TicketOcrRequest(BaseSchema):
+    imagen_base64: str = Field(
+        ..., description="Imagen del ticket de compra codificada en Base64"
+    )
+    fecha_referencia: date = Field(
+        ...,
+        description="Fecha actual del dispositivo para resolver caducidades relativas",
+    )
+
+
+class TicketOcrResponse(BaseSchema):
+    alimentos: list[AlimentoInterpretado] = Field(
+        default_factory=list,
+        description="Productos detectados en el ticket y propuestos por la IA",
+    )
+    mensaje: str | None = Field(
+        None, description="Motivo cuando no se pudo extraer la información"
+    )

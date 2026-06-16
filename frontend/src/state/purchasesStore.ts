@@ -42,7 +42,6 @@ export const usePurchasesStore = create<PurchasesState>((set, get) => ({
     try {
       if (Platform.OS === 'ios' || Platform.OS === 'android') {
         Purchases.configure({ apiKey: RC_API_KEY });
-        set({ isConfigured: true });
 
         // Listener de actualización (cuando la suscripción cambia en background).
         // Quitamos cualquier listener previo antes de registrar el nuevo para no
@@ -57,6 +56,10 @@ export const usePurchasesStore = create<PurchasesState>((set, get) => ({
 
         // Verificación inicial
         await get().checkPremium();
+
+        // IMPORTANTE: Marcamos como configurado al FINAL para que
+        // AppNavigator.tsx no dispare logIn() mientras estamos haciendo checkPremium()
+        set({ isConfigured: true });
       }
     } catch (error) {
       console.error('Error configurando RevenueCat:', error);

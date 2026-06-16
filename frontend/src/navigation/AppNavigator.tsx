@@ -96,6 +96,7 @@ export default function AppNavigator() {
   const hydrated = useAuthStore((s) => s.hydrated);
   const hydrate = useAuthStore((s) => s.hydrate);
   const configure = usePurchasesStore((s) => s.configure);
+  const isConfigured = usePurchasesStore((s) => s.isConfigured);
   const logIn = usePurchasesStore((s) => s.logIn);
   const [onboardingChecked, setOnboardingChecked] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
@@ -105,12 +106,12 @@ export default function AppNavigator() {
     configure();
   }, [configure]);
 
-  // Si hay usuario logueado, sincronizarlo con RevenueCat
+  // Si hay usuario logueado, sincronizarlo con RevenueCat SOLO DESPUÉS de configurar
   useEffect(() => {
-    if (usuario) {
+    if (isConfigured && usuario) {
       logIn(usuario.id);
     }
-  }, [usuario, logIn]);
+  }, [isConfigured, usuario, logIn]);
 
   useEffect(() => {
     hydrate();

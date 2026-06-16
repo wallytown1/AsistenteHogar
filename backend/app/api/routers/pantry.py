@@ -20,11 +20,14 @@ from app.schemas.schemas import (
     RecetasSugeridasResponse,
     SugerenciaMetadataResponse,
     SugerirMetadataRequest,
+    TicketOcrRequest,
+    TicketOcrResponse,
 )
 from app.services.llm import (
     generate_meal_plan,
     generate_recipe_suggestions,
     interpret_pantry_text,
+    process_receipt_ocr,
     suggest_food_metadata,
 )
 from app.services.pantry import PantryService
@@ -101,6 +104,19 @@ async def sugerir_metadata(
     IA pasiva: es una ayuda para rellenar el formulario; el usuario edita y confirma.
     """
     return await suggest_food_metadata(schema.nombre, schema.fecha_referencia)
+
+
+@router.post(
+    "/pantry/ocr-ticket",
+    response_model=TicketOcrResponse,
+    dependencies=[Depends(requiere_premium), Depends(interpretar_rate_limiter)],
+)
+async def ocr_ticket_compra(
+    schema: TicketOcrRequest,
+    hogar_id: uuid.UUID = Depends(get_hogar_id),
+) -> TicketOcrResponse:
+    """Procesa una imagen en Base64 de un ticket de compra usando Gemini Vision y devuelve una lista de productos propuestos."""
+    return await process_receipt_ocr(schema.imagen_base64, schema.fecha_referencia)
 
 
 @router.post(

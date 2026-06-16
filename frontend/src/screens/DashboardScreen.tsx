@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Alert, Pressable } from 'react-native';
+import { View, Alert, Pressable, ActivityIndicator } from 'react-native';
 import { useDashboard } from '../hooks/useDashboard';
 import { useTasks } from '../hooks/useTasks';
 import { TareaItem } from '../types/types';
@@ -42,7 +42,13 @@ export default function DashboardScreen() {
   const handleLogout = () => {
     Alert.alert('Cerrar sesión', '¿Deseas cerrar la sesión en este dispositivo?', [
       { text: 'Cancelar', style: 'cancel' },
-      { text: 'Cerrar sesión', style: 'destructive', onPress: () => { logout(); } },
+      {
+        text: 'Cerrar sesión',
+        style: 'destructive',
+        onPress: () => {
+          logout();
+        },
+      },
     ]);
   };
 
@@ -51,10 +57,9 @@ export default function DashboardScreen() {
     refetchTasks();
   };
 
-  // Loader a pantalla completa solo en la carga inicial; en refrescos posteriores
-  // se mantiene el contenido y actúa el spinner nativo del pull-to-refresh.
-  if (loading && !briefing) return <LoadingView message="Generando briefing del hogar..." />;
-  if (error && !briefing) return <ErrorView message={error} onRetry={refetch} />;
+  // El loader y el error globales se han eliminado.
+  // Ahora la app siempre renderiza el layout (Header, Tareas, Despensa)
+  // y el Briefing se carga en segundo plano con un spinner local.
 
   const handleToggleTask = (tarea: TareaItem) => {
     Alert.alert('Confirmar tarea', `¿Deseas marcar la tarea "${tarea.nombre}" como completada?`, [
@@ -66,7 +71,10 @@ export default function DashboardScreen() {
             haptics.success();
             await toggleTaskStatus(tarea.id, tarea.estado);
           } catch (err: any) {
-            Alert.alert('Error de Sincronización', err.message || 'No se pudo actualizar el estado de la tarea.');
+            Alert.alert(
+              'Error de Sincronización',
+              err.message || 'No se pudo actualizar el estado de la tarea.'
+            );
           }
         },
       },
@@ -80,69 +88,188 @@ export default function DashboardScreen() {
   return (
     <Screen refreshing={loading} onRefresh={refetch}>
       {/* Header */}
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.xl }}>
+      <View
+        style={{
+          flexDirection: 'row',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: spacing.xl,
+        }}
+      >
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
-          <View style={{ width: 44, height: 44, borderRadius: radius.lg, backgroundColor: colors.brand, alignItems: 'center', justifyContent: 'center' }}>
+          <View
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: radius.lg,
+              backgroundColor: colors.brand,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
             <Icon name="home" size={22} color={colors.white} />
           </View>
           <View>
-            <AppText variant="caption" color={colors.inkMuted}>Hola,</AppText>
+            <AppText variant="caption" color={colors.inkMuted}>
+              Hola,
+            </AppText>
             <AppText variant="h2">{usuario?.nombre || 'Hogar'}</AppText>
           </View>
         </View>
-        <IconButton name="person-circle-outline" size={26} color={colors.inkMuted} bg={colors.card} diameter={44} onPress={handleLogout} accessibilityLabel="Cerrar sesión" />
+        <IconButton
+          name="person-circle-outline"
+          size={26}
+          color={colors.inkMuted}
+          bg={colors.card}
+          diameter={44}
+          onPress={handleLogout}
+          accessibilityLabel="Cerrar sesión"
+        />
       </View>
 
       {/* Briefing */}
       <Card style={{ marginBottom: spacing.lg }}>
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.xs }}>
+        <View
+          style={{
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: spacing.xs,
+          }}
+        >
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
             <Icon name="sunny" size={18} color={colors.warning} />
             <AppText variant="h2">Informe de la mañana</AppText>
           </View>
         </View>
-        <AppText variant="micro" color={colors.inkFaint} style={{ textTransform: 'capitalize', marginBottom: spacing.md }}>
-          {formatFechaCorta(briefing?.fecha)}
-        </AppText>
 
-        {briefing?.briefing_texto ? (
-          <View style={{ marginBottom: spacing.md }}>
-            <View style={{ backgroundColor: colors.cardAlt, borderWidth: 1, borderColor: colors.border, borderRadius: radius.lg, padding: spacing.lg, marginBottom: spacing.sm }}>
-              <AppText variant="caption" color={colors.ink} style={{ lineHeight: 20 }}>{briefing.briefing_texto}</AppText>
-            </View>
-            {/* Transparencia IA (EU AI Act): solo si el texto proviene del modelo, no del fallback */}
-            {briefing.briefing_generado_por_ia ? <AIDisclaimerBanner /> : null}
+        {loading && !briefing ? (
+          <View style={{ paddingVertical: spacing.xl, alignItems: 'center' }}>
+            <ActivityIndicator size="small" color={colors.brand} />
+            <AppText variant="caption" color={colors.inkMuted} style={{ marginTop: spacing.md }}>
+              Redactando informe con IA...
+            </AppText>
           </View>
-        ) : null}
-
-        {/* Eventos de hoy */}
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm }}>
-          <AppText variant="captionStrong">Eventos hoy</AppText>
-          <Badge label={`${eventos.length}`} icon="calendar-outline" color={colors.calendar} bg={colors.calendarSoft} />
-        </View>
-        {eventos.length > 0 ? (
-          eventos.map((evento) => (
-            <View key={evento.id} style={{ flexDirection: 'row', alignItems: 'flex-start', marginTop: spacing.sm }}>
-              <AppText variant="captionStrong" color={colors.calendar} style={{ width: 44, paddingTop: 1 }}>{formatHora(evento.fecha_inicio)}</AppText>
-              <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: colors.calendar, marginTop: 5, marginRight: spacing.md }} />
-              <View style={{ flex: 1 }}>
-                <AppText variant="captionStrong" numberOfLines={1}>{evento.titulo}</AppText>
-                <AppText variant="micro" color={colors.inkMuted} numberOfLines={1}>{evento.descripcion || 'Sin descripción'}</AppText>
-              </View>
-            </View>
-          ))
+        ) : error && !briefing ? (
+          <View style={{ paddingVertical: spacing.md, alignItems: 'center' }}>
+            <AppText
+              variant="caption"
+              color={colors.danger}
+              style={{ textAlign: 'center', marginBottom: spacing.sm }}
+            >
+              {error}
+            </AppText>
+            <Button label="Reintentar" variant="secondary" onPress={refetch} />
+          </View>
         ) : (
-          <AppText variant="caption" color={colors.inkFaint} style={{ paddingVertical: spacing.sm }}>No hay eventos programados para hoy.</AppText>
+          <>
+            <AppText
+              variant="micro"
+              color={colors.inkFaint}
+              style={{ textTransform: 'capitalize', marginBottom: spacing.md }}
+            >
+              {formatFechaCorta(briefing?.fecha)}
+            </AppText>
+
+            {briefing?.briefing_texto ? (
+              <View style={{ marginBottom: spacing.md }}>
+                <View
+                  style={{
+                    backgroundColor: colors.cardAlt,
+                    borderWidth: 1,
+                    borderColor: colors.border,
+                    borderRadius: radius.lg,
+                    padding: spacing.lg,
+                    marginBottom: spacing.sm,
+                  }}
+                >
+                  <AppText variant="caption" color={colors.ink} style={{ lineHeight: 20 }}>
+                    {briefing.briefing_texto}
+                  </AppText>
+                </View>
+                {/* Transparencia IA (EU AI Act): solo si el texto proviene del modelo, no del fallback */}
+                {briefing.briefing_generado_por_ia ? <AIDisclaimerBanner /> : null}
+              </View>
+            ) : null}
+
+            {/* Eventos de hoy */}
+            <View
+              style={{
+                flexDirection: 'row',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: spacing.sm,
+              }}
+            >
+              <AppText variant="captionStrong">Eventos hoy</AppText>
+              <Badge
+                label={`${eventos.length}`}
+                icon="calendar-outline"
+                color={colors.calendar}
+                bg={colors.calendarSoft}
+              />
+            </View>
+            {eventos.length > 0 ? (
+              eventos.map((evento) => (
+                <View
+                  key={evento.id}
+                  style={{ flexDirection: 'row', alignItems: 'flex-start', marginTop: spacing.sm }}
+                >
+                  <AppText
+                    variant="captionStrong"
+                    color={colors.calendar}
+                    style={{ width: 44, paddingTop: 1 }}
+                  >
+                    {formatHora(evento.fecha_inicio)}
+                  </AppText>
+                  <View
+                    style={{
+                      width: 7,
+                      height: 7,
+                      borderRadius: 4,
+                      backgroundColor: colors.calendar,
+                      marginTop: 5,
+                      marginRight: spacing.md,
+                    }}
+                  />
+                  <View style={{ flex: 1 }}>
+                    <AppText variant="captionStrong" numberOfLines={1}>
+                      {evento.titulo}
+                    </AppText>
+                    <AppText variant="micro" color={colors.inkMuted} numberOfLines={1}>
+                      {evento.descripcion || 'Sin descripción'}
+                    </AppText>
+                  </View>
+                </View>
+              ))
+            ) : (
+              <AppText
+                variant="caption"
+                color={colors.inkFaint}
+                style={{ paddingVertical: spacing.sm }}
+              >
+                No hay eventos programados para hoy.
+              </AppText>
+            )}
+          </>
         )}
       </Card>
 
       {/* Tareas pendientes */}
       <Card tint={colors.tasksSoft} borderColor="#FBE7BE" style={{ marginBottom: spacing.lg }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: spacing.md }}>
+        <View
+          style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: spacing.md }}
+        >
           <Icon name="flash" size={16} color={colors.tasks} />
-          <AppText variant="captionStrong" color="#B45309">Tareas pendientes</AppText>
+          <AppText variant="captionStrong" color="#B45309">
+            Tareas pendientes
+          </AppText>
         </View>
-        {tasksError ? <AppText variant="micro" color={colors.danger} style={{ marginBottom: spacing.sm }}>{tasksError}</AppText> : null}
+        {tasksError ? (
+          <AppText variant="micro" color={colors.danger} style={{ marginBottom: spacing.sm }}>
+            {tasksError}
+          </AppText>
+        ) : null}
         {pendientes.length > 0 ? (
           pendientes.map((tarea) => (
             <Pressable
@@ -151,22 +278,53 @@ export default function DashboardScreen() {
               accessibilityRole="checkbox"
               accessibilityState={{ checked: false }}
               accessibilityLabel={`Marcar tarea ${tarea.nombre} como completada`}
-              style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 6 }}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                paddingVertical: 6,
+              }}
             >
-              <AppText variant="caption" color="#92400E" style={{ flex: 1, marginRight: spacing.sm }} numberOfLines={1}>
-                {tarea.nombre}{tarea.asignado_a ? ` · ${tarea.asignado_a}` : ''}
+              <AppText
+                variant="caption"
+                color="#92400E"
+                style={{ flex: 1, marginRight: spacing.sm }}
+                numberOfLines={1}
+              >
+                {tarea.nombre}
+                {tarea.asignado_a ? ` · ${tarea.asignado_a}` : ''}
               </AppText>
-              <View style={{ width: 22, height: 22, borderRadius: radius.pill, borderWidth: 2, borderColor: '#FBD38D', backgroundColor: colors.white, alignItems: 'center', justifyContent: 'center' }} />
+              <View
+                style={{
+                  width: 22,
+                  height: 22,
+                  borderRadius: radius.pill,
+                  borderWidth: 2,
+                  borderColor: '#FBD38D',
+                  backgroundColor: colors.white,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              />
             </Pressable>
           ))
         ) : (
-          <AppText variant="caption" color="#92400E">No hay tareas pendientes. ¡Buen trabajo!</AppText>
+          <AppText variant="caption" color="#92400E">
+            No hay tareas pendientes. ¡Buen trabajo!
+          </AppText>
         )}
       </Card>
 
       {/* Alertas de la despensa */}
       <Card>
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md }}>
+        <View
+          style={{
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: spacing.md,
+          }}
+        >
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
             <Icon name="alert-circle" size={16} color={colors.pantry} />
             <AppText variant="h2">Despensa</AppText>
@@ -178,28 +336,73 @@ export default function DashboardScreen() {
             const dias = getDiasParaCaducar(item.fecha_caducidad);
             const isUrgent = dias !== null && dias <= 2;
             return (
-              <View key={item.id} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 6 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, gap: spacing.md }}>
-                  <View style={{ width: 38, height: 38, borderRadius: radius.md, backgroundColor: colors.pantrySoft, alignItems: 'center', justifyContent: 'center' }}>
-                    <FoodIcon name={getCategoriaIcon(item.categoria)} size={20} color={colors.pantry} />
+              <View
+                key={item.id}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  paddingVertical: 6,
+                }}
+              >
+                <View
+                  style={{ flexDirection: 'row', alignItems: 'center', flex: 1, gap: spacing.md }}
+                >
+                  <View
+                    style={{
+                      width: 38,
+                      height: 38,
+                      borderRadius: radius.md,
+                      backgroundColor: colors.pantrySoft,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <FoodIcon
+                      name={getCategoriaIcon(item.categoria)}
+                      size={20}
+                      color={colors.pantry}
+                    />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <AppText variant="captionStrong" numberOfLines={1}>{item.nombre}</AppText>
+                    <AppText variant="captionStrong" numberOfLines={1}>
+                      {item.nombre}
+                    </AppText>
                     <AppText variant="micro" color={colors.inkMuted}>
-                      {dias !== null ? `Caduca en ${dias} día(s)` : 'Sin caducidad'} · {item.cantidad} {item.unidad}
+                      {dias !== null ? `Caduca en ${dias} día(s)` : 'Sin caducidad'} ·{' '}
+                      {item.cantidad} {item.unidad}
                     </AppText>
                   </View>
                 </View>
-                {isUrgent ? <Badge label="Usar pronto" color={colors.danger} bg={colors.dangerSoft} icon="time-outline" /> : null}
+                {isUrgent ? (
+                  <Badge
+                    label="Usar pronto"
+                    color={colors.danger}
+                    bg={colors.dangerSoft}
+                    icon="time-outline"
+                  />
+                ) : null}
               </View>
             );
           })
         ) : (
-          <AppText variant="caption" color={colors.inkFaint} style={{ paddingVertical: spacing.sm }}>No hay alertas de caducidad en la despensa.</AppText>
+          <AppText
+            variant="caption"
+            color={colors.inkFaint}
+            style={{ paddingVertical: spacing.sm }}
+          >
+            No hay alertas de caducidad en la despensa.
+          </AppText>
         )}
       </Card>
 
-      <Button label="Actualizar briefing" icon="refresh" variant="secondary" onPress={refetch} style={{ marginTop: spacing.xl }} />
+      <Button
+        label="Actualizar briefing"
+        icon="refresh"
+        variant="secondary"
+        onPress={refetch}
+        style={{ marginTop: spacing.xl }}
+      />
     </Screen>
   );
 }

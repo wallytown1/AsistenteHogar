@@ -4,6 +4,7 @@ import { useAuthStore } from '../state/authStore';
 
 interface RequestOptions extends RequestInit {
   json?: any;
+  timeoutMs?: number;
 }
 
 /**
@@ -16,7 +17,8 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
   // AbortSignal.timeout lanza TimeoutError (no AbortError); propagamos para que el
   // caller distinga entre cancelación intencional y timeout de red.
   if (!API_BASE_URL) {
-    const errorMsg = 'La configuración de red del entorno no fue cargada adecuadamente. La variable EXPO_PUBLIC_API_URL no está definida.';
+    const errorMsg =
+      'La configuración de red del entorno no fue cargada adecuadamente. La variable EXPO_PUBLIC_API_URL no está definida.';
     Alert.alert('Error de Configuración', errorMsg);
     throw new Error(errorMsg);
   }
@@ -34,36 +36,52 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
     options.body = JSON.stringify(options.json);
   }
 
-  const response = await fetch(url, {
-    ...options,
-    headers,
-    signal: options.signal ?? AbortSignal.timeout(15000),
-  });
+  let signal = options.signal;
+  let timeoutId: NodeJS.Timeout | undefined;
+  const timeoutMs = options.timeoutMs ?? 15000;
 
-  if (!response.ok) {
-    let errorMessage = `Error de conexión HTTP: ${response.status}`;
-    try {
-      const errBody = await response.json();
-      if (errBody && errBody.detail) {
-        // detail puede ser un string directo o una colección de validación (por ejemplo, errores de Pydantic)
-        errorMessage = typeof errBody.detail === 'string' ? errBody.detail : JSON.stringify(errBody.detail);
+  const controller = new AbortController();
+  timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  if (signal) {
+    signal.addEventListener('abort', () => controller.abort());
+  }
+  signal = controller.signal;
+
+  try {
+    const response = await fetch(url, {
+      ...options,
+      headers,
+      signal,
+    });
+
+    if (!response.ok) {
+      let errorMessage = `Error de conexión HTTP: ${response.status}`;
+      try {
+        const errBody = await response.json();
+        if (errBody && errBody.detail) {
+          errorMessage =
+            typeof errBody.detail === 'string' ? errBody.detail : JSON.stringify(errBody.detail);
+        }
+      } catch {
+        // Mantener mensaje por defecto si no es JSON estructurado
       }
-    } catch {
-      // Mantener mensaje por defecto si no es JSON estructurado
+
+      if (response.status === 401 && token && !path.startsWith('/auth/')) {
+        await useAuthStore.getState().logout();
+      }
+
+      throw new Error(errorMessage);
     }
 
-    // Sesión expirada o token inválido: cerrar sesión local (excepto en los
-    // propios endpoints de auth, donde el 401 es un error de credenciales).
-    if (response.status === 401 && token && !path.startsWith('/auth/')) {
-      await useAuthStore.getState().logout();
+    if (response.status === 204) {
+      return {} as T;
     }
 
-    throw new Error(errorMessage);
+    return response.json() as Promise<T>;
+  } finally {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
   }
-
-  if (response.status === 204) {
-    return {} as T;
-  }
-
-  return response.json() as Promise<T>;
 }
