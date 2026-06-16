@@ -10,40 +10,8 @@ Ordenadas por impacto. Las completadas se moverán al `CHANGELOG.md`.
 | # | Mejora | Rama | Commit |
 |---|--------|------|--------|
 | 1 | Conflictos de agenda incluidos en el briefing matutino | `feat/mejoras-servicio` | `f1d0247` |
-
----
-
-## 🔴 Alto impacto
-
-### #2 — `ultimo_completado` visible en tareas
-**Problema:** cada tarea tiene `ultimo_completado: datetime | None` y `frecuencia`
-(diaria/semanal/mensual) en BD, pero la UI no los usa. El usuario no sabe cuándo
-completó una tarea por última vez ni cuándo toca de nuevo.
-
-**Solución:**
-- Badge "hace X días" en cada item de tarea calculado desde `ultimo_completado`.
-- Cálculo de "próxima ejecución esperada" en frontend (`ultimo_completado + frecuencia`).
-- Ordenar lista por proximidad de siguiente ejecución (no por fecha de creación).
-
-**Archivos:** `frontend/src/screens/AgendaScreen.tsx` (o `TasksScreen` si se desdobla),
-`frontend/src/hooks/useTasks.ts`.
-**Esfuerzo:** Bajo-Medio (solo frontend, datos ya están en la API).
-
----
-
-### #3 — Gate premium inconsistente entre endpoints de IA
-**Problema:** `/calendar/interpretar` es gratis; `/tasks/interpretar` y
-`/pantry/interpretar` son premium. No hay lógica clara documentada.
-
-**Decisión pendiente:** ¿Toda función de IA es premium? ¿Solo las que consumen más
-tokens (plan, recetas, OCR)? Acordar política y aplicar uniformemente.
-
-**Solución (propuesta):** hacer premium los 5 endpoints de IA de forma consistente,
-o explicitar en la UI cuáles son gratis con un icono diferente.
-
-**Archivos:** `backend/app/api/routers/calendar.py` (añadir o quitar `requiere_premium`),
-documentar decisión en `PRODUCCION_CHECKLIST.md`.
-**Esfuerzo:** Bajo (una línea de código; la decisión es lo costoso).
+| 2 | `ultimo_completado` visible en tareas: badge, próxima ejecución, orden por urgencia | `feat/mejoras-servicio` | `9a591f5` |
+| 3 | Gate premium consistente: `requiere_premium` añadido a `/calendar/interpretar` | `feat/mejoras-servicio` | pendiente |
 
 ---
 

@@ -1,5 +1,26 @@
 # ESTADO ACTUAL — AsistenteHogar (2026-06-16)
 
+## 🔧 Sesión 2026-06-16 (noche) — Mejoras de servicio #2 y #3
+
+Trabajo en rama `feat/mejoras-servicio`.
+
+**Mejora #2 — `ultimo_completado` visible en tareas** (`frontend/src/screens/TasksScreen.tsx`)
+- Badge "Última vez hace X días / Completada hoy" en cada card de tarea.
+- Texto de próxima ejecución para pendientes: "próxima en N días / toca hoy / vencida hace N días"
+  (urgente en naranja). Calculado de `ultimo_completado + frecuencia` (diaria=1d, semanal=7d, mensual=30d).
+- Lista reordenada por urgencia: nunca completadas primero, vencidas, toca hoy, próximas, ocasionales al final.
+  En vista "todas": pendientes antes que completadas; completadas por recencia.
+- Solo frontend; los datos `ultimo_completado` y `frecuencia` ya existían en la API.
+
+**Mejora #3 — Gate premium consistente en endpoints IA** (`backend/app/api/routers/calendar.py`)
+- Política adoptada: **todos los endpoints de IA son premium** (6/6 consistente).
+- `/calendar/interpretar` era el único sin `requiere_premium`. Añadida la dependencia.
+- Smoke tests: 12/12 + 43/43 + 22/22 en verde tras el cambio.
+
+**Documentación:** `AGENTS.md` en `main` actualizado a Git Flow con ramas feature/hotfix/release.
+
+---
+
 ## ✅ Completado
 
 | Fase | Descripción | Archivos principales |
