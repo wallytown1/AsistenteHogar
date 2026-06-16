@@ -6,7 +6,62 @@ Formato: `[FECHA] [ÁREA] [TIPO] Descripción`
 
 ---
 
-## [2026-06-16] — Mejoras de servicio + fixes (ramas en curso)
+## [2026-06-16] — PR #5: Bloque de mejoras de servicio #1–#8 (mergeado a main)
+
+### Mejora #1 — Conflictos de agenda en el briefing matutino
+- **MOD** `backend/app/services/llm.py` — `generate_morning_briefing()` incluye
+  `conflictos_agenda` en el prompt de Gemini (título, hora y minutos de solapamiento).
+  `generate_fallback_briefing()` añade sección ⚠️ con detalle de solapamiento.
+  Los participantes de eventos en conflicto se anonimizan igual que el resto (RGPD).
+
+### Mejora #2 — `ultimo_completado` visible en tareas con urgencia
+- **MOD** `frontend/src/screens/TasksScreen.tsx` — badge "Última vez hace X días / Completada hoy"
+  en cada card de tarea pendiente. Texto de próxima ejecución calculado de
+  `ultimo_completado + frecuencia` (diaria=1d, semanal=7d, mensual=30d); urgente en naranja.
+  Lista reordenada por urgencia: nunca completadas → vencidas → toca hoy → próximas → ocasionales.
+  En vista "todas": pendientes primero, completadas por recencia.
+
+### Mejora #3 — Gate premium consistente en todos los endpoints de IA
+- **MOD** `backend/app/api/routers/calendar.py` — añadido `Depends(requiere_premium)` a
+  `POST /calendar/interpretar`. Los 6 endpoints de IA quedan uniformemente protegidos.
+
+### Mejora #4 — OCR de ticket: FAB dedicado y revisión en lote
+- **MOD** `frontend/src/screens/PantryScreen.tsx` — segundo FAB `receipt-outline` en la
+  pantalla principal de Despensa (no enterrado en el modal). Modal de revisión en lote con
+  checkboxes por producto y botón "Añadir seleccionados". Estados nuevos: `ocrScanning`,
+  `ocrReviewVisible`, `ocrReviewItems`, `ocrAdding`. Timeout 90 s (ahora `TIMEOUT.OCR_FULL`).
+
+### Mejora #5 — Endpoint `/pantry/sugerencias` unificado con precarga en background
+- **ADD** `backend/app/api/routers/pantry.py` — `GET /pantry/sugerencias`: lanza
+  `generate_recipe_suggestions` y `generate_meal_plan` en paralelo con `asyncio.gather()`,
+  reutilizando las cachés individuales de cada función LLM. Hereda ambos rate-limiters.
+- **ADD** `backend/app/schemas/schemas.py` — `SugerenciasResponse { recetas, plan_comidas }`.
+- **ADD** `frontend/src/types/types.ts` — interfaz `SugerenciasResponse`.
+- **MOD** `frontend/src/screens/PantryScreen.tsx` — prefetch en background al montar si
+  `isPremium && items.length > 0` (ref guard `autoFetchedRef` para evitar doble disparo).
+
+### Mejora #6 — Duración del solapamiento visible en Calendario
+- **MOD** `frontend/src/screens/CalendarScreen.tsx` — cada card de conflicto muestra
+  "Solapamiento: X min" bajo los títulos de los eventos, usando
+  `conf.duracion_solapamiento_segundos` (campo ya existente en `ConflictoDetalle`).
+
+### Mejora #7 — Descartada (falso positivo)
+- `generate_recipe_suggestions()` y `generate_meal_plan()` solo reciben nombres de alimentos
+  (`InventarioAlimentoResponse`), nunca `asignado_a` ni `participantes`. No hay datos
+  personales que anonimizar en esas rutas. Sin cambios de código.
+
+### Mejora #8 — Timeouts tipados y consistentes
+- **MOD** `frontend/src/api/api.ts` — exportada constante
+  `TIMEOUT = { DEFAULT: 15_000, AI: 45_000, OCR: 60_000, OCR_FULL: 90_000 }`.
+  El fallback interno de `apiRequest` usa `TIMEOUT.DEFAULT` en lugar del literal `15000`.
+- **MOD** `frontend/src/hooks/useDashboard.ts` — `timeoutMs: TIMEOUT.AI`.
+- **MOD** `frontend/src/hooks/usePantry.ts` — `timeoutMs: TIMEOUT.OCR`.
+- **MOD** `frontend/src/screens/PantryScreen.tsx` — `TIMEOUT.AI` (sugerencias), `TIMEOUT.OCR_FULL` (OCR).
+- **MOD** `frontend/src/screens/TasksScreen.tsx` — `timeoutMs: TIMEOUT.AI`.
+
+---
+
+## [2026-06-16] — Mejoras de servicio + fixes (sesión anterior, detalle)
 
 ### feat/mejoras-servicio — Mejora #1: conflictos de agenda en el briefing
 - **MOD** `backend/app/services/llm.py` — `generate_morning_briefing()` ahora incluye
