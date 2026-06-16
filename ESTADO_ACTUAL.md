@@ -16,6 +16,15 @@
 | F-AUDIT | Auditoría post-F-LEGAL: 7 bugs corregidos (B1–B7) + alineación de cifras de tests | backend/app/services/calendar.py, frontend/src/screens/CalendarScreen.tsx, frontend/src/hooks/{useTasks,usePantry}.ts |
 | F-IA-2 | Optimización del flujo Gemini + 4 funciones de IA nuevas (tareas/despensa NL, metadata, plan de comidas) | backend/app/services/llm.py, backend/app/api/routers/{tasks,pantry}.py, backend/app/core/rate_limit.py |
 | F-UI 🎨 | Rediseño visual nativo iOS/Android | frontend/src/theme/, frontend/src/components/ui/, frontend/src/lib/, las 6 pantallas |
+| F5 | Migración a Redis (caché y rate limit distribuidos) | backend/app/core/redis_client.py, backend/app/core/rate_limit.py, backend/app/services/llm.py |
+
+## ⚡ Sesión 2026-06-16 — Migración a Redis (F5) e Infraestructura
+
+Se adelantó la Fase F5 para hacer el backend "Stateless" y prepararlo para producción de forma escalable (multi-worker / multi-instancia):
+- **Redis Asíncrono:** Añadido `redis_client.py` con pool de conexiones en lifespan de FastAPI. Resiliencia integrada (modo degradado/mock si Redis no está disponible).
+- **Rate-limiting Distribuido:** Migrado `app/core/rate_limit.py` a Redis usando una ventana deslizante basada en Sorted Sets (ZADD, ZREMRANGEBYSCORE, ZCARD).
+- **Caché de LLM Distribuido:** Migrado `app/services/llm.py` a Redis con expiración automática TTL (SETEX).
+- **Verificación:** Ejecución de 122/122 smoke tests y corrección de lints de ruff/mypy (instalados types-redis para tipado robusto).
 
 ## 🔀 Sesión 2026-06-15 — Integración de ramas + tooling + rescate de features
 
@@ -271,8 +280,6 @@ npm run ts:check  # Debe retornar 0 errores
 
 | Problema | Ubicación | Impacto | Solución |
 |----------|-----------|--------|----------|
-| Caché en memoria | backend/app/services/llm.py | Medium si escala | Migrar a Redis (F5) |
-| Rate limit en memoria | backend/app/core/rate_limit.py | Medium si escala | Migrar a Redis (F5) |
 | Fotos unsplash de URLs | frontend/src/screens/ | Bajo (RN cachea) | Mover a assets/ |
 
 Ver [[technical_debt]] en memoria para detalles.

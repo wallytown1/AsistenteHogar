@@ -40,6 +40,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
     from sqlalchemy import select
 
+    from app.core.redis_client import close_redis, init_redis
     from app.jobs.purge import purge_scheduler
     from app.services.llm import aclose_http_client
 
@@ -57,6 +58,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         "Conexión a la base de datos verificada. API lista para aceptar tráfico."
     )
 
+    # Inicializar Redis (caché distribuida + rate-limit compartido).
+    # Si falla, la app arranca en modo degradado (caché/rate-limit en memoria).
+    await init_redis()
+
     # Purga física programada (RGPD): una pasada al arrancar y luego cada 24 h
     purge_task = asyncio.create_task(purge_scheduler())
     try:
@@ -69,6 +74,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             pass
         # Cerrar el cliente HTTP compartido de Gemini (libera conexiones keep-alive)
         await aclose_http_client()
+        # Cerrar pool de Redis
+        await close_redis()
 
 
 app = FastAPI(

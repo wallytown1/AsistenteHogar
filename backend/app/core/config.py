@@ -36,3 +36,7 @@ IS_PRODUCTION = ENVIRONMENT == "production"
 # de contingencia (briefing estático, sin sugerencias de recetas).
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+
+# Redis. Opcional: sin ella la caché y el rate-limit operan en memoria (instancia
+# única). En producción con múltiples workers debe apuntar a un Redis compartido.
+REDIS_URL = os.getenv("REDIS_URL")
