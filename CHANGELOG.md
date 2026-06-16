@@ -6,9 +6,10 @@ Formato: `[FECHA] [ÁREA] [TIPO] Descripción`
 
 ---
 
-## [2026-06-16] — FASE F5: Migración a Redis (caché distribuida + rate-limit compartido)
+## [2026-06-16] — FASE F5: Migración a Redis y Despliegue en la Nube (Railway)
 
 ### Decisiones clave
+- **Despliegue en Railway**: Se aprovisionó el backend en Railway usando NIXPACKS, con bases de datos PostgreSQL y Redis conectadas y variables de entorno (`JWT_SECRET_KEY`, `DATABASE_URL` asíncrona) configuradas automáticamente. El frontend apunta ahora a `https://asistentehogar-production.up.railway.app`.
 - La caché TTL de IA y el rate-limit operaban en memoria (diccionarios Python). Con múltiples
   workers o réplicas, cada proceso tenía su propio estado → límites de IA ineficaces y caché
   duplicada. Migrado a **Redis** con fallback automático en memoria si Redis no está disponible
