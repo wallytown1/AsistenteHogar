@@ -33,3 +33,4 @@ repos:
           # en security.py (bcrypt.hashpw().decode, jwt.encode/decode).
           - bcrypt>=4.0
           - pyjwt>=2.8
+          - types-redis>=4.6

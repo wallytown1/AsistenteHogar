@@ -4,11 +4,12 @@ import hashlib
 import json
 import logging
 import time
-from typing import Any, cast
+from typing import Any
 
 import httpx
 
 from app.core.config import GEMINI_API_KEY, GEMINI_MODEL
+from app.core.redis_client import get_redis
 from app.schemas.schemas import (
     AlimentoInterpretado,
     DashboardUnifiedContext,
@@ -35,37 +36,72 @@ if not GEMINI_API_KEY:
 
 GEMINI_URL = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent"
 
-# --- Caché TTL en memoria -----------------------------------------------------
-# Evita una llamada a Gemini por cada GET del dashboard/recetas: la clave incluye
-# un hash de los datos de entrada, así que cualquier cambio real invalida sola la
-# entrada. Deuda técnica conocida: con varias réplicas migrar a Redis (igual que
-# el rate limiter).
-_cache: dict[str, tuple[float, Any]] = {}
+# --- Caché TTL dual (Redis / memoria) ------------------------------------------
+# Si Redis está disponible, la caché es distribuida y sobrevive a reinicios.
+# Sin Redis, opera en memoria (comportamiento original, solo instancia única).
+# La clave incluye un hash SHA-256 de los datos de entrada: cualquier cambio real
+# invalida la entrada automáticamente.
+
+# Fallback en memoria (solo se usa si Redis no está disponible)
+_memory_cache: dict[str, tuple[float, Any]] = {}
 _CACHE_MAX_ENTRIES = 1000
 
 BRIEFING_CACHE_TTL = 30 * 60  # 30 minutos
 RECETAS_CACHE_TTL = 60 * 60  # 1 hora
 
 
-def _cache_get(key: str) -> Any | None:
-    entry = _cache.get(key)
+async def _cache_get(key: str) -> Any | None:
+    """Obtiene un valor de la caché (Redis o memoria)."""
+    redis = get_redis()
+    if redis is not None:
+        try:
+            raw = await redis.get(f"cache:{key}")
+            if raw is not None:
+                return json.loads(raw)
+        except Exception as e:
+            logger.warning(f"Error leyendo caché de Redis ({e}); fallback a memoria.")
+
+    # Fallback en memoria
+    entry = _memory_cache.get(key)
     if entry is None:
         return None
     expires, value = entry
     if time.monotonic() > expires:
-        del _cache[key]
+        del _memory_cache[key]
         return None
     return value
 
 
-def _cache_set(key: str, value: Any, ttl: float) -> None:
-    if len(_cache) >= _CACHE_MAX_ENTRIES:
+async def _cache_set(key: str, value: Any, ttl: float) -> None:
+    """Guarda un valor en la caché (Redis y memoria)."""
+    redis = get_redis()
+    if redis is not None:
+        try:
+            serialized = json.dumps(value, default=_json_serialize)
+            await redis.setex(f"cache:{key}", int(ttl), serialized)
+            return
+        except Exception as e:
+            logger.warning(
+                f"Error escribiendo caché en Redis ({e}); fallback a memoria."
+            )
+
+    # Fallback en memoria
+    if len(_memory_cache) >= _CACHE_MAX_ENTRIES:
         now = time.monotonic()
-        for k in [k for k, (exp, _) in _cache.items() if exp < now]:
-            del _cache[k]
-        if len(_cache) >= _CACHE_MAX_ENTRIES:
-            _cache.clear()
-    _cache[key] = (time.monotonic() + ttl, value)
+        for k in [k for k, (exp, _) in _memory_cache.items() if exp < now]:
+            del _memory_cache[k]
+        if len(_memory_cache) >= _CACHE_MAX_ENTRIES:
+            _memory_cache.clear()
+    _memory_cache[key] = (time.monotonic() + ttl, value)
+
+
+def _json_serialize(obj: Any) -> Any:
+    """Serializador para objetos que json.dumps no soporta nativamente."""
+    if hasattr(obj, "model_dump"):
+        return obj.model_dump(mode="json")
+    if isinstance(obj, datetime.date | datetime.datetime):
+        return obj.isoformat()
+    raise TypeError(f"Object of type {type(obj).__name__} is not JSON serializable")
 
 
 def _hash_key(prefix: str, data: str) -> str:
@@ -313,7 +349,7 @@ async def generate_morning_briefing(
     # entrada cacheada es la respuesta AÚN anonimizada (la reversión va después),
     # de modo que la caché nunca contiene datos personales.
     cache_key = _hash_key("briefing", prompt_usuario)
-    cached = _cache_get(cache_key)
+    cached = await _cache_get(cache_key)
     if cached is not None:
         return anonimizador.revertir(cached), True
 
@@ -338,7 +374,7 @@ async def generate_morning_briefing(
     if texto is None:
         return generate_fallback_briefing(context), False
 
-    _cache_set(cache_key, texto, BRIEFING_CACHE_TTL)
+    await _cache_set(cache_key, texto, BRIEFING_CACHE_TTL)
     return anonimizador.revertir(texto), True
 
 
@@ -388,9 +424,9 @@ async def generate_recipe_suggestions(
     )
 
     cache_key = _hash_key("recetas", prompt_usuario)
-    cached = _cache_get(cache_key)
+    cached = await _cache_get(cache_key)
     if cached is not None:
-        return cast(RecetasSugeridasResponse, cached)
+        return RecetasSugeridasResponse.model_validate(cached)
 
     system_instruction = (
         "Eres el chef asistente de un hogar en España. A partir del inventario real de la "
@@ -438,7 +474,7 @@ async def generate_recipe_suggestions(
         if recetas
         else "La despensa actual no da para una receta completa. ¡Añade más ingredientes!",
     )
-    _cache_set(cache_key, respuesta, RECETAS_CACHE_TTL)
+    await _cache_set(cache_key, respuesta, RECETAS_CACHE_TTL)
     return respuesta
 
 
@@ -848,9 +884,9 @@ async def generate_meal_plan(
     )
 
     cache_key = _hash_key("plancomidas", prompt_usuario)
-    cached = _cache_get(cache_key)
+    cached = await _cache_get(cache_key)
     if cached is not None:
-        return cast(PlanComidasResponse, cached)
+        return PlanComidasResponse.model_validate(cached)
 
     system_instruction = (
         "Eres el planificador de comidas de un hogar en España. A partir del inventario real de la "
@@ -891,5 +927,5 @@ async def generate_meal_plan(
         generado_por_ia=True,
         mensaje=None if dias else "No se pudo generar un plan con la despensa actual.",
     )
-    _cache_set(cache_key, respuesta, PLAN_CACHE_TTL)
+    await _cache_set(cache_key, respuesta, PLAN_CACHE_TTL)
     return respuesta

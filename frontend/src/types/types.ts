@@ -103,6 +103,51 @@ export interface InterpretarEventoResponse {
   mensaje: string | null;
 }
 
+export interface TareaInterpretada {
+  nombre: string;
+  asignado_a: string | null;
+  frecuencia: string;
+  prioridad: string;
+}
+
+export interface InterpretarTareaResponse {
+  tarea: TareaInterpretada | null;
+  mensaje: string | null;
+}
+
+export interface AlimentoInterpretado {
+  nombre: string;
+  cantidad: number;
+  unidad: string;
+  categoria: string;
+  fecha_caducidad: string | null; // YYYY-MM-DD
+}
+
+export interface InterpretarDespensaResponse {
+  alimentos: AlimentoInterpretado[];
+  mensaje: string | null;
+}
+
+export interface SugerenciaMetadataResponse {
+  categoria: string | null;
+  dias_estimados: number | null;
+  fecha_caducidad_estimada: string | null; // YYYY-MM-DD
+  generado_por_ia: boolean;
+  mensaje: string | null;
+}
+
+export interface DiaPlanComidas {
+  dia: string;
+  comida: string;
+  cena: string;
+}
+
+export interface PlanComidasResponse {
+  dias: DiaPlanComidas[];
+  generado_por_ia: boolean;
+  mensaje: string | null;
+}
+
 export interface Usuario {
   id: string;
   hogar_id: string;

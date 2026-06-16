@@ -6,6 +6,37 @@ Formato: `[FECHA] [ÁREA] [TIPO] Descripción`
 
 ---
 
+## [2026-06-16] — FASE F5: Migración a Redis (caché distribuida + rate-limit compartido)
+
+### Decisiones clave
+- La caché TTL de IA y el rate-limit operaban en memoria (diccionarios Python). Con múltiples
+  workers o réplicas, cada proceso tenía su propio estado → límites de IA ineficaces y caché
+  duplicada. Migrado a **Redis** con fallback automático en memoria si Redis no está disponible
+  (la app nunca se rompe por falta de Redis).
+- **Rate-limit:** ventana deslizante con sorted sets de Redis (ZRANGEBYSCORE + pipeline atómico).
+  Si Redis cae, degrada transparentemente al deque en memoria original.
+- **Caché LLM:** `SETEX` con TTL nativo de Redis. Serialización JSON con soporte para modelos
+  Pydantic (`model_dump(mode="json")`). Los TTL se mantienen: briefing 30 min, recetas 1 h,
+  plan de comidas 2 h.
+- **Conexión:** pool asíncrono (`redis.asyncio`) inicializado en el `lifespan` de FastAPI y
+  cerrado en el shutdown. Verificación de conectividad con `PING` al arrancar.
+- Docker Compose actualizado con Redis 7 Alpine (AOF, 128 MB, LRU eviction).
+
+### Archivos
+- `ADD` backend/app/core/redis_client.py — pool async, init/close, get_redis().
+- `MOD` backend/app/core/rate_limit.py — estrategia dual Redis/memoria.
+- `MOD` backend/app/services/llm.py — caché dual Redis/memoria (funciones ahora async).
+- `MOD` backend/app/main.py — init_redis()/close_redis() en lifespan.
+- `MOD` backend/app/core/config.py — nueva variable REDIS_URL.
+- `MOD` backend/docker-compose.yml — servicio Redis 7 Alpine.
+- `MOD` backend/.env.example — documentada REDIS_URL.
+- `MOD` backend/requirements.txt — redis[hiredis]>=5.0.0.
+- `CFG` .pre-commit-config.yaml — types-redis>=4.6 para mypy.
+
+### Verificación: 122/122 smoke tests en verde (modo degradado sin Redis); ruff + mypy + ruff-format OK; 0 errores TypeScript frontend.
+
+---
+
 ## [2026-06-11] — Reenfoque: agente personal honesto (eliminación de funciones imposibles)
 
 ### Decisiones clave

@@ -227,7 +227,7 @@ Requisito de App Store 5.1.1(v) y Google Play (eliminación de cuenta dentro de 
 * **Módulo:** `backend/app/jobs/purge.py`.
 * **Lógica:** para cada tabla de negocio (`inventario_alimentos`, `tareas_hogar`, `eventos_calendario`): `DELETE WHERE is_deleted = TRUE AND updated_at < now() - 30 días`. Implementada como método `purge_expired()` en cada repository (única excepción autorizada de hard delete, §3.3), orquestada por un servicio `PurgeService`.
 * **Ejecución:** doble vía —
-  1. **Programada in-process:** tarea `asyncio` lanzada desde el evento `lifespan` de FastAPI, cada 24 h. Sin dependencias nuevas (coherente con el caché y rate-limit in-memory actuales; migrable a un scheduler externo en F5 junto con Redis).
+  1. **Programada in-process:** tarea `asyncio` lanzada desde el evento `lifespan` de FastAPI, cada 24 h. En producción, el almacenamiento de sesión de caché y rate-limiting fue migrado a Redis (F5).
   2. **Manual/CLI:** `python -m app.jobs.purge` para operaciones y verificación en tests.
 * **Auditoría:** cada ejecución inserta una fila agregada en `registros_borrado` (`tipo_evento = 'purga_programada'`, `registros_afectados = N`). Si N = 0 no se inserta fila (evita ruido).
 * **Logging:** resultado en el log estructurado existente (`logging_config.py`), sin datos personales.
@@ -271,7 +271,7 @@ Los prompts de `generate_morning_briefing` e `interpret_event_text` pueden conte
 | `generate_recipe_suggestions` | `GET /pantry/recetas` | 60 min |
 | `interpret_event_text` | `POST /calendar/interpretar` | — |
 
-Temperatura 0, `thinkingBudget` 0. Claves de caché = SHA-256 de los datos del prompt (en el briefing, del prompt **ya anonimizado**, §5.2). `generate_morning_briefing` devuelve `(texto, generado_por_ia)` para alimentar el aviso de transparencia. Sin `GEMINI_API_KEY` las tres devuelven fallbacks estáticos y la app sigue funcionando.
+Temperatura 0, `thinkingBudget` 0. Claves de caché = SHA-256 de los datos del prompt (en el briefing, del prompt **ya anonimizado**, §5.2). La caché está respaldada por Redis distribuido con los TTLs correspondientes en la tabla. `generate_morning_briefing` devuelve `(texto, generado_por_ia)` para alimentar el aviso de transparencia. Sin `GEMINI_API_KEY` las tres devuelven fallbacks estáticos y la app sigue funcionando.
 
 ---
 
@@ -292,5 +292,5 @@ Temperatura 0, `thinkingBudget` 0. Claves de caché = SHA-256 de los datos del p
 | `PUT` para actualizaciones (v1.0) | ❌ Sustituida | `PATCH` parcial con Pydantic opcional |
 | `409 CONFLICTO_SOLAPAMIENTO` en POST eventos (v1.0) | ❌ Sustituida | Los solapamientos son legítimos en agenda familiar; se informan, no se bloquean |
 | Soft delete universal | ✅ Vigente con excepción | Purga programada + destrucción de cuenta son los únicos hard deletes (§3.3) |
-| Caché/rate-limit in-memory | ✅ Vigente (deuda) | Migrar a Redis en F5 si hay múltiples workers |
+| Caché/rate-limit in-memory | ❌ Sustituida | Migrado a Redis (F5) para diseño stateless y escalabilidad |
 | IA pasiva | ✅ Vigente | El usuario confirma toda escritura |

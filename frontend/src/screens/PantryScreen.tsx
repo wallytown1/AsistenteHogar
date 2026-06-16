@@ -2,7 +2,16 @@ import React, { useState } from 'react';
 import { View, Modal, ScrollView, Alert, Switch, Pressable, ActivityIndicator } from 'react-native';
 import { usePantry, getDiasParaCaducar } from '../hooks/usePantry';
 import { useExpiryNotifications } from '../hooks/useExpiryNotifications';
-import { AlimentoItem, RecetaSugerida, RecetasSugeridasResponse } from '../types/types';
+import {
+  AlimentoItem,
+  AlimentoInterpretado,
+  InterpretarDespensaResponse,
+  SugerenciaMetadataResponse,
+  DiaPlanComidas,
+  PlanComidasResponse,
+  RecetaSugerida,
+  RecetasSugeridasResponse,
+} from '../types/types';
 import { apiRequest } from '../api/api';
 import AIDisclaimerBanner from '../components/AIDisclaimerBanner';
 import { colors, radius, spacing } from '../theme/tokens';
@@ -10,6 +19,7 @@ import {
   Screen,
   Card,
   StatCard,
+  Chip,
   Button,
   IconButton,
   Field,
@@ -66,6 +76,116 @@ export default function PantryScreen() {
   const [recetasMensaje, setRecetasMensaje] = useState<string | null>(null);
   const [recetasLoading, setRecetasLoading] = useState(false);
   const [recetasGeneradasPorIA, setRecetasGeneradasPorIA] = useState(false);
+
+  // --- Modo del modal: manual o IA ---
+  const [modoModal, setModoModal] = useState<'manual' | 'ia'>('manual');
+
+  // --- Interpretar despensa en lenguaje natural ---
+  const [textoIA, setTextoIA] = useState('');
+  const [propuestasIA, setPropuestasIA] = useState<AlimentoInterpretado[]>([]);
+  const [interpretandoIA, setInterpretandoIA] = useState(false);
+  const [mensajeIA, setMensajeIA] = useState<string | null>(null);
+
+  // --- Sugerir metadatos de alimento (categoría + caducidad estimada) ---
+  const [sugirendoMetadata, setSugirendoMetadata] = useState(false);
+
+  // --- Plan de comidas semanal ---
+  const [planDias, setPlanDias] = useState<DiaPlanComidas[]>([]);
+  const [planMensaje, setPlanMensaje] = useState<string | null>(null);
+  const [planLoading, setPlanLoading] = useState(false);
+  const [planGeneradoPorIA, setPlanGeneradoPorIA] = useState(false);
+
+  const resetModal = () => {
+    setModalVisible(false);
+    setModoModal('manual');
+    setNombre('');
+    setCantidad('');
+    setUnidad('unidades');
+    setCategoria('Despensa');
+    setFechaCaducidad('');
+    setTextoIA('');
+    setPropuestasIA([]);
+    setMensajeIA(null);
+  };
+
+  const handleInterpretarDespensa = async () => {
+    if (textoIA.trim().length < 3) {
+      Alert.alert('Texto muy corto', 'Describe al menos 3 caracteres.');
+      return;
+    }
+    setInterpretandoIA(true);
+    setMensajeIA(null);
+    setPropuestasIA([]);
+    try {
+      const hoy = new Date().toISOString().split('T')[0];
+      const res = await apiRequest<InterpretarDespensaResponse>('/pantry/interpretar', {
+        method: 'POST',
+        json: { texto: textoIA.trim(), fecha_referencia: hoy },
+      });
+      if (res.alimentos.length > 0) {
+        setPropuestasIA(res.alimentos);
+      } else {
+        setMensajeIA(res.mensaje || 'No se identificaron productos en esa frase.');
+      }
+    } catch (err: any) {
+      setMensajeIA(err.message || 'Error al interpretar el texto.');
+    } finally {
+      setInterpretandoIA(false);
+    }
+  };
+
+  const handleConfirmarAlimento = async (alimento: AlimentoInterpretado, idx: number) => {
+    try {
+      await addItem({
+        nombre: alimento.nombre,
+        cantidad: alimento.cantidad,
+        unidad: alimento.unidad,
+        categoria: alimento.categoria,
+        fecha_caducidad: alimento.fecha_caducidad,
+      });
+      haptics.success();
+      setPropuestasIA((prev) => prev.filter((_, i) => i !== idx));
+    } catch (err: any) {
+      Alert.alert('Error', err.message || 'No se pudo añadir el producto.');
+    }
+  };
+
+  const handleSugerirMetadata = async () => {
+    if (nombre.trim().length < 2) return;
+    setSugirendoMetadata(true);
+    try {
+      const hoy = new Date().toISOString().split('T')[0];
+      const res = await apiRequest<SugerenciaMetadataResponse>('/pantry/sugerir-metadata', {
+        method: 'POST',
+        json: { nombre: nombre.trim(), fecha_referencia: hoy },
+      });
+      if (res.categoria) setCategoria(res.categoria);
+      if (res.fecha_caducidad_estimada) setFechaCaducidad(res.fecha_caducidad_estimada);
+    } catch {
+      // Sugerencia de metadatos es best-effort: fallo silencioso
+    } finally {
+      setSugirendoMetadata(false);
+    }
+  };
+
+  const fetchPlanComidas = async () => {
+    setPlanLoading(true);
+    setPlanMensaje(null);
+    try {
+      const res = await apiRequest<PlanComidasResponse>('/pantry/plan-comidas');
+      setPlanDias(res.dias);
+      setPlanGeneradoPorIA(res.generado_por_ia);
+      if (res.dias.length === 0) {
+        setPlanMensaje(res.mensaje || 'No hay suficientes datos para generar un plan.');
+      }
+    } catch (err: any) {
+      setPlanDias([]);
+      setPlanGeneradoPorIA(false);
+      setPlanMensaje(err.message || 'Error al generar el plan.');
+    } finally {
+      setPlanLoading(false);
+    }
+  };
 
   const fetchRecetas = async () => {
     setRecetasLoading(true);
@@ -127,10 +247,7 @@ export default function PantryScreen() {
               fecha_caducidad: fechaCaducidad || null,
             });
             haptics.success();
-            setModalVisible(false);
-            setNombre('');
-            setCantidad('');
-            setFechaCaducidad('');
+            resetModal();
             Alert.alert('Éxito', 'El producto ha sido registrado.');
           },
         },
@@ -640,6 +757,102 @@ export default function PantryScreen() {
               </View>
             ))}
         </Card>
+
+        {/* Plan de comidas semanal (IA) */}
+        <Card style={{ marginTop: spacing.lg }}>
+          <View
+            style={{
+              flexDirection: 'row',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: spacing.md,
+            }}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
+              <Icon name="restaurant-outline" size={16} color={colors.brand} />
+              <AppText variant="h2">Plan semanal</AppText>
+            </View>
+            <Button
+              label={
+                planLoading ? 'Generando...' : planDias.length > 0 ? 'Actualizar' : 'Generar con IA'
+              }
+              size="sm"
+              variant="secondary"
+              loading={planLoading}
+              onPress={fetchPlanComidas}
+              fullWidth={false}
+            />
+          </View>
+
+          {planLoading ? (
+            <View style={{ alignItems: 'center', paddingVertical: spacing.lg }}>
+              <ActivityIndicator size="small" color={colors.brand} />
+              <AppText variant="micro" color={colors.inkMuted} style={{ marginTop: spacing.sm }}>
+                Planificando tu semana...
+              </AppText>
+            </View>
+          ) : null}
+
+          {!planLoading && planMensaje ? (
+            <AppText
+              variant="caption"
+              color={colors.inkMuted}
+              center
+              style={{ paddingVertical: spacing.md }}
+            >
+              {planMensaje}
+            </AppText>
+          ) : null}
+
+          {!planLoading && planDias.length === 0 && !planMensaje ? (
+            <AppText
+              variant="caption"
+              color={colors.inkFaint}
+              center
+              style={{ paddingVertical: spacing.md, lineHeight: 18 }}
+            >
+              Pulsa «Generar con IA» para crear un plan semanal aprovechando tu despensa.
+            </AppText>
+          ) : null}
+
+          {!planLoading && planDias.length > 0 && planGeneradoPorIA ? (
+            <AIDisclaimerBanner texto="Este plan ha sido generado por IA y puede contener imprecisiones." />
+          ) : null}
+
+          {!planLoading &&
+            planDias.map((dia, idx) => (
+              <View
+                key={`${dia.dia}-${idx}`}
+                style={{
+                  paddingVertical: spacing.sm,
+                  borderTopWidth: idx === 0 ? 0 : 1,
+                  borderTopColor: colors.border,
+                }}
+              >
+                <AppText variant="captionStrong" color={colors.brand} style={{ marginBottom: 2 }}>
+                  {dia.dia}
+                </AppText>
+                <View style={{ flexDirection: 'row', gap: spacing.lg }}>
+                  <View style={{ flex: 1 }}>
+                    <AppText variant="micro" color={colors.inkFaint}>
+                      Comida
+                    </AppText>
+                    <AppText variant="caption" color={colors.ink}>
+                      {dia.comida}
+                    </AppText>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <AppText variant="micro" color={colors.inkFaint}>
+                      Cena
+                    </AppText>
+                    <AppText variant="caption" color={colors.ink}>
+                      {dia.cena}
+                    </AppText>
+                  </View>
+                </View>
+              </View>
+            ))}
+        </Card>
       </Screen>
 
       <Fab
@@ -677,55 +890,160 @@ export default function PantryScreen() {
                 }}
               />
             </View>
-            <AppText variant="h2" style={{ marginBottom: spacing.lg }}>
+            <AppText variant="h2" style={{ marginBottom: spacing.md }}>
               Añadir producto
             </AppText>
+
+            {/* Tabs: Manual / Con IA */}
+            <View style={{ flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.lg }}>
+              <Chip
+                label="Manual"
+                active={modoModal === 'manual'}
+                onPress={() => setModoModal('manual')}
+                activeColor={colors.pantry}
+                flex
+              />
+              <Chip
+                label="Describir con IA"
+                active={modoModal === 'ia'}
+                onPress={() => setModoModal('ia')}
+                activeColor={colors.brand}
+                flex
+              />
+            </View>
+
             <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-              <Field
-                label="Nombre *"
-                placeholder="Ej: Leche entera"
-                value={nombre}
-                onChangeText={setNombre}
-              />
-              <View style={{ flexDirection: 'row', gap: spacing.md }}>
-                <View style={{ flex: 1 }}>
+              {modoModal === 'ia' ? (
+                <>
+                  <AIDisclaimerBanner texto="La IA interpretará tu frase y propondrá los productos. Confirma cada uno antes de añadirlo." />
                   <Field
-                    label="Cantidad *"
-                    placeholder="1"
-                    keyboardType="numeric"
-                    value={cantidad}
-                    onChangeText={setCantidad}
+                    label="¿Qué compraste?"
+                    placeholder='Ej: "6 huevos y 1 litro de leche que caduca el viernes"'
+                    value={textoIA}
+                    onChangeText={setTextoIA}
+                    containerStyle={{ marginBottom: spacing.md }}
                   />
-                </View>
-                <View style={{ flex: 1 }}>
+                  <Button
+                    label={interpretandoIA ? 'Interpretando...' : 'Interpretar'}
+                    icon="sparkles"
+                    loading={interpretandoIA}
+                    onPress={handleInterpretarDespensa}
+                    style={{ marginBottom: spacing.md }}
+                  />
+                  {mensajeIA ? (
+                    <AppText
+                      variant="caption"
+                      color={colors.inkMuted}
+                      center
+                      style={{ marginBottom: spacing.md }}
+                    >
+                      {mensajeIA}
+                    </AppText>
+                  ) : null}
+                  {propuestasIA.map((alimento, idx) => (
+                    <Card
+                      key={idx}
+                      tint={colors.pantrySoft}
+                      borderColor={colors.pantry}
+                      style={{ marginBottom: spacing.sm }}
+                    >
+                      <View
+                        style={{
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                        }}
+                      >
+                        <View style={{ flex: 1, marginRight: spacing.md }}>
+                          <AppText variant="captionStrong">{alimento.nombre}</AppText>
+                          <AppText variant="micro" color={colors.inkMuted}>
+                            {alimento.cantidad} {alimento.unidad} · {alimento.categoria}
+                            {alimento.fecha_caducidad ? ` · Cad: ${alimento.fecha_caducidad}` : ''}
+                          </AppText>
+                        </View>
+                        <Button
+                          label="Añadir"
+                          size="sm"
+                          variant="secondary"
+                          fullWidth={false}
+                          onPress={() => handleConfirmarAlimento(alimento, idx)}
+                        />
+                      </View>
+                    </Card>
+                  ))}
+                  <Button
+                    label="Cancelar"
+                    variant="ghost"
+                    onPress={resetModal}
+                    style={{ marginTop: spacing.sm }}
+                  />
+                </>
+              ) : (
+                <>
+                  <View
+                    style={{
+                      flexDirection: 'row',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      marginBottom: 6,
+                    }}
+                  >
+                    <AppText variant="label" color={colors.inkMuted}>
+                      Nombre *
+                    </AppText>
+                    {nombre.trim().length >= 2 ? (
+                      <Button
+                        label={sugirendoMetadata ? 'Sugiriendo...' : 'Sugerir ✦'}
+                        size="sm"
+                        variant="ghost"
+                        fullWidth={false}
+                        loading={sugirendoMetadata}
+                        onPress={handleSugerirMetadata}
+                      />
+                    ) : null}
+                  </View>
+                  <Field placeholder="Ej: Leche entera" value={nombre} onChangeText={setNombre} />
+                  <View style={{ flexDirection: 'row', gap: spacing.md }}>
+                    <View style={{ flex: 1 }}>
+                      <Field
+                        label="Cantidad *"
+                        placeholder="1"
+                        keyboardType="numeric"
+                        value={cantidad}
+                        onChangeText={setCantidad}
+                      />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Field
+                        label="Unidad"
+                        placeholder="unidades"
+                        value={unidad}
+                        onChangeText={setUnidad}
+                      />
+                    </View>
+                  </View>
                   <Field
-                    label="Unidad"
-                    placeholder="unidades"
-                    value={unidad}
-                    onChangeText={setUnidad}
+                    label="Categoría"
+                    placeholder="Despensa"
+                    value={categoria}
+                    onChangeText={setCategoria}
                   />
-                </View>
-              </View>
-              <Field
-                label="Categoría"
-                placeholder="Despensa"
-                value={categoria}
-                onChangeText={setCategoria}
-              />
-              <Field
-                label="Caducidad (YYYY-MM-DD)"
-                placeholder="2026-06-15"
-                value={fechaCaducidad}
-                onChangeText={setFechaCaducidad}
-                containerStyle={{ marginBottom: spacing.xl }}
-              />
-              <Button
-                label="Añadir producto"
-                icon="add"
-                onPress={handleAdd}
-                style={{ marginBottom: spacing.sm }}
-              />
-              <Button label="Cancelar" variant="ghost" onPress={() => setModalVisible(false)} />
+                  <Field
+                    label="Caducidad (YYYY-MM-DD)"
+                    placeholder="2026-06-16"
+                    value={fechaCaducidad}
+                    onChangeText={setFechaCaducidad}
+                    containerStyle={{ marginBottom: spacing.xl }}
+                  />
+                  <Button
+                    label="Añadir producto"
+                    icon="add"
+                    onPress={handleAdd}
+                    style={{ marginBottom: spacing.sm }}
+                  />
+                  <Button label="Cancelar" variant="ghost" onPress={resetModal} />
+                </>
+              )}
             </ScrollView>
           </View>
         </View>
