@@ -37,14 +37,15 @@ Auditoría de los cambios de F4 (freemium) y F5 (Redis/Railway). Trabajo en la r
   paquete en el Paywall; `.gitignore` + `.env.example`; envs desindexados.
 - **Verificación:** 120/120 smoke tests, 0 errores TS, Ruff + Mypy strict OK.
 
-**Verificación del despliegue en Railway (CLI)**
-- Servicio `AsistenteHogar` (proyecto `nurturing-tranquility`) **Online**, `/health` → 200 (~0,5 s).
-- Variables presentes: `DATABASE_URL`, `JWT_SECRET_KEY`, `REDIS_URL` (DB + Redis cableados).
-- ⚠️ **Faltan en Railway:** `ENVIRONMENT=production` (hoy `/docs` y `/openapi.json` están
-  expuestos públicamente y el CORS opera en modo dev), `GEMINI_API_KEY` (IA en fallback
-  estático en producción) y `REVENUECAT_SECRET_KEY` (el gate premium quedaría desactivado).
-- ⚠️ **La rama de fixes NO está desplegada:** Railway auto-despliega `main`; el Procfile,
-  el rewrite de DATABASE_URL y el gate premium no estarán vivos hasta hacer merge.
+**Despliegue en Railway (CLI) — verificado y desplegado**
+- Servicio `AsistenteHogar` (proyecto `nurturing-tranquility`) **Online**, `/health` → 200 (~0,4 s).
+- **Merge a `main` (`10c2bd5`) desplegado:** logs confirman `alembic upgrade` OK, Redis
+  conectado y `Uvicorn running on 0.0.0.0:8080` (Procfile activo). Hardening en vivo.
+- **`ENVIRONMENT=production` aplicado:** `/docs` y `/openapi.json` ahora devuelven 404.
+- ⏳ **Modo prueba:** `GEMINI_API_KEY` se usará una **personal con datos ficticios**; cambiar
+  a clave con *billing* antes de datos reales (RGPD). `REVENUECAT_SECRET_KEY` aún sin definir
+  → gate premium desactivado hasta cobrar.
+- 📋 **Checklist completo de paso a producción:** ver [`PRODUCCION_CHECKLIST.md`](PRODUCCION_CHECKLIST.md).
 
 ## ⚡ Sesión 2026-06-16 — Migración a Redis (F5) e Infraestructura
 
@@ -309,10 +310,10 @@ npm run ts:check  # Debe retornar 0 errores
 
 | Problema | Ubicación | Impacto | Solución |
 |----------|-----------|--------|----------|
-| `ENVIRONMENT` sin definir en Railway | panel Railway | **Alto**: `/docs` + `/openapi.json` públicos, CORS en modo dev | Añadir `ENVIRONMENT=production` |
-| `GEMINI_API_KEY` sin definir en Railway | panel Railway | Medio: IA en fallback estático en prod | Añadir la clave (proyecto con billing) |
-| `REVENUECAT_SECRET_KEY` sin definir en Railway | panel Railway | Medio: gate premium desactivado en prod | Añadir la secret key tras mergear los fixes |
-| Fixes de auditoría sin desplegar | rama `fix/auditoria-f4-f5` | Medio: Procfile/gate/rewrite no vivos | Merge a `main` (auto-deploy) |
+| ~~`ENVIRONMENT` sin definir~~ ✅ resuelto | Railway | — | Aplicado `ENVIRONMENT=production` (docs cerrados) |
+| `GEMINI_API_KEY` personal (datos de prueba) | panel Railway | Medio: cambiar a clave con billing antes de datos reales (RGPD) | Ver [`PRODUCCION_CHECKLIST.md`](PRODUCCION_CHECKLIST.md) §1 |
+| `REVENUECAT_SECRET_KEY` sin definir | panel Railway | Medio: gate premium desactivado en prod | Ver `PRODUCCION_CHECKLIST.md` §2 |
+| Anonimización LLM solo en briefing | backend/app/services/privacy.py | Medio (RGPD): `interpret_*` envían texto sin anonimizar | Evaluar ampliar alcance (checklist §1) |
 | Fotos unsplash de URLs | frontend/src/screens/ | Bajo (RN cachea) | Mover a assets/ |
 
 Ver [[technical_debt]] en memoria para detalles.
