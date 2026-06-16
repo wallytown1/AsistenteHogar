@@ -7,16 +7,17 @@
 ( cd frontend && npx lint-staged ) || exit 1
 
 # --- 2) Backend: Ruff + Mypy vía el framework pre-commit (reusa su config y su caché) ---
-# pre-commit no está en el PATH: vive en el .venv de la raíz. Probamos en orden y, si no,
-# avisamos cómo activarlo en vez de saltarnos el escudo en silencio.
-if [ -x ".venv/Scripts/python.exe" ]; then
-  ".venv/Scripts/python.exe" -m pre_commit run --config .pre-commit-config.yaml || exit 1
-elif [ -x ".venv/bin/python" ]; then
-  ".venv/bin/python" -m pre_commit run --config .pre-commit-config.yaml || exit 1
-elif command -v pre-commit >/dev/null 2>&1; then
+# Orden de búsqueda: PATH primero (uv tool install / pip install --user), luego
+# el módulo dentro de los venvs del proyecto como respaldo.
+# NOTA: no ejecutar «pre-commit install» — sobreescribiría core.hooksPath de Husky.
+if command -v pre-commit >/dev/null 2>&1; then
   pre-commit run --config .pre-commit-config.yaml || exit 1
+elif [ -x "backend/.venv/Scripts/python.exe" ] && "backend/.venv/Scripts/python.exe" -c "import pre_commit" 2>/dev/null; then
+  "backend/.venv/Scripts/python.exe" -m pre_commit run --config .pre-commit-config.yaml || exit 1
+elif [ -x "backend/.venv/bin/python" ] && "backend/.venv/bin/python" -c "import pre_commit" 2>/dev/null; then
+  "backend/.venv/bin/python" -m pre_commit run --config .pre-commit-config.yaml || exit 1
 else
   echo "husky: el escudo del backend (pre-commit) no está disponible." >&2
-  echo "       Actívalo con:  uv run pre-commit install" >&2
+  echo "       Instálalo con:  uv tool install pre-commit" >&2
   exit 1
 fi
