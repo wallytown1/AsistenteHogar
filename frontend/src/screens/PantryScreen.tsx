@@ -64,7 +64,7 @@ export default function PantryScreen() {
   useExpiryNotifications(items);
   const [modalVisible, setModalVisible] = useState(false);
 
-  const { isPremium } = usePurchasesStore();
+  const isPremium = usePurchasesStore((s) => s.isPremium);
   const navigation = useNavigation<NativeStackNavigationProp<any>>();
 
   const checkPremiumGate = () => {

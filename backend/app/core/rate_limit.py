@@ -12,6 +12,7 @@ ambos modos: el router no necesita saber qué backend usa.
 
 import logging
 import time
+import uuid
 from collections import defaultdict, deque
 
 from fastapi import HTTPException, Request, status
@@ -61,6 +62,9 @@ class RateLimiter:
         key = f"rl:{self.max_requests}_{self.window_seconds}:{ip}"
         now = time.time()
         window_start = now - self.window_seconds
+        # Miembro único por petición: dos requests con el mismo timestamp float
+        # no deben colapsar en el sorted set (zadd dedupe) y subcontar.
+        member = f"{now}:{uuid.uuid4().hex}"
 
         pipe = r.pipeline()
         # 1. Limpiar entradas fuera de la ventana
@@ -68,7 +72,7 @@ class RateLimiter:
         # 2. Contar entradas dentro de la ventana
         pipe.zcard(key)
         # 3. Añadir la petición actual (score = timestamp)
-        pipe.zadd(key, {f"{now}": now})
+        pipe.zadd(key, {member: now})
         # 4. Renovar TTL del set
         pipe.expire(key, self.window_seconds + 1)
 
@@ -83,7 +87,7 @@ class RateLimiter:
         if count >= self.max_requests:
             # Deshacer la adición (ya se añadió antes de comprobar)
             try:
-                await r.zrem(key, f"{now}")
+                await r.zrem(key, member)
             except Exception:
                 pass
             raise HTTPException(

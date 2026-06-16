@@ -2,7 +2,7 @@ import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Path, status
 
-from app.api.deps import get_hogar_id, get_pantry_service
+from app.api.deps import get_hogar_id, get_pantry_service, requiere_premium
 from app.core.rate_limit import (
     interpretar_rate_limiter,
     metadata_rate_limiter,
@@ -44,7 +44,7 @@ async def get_pantry_metrics(
 @router.get(
     "/pantry/recetas",
     response_model=RecetasSugeridasResponse,
-    dependencies=[Depends(recetas_rate_limiter)],
+    dependencies=[Depends(requiere_premium), Depends(recetas_rate_limiter)],
 )
 async def get_recetas_sugeridas(
     hogar_id: uuid.UUID = Depends(get_hogar_id),
@@ -59,7 +59,7 @@ async def get_recetas_sugeridas(
 @router.get(
     "/pantry/plan-comidas",
     response_model=PlanComidasResponse,
-    dependencies=[Depends(plan_comidas_rate_limiter)],
+    dependencies=[Depends(requiere_premium), Depends(plan_comidas_rate_limiter)],
 )
 async def get_plan_comidas(
     hogar_id: uuid.UUID = Depends(get_hogar_id),
@@ -74,7 +74,7 @@ async def get_plan_comidas(
 @router.post(
     "/pantry/interpretar",
     response_model=InterpretarDespensaResponse,
-    dependencies=[Depends(interpretar_rate_limiter)],
+    dependencies=[Depends(requiere_premium), Depends(interpretar_rate_limiter)],
 )
 async def interpretar_despensa(
     schema: InterpretarDespensaRequest,
@@ -90,7 +90,7 @@ async def interpretar_despensa(
 @router.post(
     "/pantry/sugerir-metadata",
     response_model=SugerenciaMetadataResponse,
-    dependencies=[Depends(metadata_rate_limiter)],
+    dependencies=[Depends(requiere_premium), Depends(metadata_rate_limiter)],
 )
 async def sugerir_metadata(
     schema: SugerirMetadataRequest,

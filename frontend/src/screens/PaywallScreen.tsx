@@ -12,10 +12,17 @@ import { usePurchasesStore } from '../state/purchasesStore';
 
 export default function PaywallScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<any>>();
-  const { packages, loadPackages, purchasePackage, restorePurchases, isPremium } =
-    usePurchasesStore();
+  const packages = usePurchasesStore((s) => s.packages);
+  const loadPackages = usePurchasesStore((s) => s.loadPackages);
+  const purchasePackage = usePurchasesStore((s) => s.purchasePackage);
+  const restorePurchases = usePurchasesStore((s) => s.restorePurchases);
+  const isPremium = usePurchasesStore((s) => s.isPremium);
   const [loading, setLoading] = useState(false);
-  const [purchasing, setPurchasing] = useState(false);
+  // Identificador del paquete que se está comprando (null = ninguno), y estado
+  // independiente para "Restaurar": así el spinner solo aparece en el botón pulsado.
+  const [purchasingId, setPurchasingId] = useState<string | null>(null);
+  const [restoring, setRestoring] = useState(false);
+  const busy = purchasingId !== null || restoring;
 
   useEffect(() => {
     async function init() {
@@ -34,18 +41,18 @@ export default function PaywallScreen() {
   }, [isPremium, navigation]);
 
   const handlePurchase = async (pack: PurchasesPackage) => {
-    setPurchasing(true);
+    setPurchasingId(pack.identifier);
     const success = await purchasePackage(pack);
-    setPurchasing(false);
+    setPurchasingId(null);
     if (!success && !isPremium) {
       Alert.alert('Compra cancelada', 'No se ha podido procesar la suscripción.');
     }
   };
 
   const handleRestore = async () => {
-    setPurchasing(true);
+    setRestoring(true);
     const success = await restorePurchases();
-    setPurchasing(false);
+    setRestoring(false);
     if (success) {
       Alert.alert('Éxito', 'Compras restauradas correctamente.');
     } else {
@@ -91,7 +98,8 @@ export default function PaywallScreen() {
                 <Button
                   label={pack.product.priceString}
                   onPress={() => handlePurchase(pack)}
-                  loading={purchasing}
+                  loading={purchasingId === pack.identifier}
+                  disabled={busy && purchasingId !== pack.identifier}
                   style={styles.buyButton}
                 />
               </View>
@@ -108,7 +116,8 @@ export default function PaywallScreen() {
           label="Restaurar compras"
           variant="secondary"
           onPress={handleRestore}
-          loading={purchasing}
+          loading={restoring}
+          disabled={busy && !restoring}
           style={styles.restoreButton}
         />
       </ScrollView>

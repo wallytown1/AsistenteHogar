@@ -68,7 +68,7 @@ export default function TasksScreen() {
   const [interpretandoIA, setInterpretandoIA] = useState(false);
   const [mensajeIA, setMensajeIA] = useState<string | null>(null);
 
-  const { isPremium } = usePurchasesStore();
+  const isPremium = usePurchasesStore((s) => s.isPremium);
   const navigation = useNavigation<NativeStackNavigationProp<any>>();
 
   const checkPremiumGate = () => {

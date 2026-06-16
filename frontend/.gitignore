@@ -1,0 +1,17 @@
+# Dependencias
+node_modules/
+
+# Expo
+.expo/
+dist/
+web-build/
+
+# Variables de entorno (NO versionar; se generan desde .env.example)
+.env
+.env.local
+.env.development
+.env.production
+
+# Logs y artefactos
+*.log
+npm-debug.*
