@@ -71,6 +71,7 @@ jobs:
             /openapi.json \
             --checks=not_a_server_error \
             --validate-schema=false \
+            --experimental=openapi-3.1 \
             --hypothesis-max-examples=25 \
             --workers=2
 
