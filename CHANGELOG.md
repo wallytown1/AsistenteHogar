@@ -6,6 +6,44 @@ Formato: `[FECHA] [ÁREA] [TIPO] Descripción`
 
 ---
 
+## [2026-06-16] — F-AUDIT2: Hardening post-F4/F5 (freemium server-side + Railway)
+
+### Decisiones clave
+- **Freemium aplicado en el servidor, no solo en la UI.** El gate `checkPremiumGate`
+  del frontend era trivialmente evitable llamando a la API directamente. Nueva
+  dependencia `requiere_premium` que valida el entitlement contra la API REST de
+  RevenueCat (cache Redis 5 min, **fail-open** ante caídas del proveedor) en los
+  5 endpoints de IA. Desactivada si no hay `REVENUECAT_SECRET_KEY` (dev/tests).
+- **Compatibilidad con la `DATABASE_URL` inyectada por Railway.** Reescritura de
+  `postgres://`/`postgresql://` → `postgresql+asyncpg://` para el engine async.
+- **Resiliencia Redis.** Reconexión perezosa con cooldown (sobrevive a que el
+  backend arranque antes que Redis) y `socket_timeout` 5 s → 2 s.
+- **Procfile** para Nixpacks: `alembic upgrade head` + bind a `0.0.0.0:$PORT`.
+- **Rate-limit:** miembro del sorted set con `uuid4` (evita colisión/subconteo).
+- **Frontend:** desuscripción del listener de RevenueCat, selectores Zustand
+  (menos re-renders) y loaders independientes por paquete en el Paywall.
+- **Higiene:** `frontend/.gitignore` + `.env.example`; `.env.{development,production}`
+  desindexados de git.
+
+### Archivos
+- `ADD` backend/app/services/premium.py — verificación de suscripción (RevenueCat REST + cache Redis).
+- `ADD` backend/Procfile — release con migraciones + uvicorn a $PORT.
+- `MOD` backend/app/api/deps.py — dependencia `requiere_premium`.
+- `MOD` backend/app/api/routers/{pantry,tasks}.py — gate en los 5 endpoints de IA.
+- `MOD` backend/app/database.py — rewrite del driver de DATABASE_URL.
+- `MOD` backend/app/core/redis_client.py — reconexión perezosa + timeouts.
+- `MOD` backend/app/core/rate_limit.py — miembro único (uuid4).
+- `MOD` backend/app/core/config.py — REVENUECAT_SECRET_KEY / REVENUECAT_ENTITLEMENT.
+- `MOD` backend/.env.example — documentadas las nuevas variables.
+- `MOD` frontend/src/state/purchasesStore.ts — cleanup del listener.
+- `MOD` frontend/src/navigation/AppNavigator.tsx, frontend/src/screens/{Pantry,Tasks,Paywall}Screen.tsx — selectores + loaders por paquete.
+- `ADD` frontend/.gitignore, frontend/.env.example.
+
+### Verificación: 120/120 smoke tests; 0 errores TypeScript; Ruff + Ruff-format + Mypy strict OK.
+### Rama: `fix/auditoria-f4-f5` (pendiente de merge a main).
+
+---
+
 ## [2026-06-16] — FASE F4: Freemium y RevenueCat
 
 ### Decisiones clave
