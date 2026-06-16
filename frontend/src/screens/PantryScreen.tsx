@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { View, Modal, ScrollView, Alert, Switch, Pressable, ActivityIndicator } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { usePantry, getDiasParaCaducar } from '../hooks/usePantry';
@@ -9,11 +9,10 @@ import {
   InterpretarDespensaResponse,
   SugerenciaMetadataResponse,
   DiaPlanComidas,
-  PlanComidasResponse,
   RecetaSugerida,
-  RecetasSugeridasResponse,
+  SugerenciasResponse,
 } from '../types/types';
-import { apiRequest } from '../api/api';
+import { apiRequest, TIMEOUT } from '../api/api';
 import AIDisclaimerBanner from '../components/AIDisclaimerBanner';
 import { colors, radius, spacing } from '../theme/tokens';
 import {
@@ -39,6 +38,8 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 const UMBRAL_BAJO_STOCK = 1;
+
+type OcrItem = AlimentoInterpretado & { seleccionado: boolean };
 
 function getItemStatus(item: AlimentoItem): { text: string; color: string } {
   const dias = getDiasParaCaducar(item.fecha_caducidad);
@@ -90,11 +91,10 @@ export default function PantryScreen() {
 
   const [recetas, setRecetas] = useState<RecetaSugerida[]>([]);
   const [recetasMensaje, setRecetasMensaje] = useState<string | null>(null);
-  const [recetasLoading, setRecetasLoading] = useState(false);
   const [recetasGeneradasPorIA, setRecetasGeneradasPorIA] = useState(false);
 
   // --- Modo del modal: manual o IA ---
-  const [modoModal, setModoModal] = useState<'manual' | 'ia' | 'ticket'>('manual');
+  const [modoModal, setModoModal] = useState<'manual' | 'ia'>('manual');
 
   // --- Interpretar despensa en lenguaje natural ---
   const [textoIA, setTextoIA] = useState('');
@@ -108,8 +108,17 @@ export default function PantryScreen() {
   // --- Plan de comidas semanal ---
   const [planDias, setPlanDias] = useState<DiaPlanComidas[]>([]);
   const [planMensaje, setPlanMensaje] = useState<string | null>(null);
-  const [planLoading, setPlanLoading] = useState(false);
   const [planGeneradoPorIA, setPlanGeneradoPorIA] = useState(false);
+
+  // Estado de carga unificado para recetas + plan (se cargan juntos desde /pantry/sugerencias)
+  const [sugerenciasLoading, setSugerenciasLoading] = useState(false);
+  const autoFetchedRef = useRef(false);
+
+  // --- OCR en lote (flujo directo desde FAB de cámara) ---
+  const [ocrScanning, setOcrScanning] = useState(false);
+  const [ocrReviewVisible, setOcrReviewVisible] = useState(false);
+  const [ocrReviewItems, setOcrReviewItems] = useState<OcrItem[]>([]);
+  const [ocrAdding, setOcrAdding] = useState(false);
 
   const resetModal = () => {
     setModalVisible(false);
@@ -138,7 +147,7 @@ export default function PantryScreen() {
       const res = await apiRequest<InterpretarDespensaResponse>('/pantry/interpretar', {
         method: 'POST',
         json: { texto: textoIA.trim(), fecha_referencia: hoy },
-        timeoutMs: 45000,
+        timeoutMs: TIMEOUT.AI,
       });
       if (res.alimentos.length > 0) {
         setPropuestasIA(res.alimentos);
@@ -152,26 +161,21 @@ export default function PantryScreen() {
     }
   };
 
-  const handleEscanearTicket = async () => {
+  const handleEscanearTicketFab = async () => {
     if (!checkPremiumGate()) return;
-
     try {
       const permission = await ImagePicker.requestCameraPermissionsAsync();
       if (!permission.granted) {
         Alert.alert('Permiso denegado', 'Necesitamos acceso a la cámara para escanear tickets.');
         return;
       }
-
       Alert.alert('Escanear Ticket', '¿Cómo quieres añadir el ticket?', [
         { text: 'Cancelar', style: 'cancel' },
         {
           text: 'Cámara',
           onPress: async () => {
-            const result = await ImagePicker.launchCameraAsync({
-              base64: true,
-              quality: 0.6,
-            });
-            procesarImagenTicket(result);
+            const result = await ImagePicker.launchCameraAsync({ base64: true, quality: 0.6 });
+            procesarImagenParaRevision(result);
           },
         },
         {
@@ -181,34 +185,70 @@ export default function PantryScreen() {
               base64: true,
               quality: 0.6,
             });
-            procesarImagenTicket(result);
+            procesarImagenParaRevision(result);
           },
         },
       ]);
-    } catch (error) {
+    } catch {
       Alert.alert('Error', 'No se pudo abrir la cámara.');
     }
   };
 
-  const procesarImagenTicket = async (result: ImagePicker.ImagePickerResult) => {
+  const procesarImagenParaRevision = async (result: ImagePicker.ImagePickerResult) => {
     if (result.canceled || !result.assets[0].base64) return;
-
-    setInterpretandoIA(true);
-    setMensajeIA(null);
-    setPropuestasIA([]);
-
+    setOcrScanning(true);
     try {
       const alimentos = await escanearTicketOcr(result.assets[0].base64);
       if (alimentos.length > 0) {
-        setPropuestasIA(alimentos);
-        setModoModal('ia'); // Pasamos al modo IA para revisar la lista extraída
+        setOcrReviewItems(alimentos.map((a) => ({ ...a, seleccionado: true })));
+        setOcrReviewVisible(true);
       } else {
-        setMensajeIA('No se detectaron alimentos en el ticket.');
+        Alert.alert(
+          'Sin resultados',
+          'No se detectaron alimentos en el ticket. Intenta con una foto más nítida.'
+        );
       }
     } catch (error: any) {
-      setMensajeIA(error.message || 'Error analizando la imagen.');
+      Alert.alert('Error', error.message || 'Error analizando la imagen.');
     } finally {
-      setInterpretandoIA(false);
+      setOcrScanning(false);
+    }
+  };
+
+  const toggleOcrItem = (idx: number) => {
+    setOcrReviewItems((prev) =>
+      prev.map((item, i) => (i === idx ? { ...item, seleccionado: !item.seleccionado } : item))
+    );
+  };
+
+  const handleConfirmarLote = async () => {
+    const seleccionados = ocrReviewItems.filter((i) => i.seleccionado);
+    if (seleccionados.length === 0) {
+      Alert.alert('Sin selección', 'Selecciona al menos un producto para añadir.');
+      return;
+    }
+    setOcrAdding(true);
+    try {
+      for (const alimento of seleccionados) {
+        await addItem({
+          nombre: alimento.nombre,
+          cantidad: alimento.cantidad,
+          unidad: alimento.unidad,
+          categoria: alimento.categoria,
+          fecha_caducidad: alimento.fecha_caducidad,
+        });
+      }
+      haptics.success();
+      setOcrReviewVisible(false);
+      setOcrReviewItems([]);
+      Alert.alert(
+        'Productos añadidos',
+        `${seleccionados.length} producto${seleccionados.length === 1 ? '' : 's'} añadido${seleccionados.length === 1 ? '' : 's'} a tu despensa.`
+      );
+    } catch (err: any) {
+      Alert.alert('Error', err.message || 'Error al añadir los productos.');
+    } finally {
+      setOcrAdding(false);
     }
   };
 
@@ -247,45 +287,41 @@ export default function PantryScreen() {
     }
   };
 
-  const fetchPlanComidas = async () => {
-    if (!checkPremiumGate()) return;
-    setPlanLoading(true);
+  const fetchSugerencias = async (manual = false) => {
+    if (manual && !checkPremiumGate()) return;
+    setSugerenciasLoading(true);
+    setRecetasMensaje(null);
     setPlanMensaje(null);
     try {
-      const res = await apiRequest<PlanComidasResponse>('/pantry/plan-comidas');
-      setPlanDias(res.dias);
-      setPlanGeneradoPorIA(res.generado_por_ia);
-      if (res.dias.length === 0) {
-        setPlanMensaje(res.mensaje || 'No hay suficientes datos para generar un plan.');
-      }
+      const res = await apiRequest<SugerenciasResponse>('/pantry/sugerencias', {
+        timeoutMs: TIMEOUT.OCR_FULL,
+      });
+      setRecetas(res.recetas.recetas);
+      setRecetasGeneradasPorIA(res.recetas.generado_por_ia);
+      if (res.recetas.recetas.length === 0)
+        setRecetasMensaje(res.recetas.mensaje || 'No hay sugerencias disponibles.');
+      setPlanDias(res.plan_comidas.dias);
+      setPlanGeneradoPorIA(res.plan_comidas.generado_por_ia);
+      if (res.plan_comidas.dias.length === 0)
+        setPlanMensaje(res.plan_comidas.mensaje || 'No hay suficientes datos para el plan.');
     } catch (err: any) {
-      setPlanDias([]);
-      setPlanGeneradoPorIA(false);
-      setPlanMensaje(err.message || 'Error al generar el plan.');
+      const msg = err.message || 'Error al cargar las sugerencias.';
+      setRecetasMensaje(msg);
+      setPlanMensaje(msg);
     } finally {
-      setPlanLoading(false);
+      setSugerenciasLoading(false);
     }
   };
 
-  const fetchRecetas = async () => {
-    if (!checkPremiumGate()) return;
-    setRecetasLoading(true);
-    setRecetasMensaje(null);
-    try {
-      const res = await apiRequest<RecetasSugeridasResponse>('/pantry/recetas');
-      setRecetas(res.recetas);
-      setRecetasGeneradasPorIA(res.generado_por_ia);
-      if (res.recetas.length === 0) {
-        setRecetasMensaje(res.mensaje || 'No hay sugerencias disponibles en este momento.');
-      }
-    } catch (err: any) {
-      setRecetas([]);
-      setRecetasGeneradasPorIA(false);
-      setRecetasMensaje(err.message || 'No se pudieron generar las recetas.');
-    } finally {
-      setRecetasLoading(false);
+  // Precarga en background cuando los items están listos y el usuario es premium
+  useEffect(() => {
+    if (items.length > 0 && isPremium && !autoFetchedRef.current) {
+      autoFetchedRef.current = true;
+      fetchSugerencias();
     }
-  };
+    // fetchSugerencias es estable dentro del render; autoFetchedRef garantiza ejecución única
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items.length, isPremium]);
 
   // Loader completo solo en carga inicial; en refrescos se usa el spinner nativo.
   if (isLoading && items.length === 0)
@@ -746,21 +782,21 @@ export default function PantryScreen() {
             </View>
             <Button
               label={
-                recetasLoading
-                  ? 'Pensando...'
+                sugerenciasLoading
+                  ? 'Cargando...'
                   : recetas.length > 0
                     ? 'Actualizar'
                     : 'Sugerir con IA'
               }
               size="sm"
               variant="secondary"
-              loading={recetasLoading}
-              onPress={fetchRecetas}
+              loading={sugerenciasLoading}
+              onPress={() => fetchSugerencias(true)}
               fullWidth={false}
             />
           </View>
 
-          {recetasLoading ? (
+          {sugerenciasLoading ? (
             <View style={{ alignItems: 'center', paddingVertical: spacing.lg }}>
               <ActivityIndicator size="small" color={colors.brand} />
               <AppText variant="micro" color={colors.inkMuted} style={{ marginTop: spacing.sm }}>
@@ -769,7 +805,7 @@ export default function PantryScreen() {
             </View>
           ) : null}
 
-          {!recetasLoading && recetasMensaje ? (
+          {!sugerenciasLoading && recetasMensaje ? (
             <AppText
               variant="caption"
               color={colors.inkMuted}
@@ -780,7 +816,7 @@ export default function PantryScreen() {
             </AppText>
           ) : null}
 
-          {!recetasLoading && recetas.length === 0 && !recetasMensaje ? (
+          {!sugerenciasLoading && recetas.length === 0 && !recetasMensaje ? (
             <AppText
               variant="caption"
               color={colors.inkFaint}
@@ -793,11 +829,11 @@ export default function PantryScreen() {
           ) : null}
 
           {/* Transparencia IA (EU AI Act): solo cuando las recetas provienen del modelo */}
-          {!recetasLoading && recetas.length > 0 && recetasGeneradasPorIA ? (
+          {!sugerenciasLoading && recetas.length > 0 && recetasGeneradasPorIA ? (
             <AIDisclaimerBanner texto="Estas recetas han sido generadas por IA y pueden contener imprecisiones." />
           ) : null}
 
-          {!recetasLoading &&
+          {!sugerenciasLoading &&
             recetas.map((receta, idx) => (
               <View
                 key={`${receta.titulo}-${idx}`}
@@ -855,17 +891,21 @@ export default function PantryScreen() {
             </View>
             <Button
               label={
-                planLoading ? 'Generando...' : planDias.length > 0 ? 'Actualizar' : 'Generar con IA'
+                sugerenciasLoading
+                  ? 'Cargando...'
+                  : planDias.length > 0
+                    ? 'Actualizar'
+                    : 'Generar con IA'
               }
               size="sm"
               variant="secondary"
-              loading={planLoading}
-              onPress={fetchPlanComidas}
+              loading={sugerenciasLoading}
+              onPress={() => fetchSugerencias(true)}
               fullWidth={false}
             />
           </View>
 
-          {planLoading ? (
+          {sugerenciasLoading ? (
             <View style={{ alignItems: 'center', paddingVertical: spacing.lg }}>
               <ActivityIndicator size="small" color={colors.brand} />
               <AppText variant="micro" color={colors.inkMuted} style={{ marginTop: spacing.sm }}>
@@ -874,7 +914,7 @@ export default function PantryScreen() {
             </View>
           ) : null}
 
-          {!planLoading && planMensaje ? (
+          {!sugerenciasLoading && planMensaje ? (
             <AppText
               variant="caption"
               color={colors.inkMuted}
@@ -885,7 +925,7 @@ export default function PantryScreen() {
             </AppText>
           ) : null}
 
-          {!planLoading && planDias.length === 0 && !planMensaje ? (
+          {!sugerenciasLoading && planDias.length === 0 && !planMensaje ? (
             <AppText
               variant="caption"
               color={colors.inkFaint}
@@ -896,11 +936,11 @@ export default function PantryScreen() {
             </AppText>
           ) : null}
 
-          {!planLoading && planDias.length > 0 && planGeneradoPorIA ? (
+          {!sugerenciasLoading && planDias.length > 0 && planGeneradoPorIA ? (
             <AIDisclaimerBanner texto="Este plan ha sido generado por IA y puede contener imprecisiones." />
           ) : null}
 
-          {!planLoading &&
+          {!sugerenciasLoading &&
             planDias.map((dia, idx) => (
               <View
                 key={`${dia.dia}-${idx}`}
@@ -936,12 +976,163 @@ export default function PantryScreen() {
         </Card>
       </Screen>
 
+      {/* FAB principal: añadir producto manualmente */}
       <Fab
         icon="add"
         color={colors.pantry}
         onPress={() => setModalVisible(true)}
         accessibilityLabel="Añadir producto a la despensa"
       />
+      {/* FAB secundario: escanear ticket con OCR (apilado encima del principal) */}
+      <Fab
+        icon="receipt-outline"
+        color={colors.brand}
+        bottom={88}
+        onPress={handleEscanearTicketFab}
+        accessibilityLabel="Escanear ticket de compra"
+      />
+
+      {/* Overlay de escaneo OCR */}
+      <Modal visible={ocrScanning} transparent animationType="fade">
+        <View
+          style={{
+            flex: 1,
+            justifyContent: 'center',
+            alignItems: 'center',
+            backgroundColor: colors.overlay,
+          }}
+        >
+          <View
+            style={{
+              backgroundColor: colors.card,
+              borderRadius: radius.xl,
+              padding: spacing.xxl,
+              alignItems: 'center',
+              gap: spacing.md,
+            }}
+          >
+            <ActivityIndicator size="large" color={colors.pantry} />
+            <AppText variant="caption" color={colors.inkMuted}>
+              Analizando ticket...
+            </AppText>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Modal de revisión en lote (resultado del OCR) */}
+      <Modal
+        visible={ocrReviewVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => {
+          setOcrReviewVisible(false);
+          setOcrReviewItems([]);
+        }}
+      >
+        <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: colors.overlay }}>
+          <View
+            style={{
+              backgroundColor: colors.card,
+              borderTopLeftRadius: radius.xxl,
+              borderTopRightRadius: radius.xxl,
+              padding: spacing.xl,
+              paddingBottom: spacing.xxxl,
+              maxHeight: '88%',
+            }}
+          >
+            <View style={{ alignItems: 'center', marginBottom: spacing.md }}>
+              <View
+                style={{
+                  width: 40,
+                  height: 4,
+                  borderRadius: 2,
+                  backgroundColor: colors.borderStrong,
+                }}
+              />
+            </View>
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: spacing.sm,
+                marginBottom: spacing.xs,
+              }}
+            >
+              <Icon name="receipt-outline" size={20} color={colors.pantry} />
+              <AppText variant="h2">Productos detectados</AppText>
+            </View>
+            <AppText variant="caption" color={colors.inkMuted} style={{ marginBottom: spacing.md }}>
+              Desmarca los que no quieras añadir y pulsa «Añadir seleccionados».
+            </AppText>
+            <AIDisclaimerBanner texto="Productos extraídos por IA. Revisa cantidades y fechas antes de confirmar." />
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {ocrReviewItems.map((alimento, idx) => (
+                <Pressable
+                  key={idx}
+                  onPress={() => toggleOcrItem(idx)}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    paddingVertical: spacing.sm,
+                    borderBottomWidth: idx < ocrReviewItems.length - 1 ? 1 : 0,
+                    borderBottomColor: colors.border,
+                  }}
+                >
+                  <View
+                    style={{
+                      width: 24,
+                      height: 24,
+                      borderRadius: 7,
+                      marginRight: spacing.md,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      borderWidth: alimento.seleccionado ? 0 : 2,
+                      borderColor: colors.borderStrong,
+                      backgroundColor: alimento.seleccionado ? colors.pantry : colors.cardAlt,
+                    }}
+                  >
+                    {alimento.seleccionado ? (
+                      <Icon name="checkmark" size={14} color={colors.white} />
+                    ) : null}
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <AppText
+                      variant="captionStrong"
+                      color={alimento.seleccionado ? colors.ink : colors.inkFaint}
+                    >
+                      {alimento.nombre}
+                    </AppText>
+                    <AppText variant="micro" color={colors.inkMuted}>
+                      {alimento.cantidad} {alimento.unidad} · {alimento.categoria}
+                      {alimento.fecha_caducidad ? ` · Cad: ${alimento.fecha_caducidad}` : ''}
+                    </AppText>
+                  </View>
+                </Pressable>
+              ))}
+            </ScrollView>
+            <View style={{ marginTop: spacing.lg, gap: spacing.sm }}>
+              <Button
+                label={
+                  ocrAdding
+                    ? 'Añadiendo...'
+                    : `Añadir seleccionados (${ocrReviewItems.filter((i) => i.seleccionado).length})`
+                }
+                icon="checkmark-done"
+                loading={ocrAdding}
+                onPress={handleConfirmarLote}
+              />
+              <Button
+                label="Cancelar"
+                variant="ghost"
+                onPress={() => {
+                  setOcrReviewVisible(false);
+                  setOcrReviewItems([]);
+                }}
+              />
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       {/* Modal Añadir Producto */}
       <Modal
@@ -975,7 +1166,7 @@ export default function PantryScreen() {
               Añadir producto
             </AppText>
 
-            {/* Tabs: Manual / Con IA / Ticket */}
+            {/* Tabs: Manual / Con IA (el ticket va por el FAB de cámara) */}
             <View style={{ flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.lg }}>
               <Chip
                 label="Manual"
@@ -985,64 +1176,16 @@ export default function PantryScreen() {
                 flex
               />
               <Chip
-                label="Describir"
+                label="Describir con IA"
                 active={modoModal === 'ia'}
                 onPress={() => setModoModal('ia')}
-                activeColor={colors.brand}
-                flex
-              />
-              <Chip
-                label="Ticket"
-                active={modoModal === 'ticket'}
-                onPress={() => setModoModal('ticket')}
                 activeColor={colors.brand}
                 flex
               />
             </View>
 
             <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-              {modoModal === 'ticket' ? (
-                <View style={{ paddingVertical: spacing.md }}>
-                  <View
-                    style={{
-                      backgroundColor: colors.cardAlt,
-                      padding: spacing.lg,
-                      borderRadius: radius.lg,
-                      alignItems: 'center',
-                      marginBottom: spacing.lg,
-                    }}
-                  >
-                    <View style={{ marginBottom: spacing.md }}>
-                      <Icon name="receipt-outline" size={48} color={colors.inkMuted} />
-                    </View>
-                    <AppText
-                      variant="caption"
-                      color={colors.inkMuted}
-                      style={{ textAlign: 'center', marginBottom: spacing.sm }}
-                    >
-                      Sube o haz una foto de tu ticket de compra. La Inteligencia Artificial
-                      extraerá automáticamente los productos.
-                    </AppText>
-                  </View>
-                  <Button
-                    label="Escanear Ticket"
-                    icon="camera-outline"
-                    onPress={handleEscanearTicket}
-                    loading={interpretandoIA}
-                    style={{ marginBottom: spacing.md }}
-                  />
-                  {mensajeIA ? (
-                    <AppText
-                      variant="caption"
-                      color={colors.danger}
-                      style={{ marginTop: spacing.md }}
-                    >
-                      {mensajeIA}
-                    </AppText>
-                  ) : null}
-                  <AIDisclaimerBanner texto="La imagen será analizada de forma segura y privada para extraer los productos, y no será almacenada." />
-                </View>
-              ) : modoModal === 'ia' ? (
+              {modoModal === 'ia' ? (
                 <>
                   <AIDisclaimerBanner texto="La IA interpretará tu frase y propondrá los productos. Confirma cada uno antes de añadirlo." />
                   <Field

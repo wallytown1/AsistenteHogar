@@ -518,6 +518,9 @@ export default function CalendarScreen() {
                   <AppText variant="captionStrong" color={colors.danger} style={{ lineHeight: 18 }}>
                     {conf.evento_a.titulo} ({horaA}) ↔ {conf.evento_b.titulo} ({horaB})
                   </AppText>
+                  <AppText variant="micro" color={colors.danger} style={{ marginTop: 2 }}>
+                    Solapamiento: {Math.round(conf.duracion_solapamiento_segundos / 60)} min
+                  </AppText>
                   <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md }}>
                     <View style={{ flex: 1 }}>
                       <Button

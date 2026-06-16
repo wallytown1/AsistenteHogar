@@ -203,7 +203,9 @@ Generate a `JWT_SECRET_KEY`: `python -c "import secrets; print(secrets.token_hex
 
 ## Next planned phase
 
-**F4 — Freemium**: RevenueCat IAP integration (iOS/Android) + free vs premium limits in the backend. Not started. See `ESTADO_ACTUAL.md` for full phase history.
+**F6 — EAS Build**: production build with EAS, real icons/splash, `expo-notifications` plugin in `app.json`, App Store Connect + Google Play setup. See `ESTADO_ACTUAL.md` for full phase history and `PRODUCCION_CHECKLIST.md` for pre-launch requirements.
+
+**Completed phases (summary)**: F0–F5, F-IA, F-IA-2, F-UI, F-LEGAL, F-AUDIT, F4 (Freemium/RevenueCat), F-AUDIT2 (server-side premium gate + Railway deploy). See `CHANGELOG.md` for details.
 
 ## graphify
 

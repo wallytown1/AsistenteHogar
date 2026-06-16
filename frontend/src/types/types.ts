@@ -69,6 +69,11 @@ export interface RecetasSugeridasResponse {
   mensaje: string | null;
 }
 
+export interface SugerenciasResponse {
+  recetas: RecetasSugeridasResponse;
+  plan_comidas: PlanComidasResponse;
+}
+
 export interface CalendarAgendaResponse {
   eventos: EventoItem[];
   conflictos: ConflictoDetalle[];

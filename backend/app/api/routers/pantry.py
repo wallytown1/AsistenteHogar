@@ -1,3 +1,4 @@
+import asyncio
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Path, status
@@ -19,6 +20,7 @@ from app.schemas.schemas import (
     PlanComidasResponse,
     RecetasSugeridasResponse,
     SugerenciaMetadataResponse,
+    SugerenciasResponse,
     SugerirMetadataRequest,
     TicketOcrRequest,
     TicketOcrResponse,
@@ -72,6 +74,29 @@ async def get_plan_comidas(
     priorizando lo que caduca pronto. IA pasiva: solo sugiere."""
     metrics = await pantry_service.get_stock_metrics(hogar_id)
     return await generate_meal_plan(metrics.items, metrics.alertas_caducidad)
+
+
+@router.get(
+    "/pantry/sugerencias",
+    response_model=SugerenciasResponse,
+    dependencies=[
+        Depends(requiere_premium),
+        Depends(recetas_rate_limiter),
+        Depends(plan_comidas_rate_limiter),
+    ],
+)
+async def get_sugerencias(
+    hogar_id: uuid.UUID = Depends(get_hogar_id),
+    pantry_service: PantryService = Depends(get_pantry_service),
+) -> SugerenciasResponse:
+    """Devuelve recetas sugeridas y plan de comidas en una sola llamada (asyncio.gather).
+    Reutiliza las cachés individuales de cada función LLM."""
+    metrics = await pantry_service.get_stock_metrics(hogar_id)
+    recetas_res, plan_res = await asyncio.gather(
+        generate_recipe_suggestions(metrics.items, metrics.alertas_caducidad),
+        generate_meal_plan(metrics.items, metrics.alertas_caducidad),
+    )
+    return SugerenciasResponse(recetas=recetas_res, plan_comidas=plan_res)
 
 
 @router.post(

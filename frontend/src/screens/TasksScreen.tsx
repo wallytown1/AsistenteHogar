@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Modal, ScrollView, Alert, Pressable, ActivityIndicator } from 'react-native';
 import { useTasks } from '../hooks/useTasks';
 import { TareaItem, TareaInterpretada, InterpretarTareaResponse } from '../types/types';
-import { apiRequest } from '../api/api';
+import { apiRequest, TIMEOUT } from '../api/api';
 import AIDisclaimerBanner from '../components/AIDisclaimerBanner';
 import { colors, radius, spacing } from '../theme/tokens';
 import {
@@ -48,6 +48,51 @@ function getFrecuenciaIcon(frecuencia: string): IconName {
   if (f.includes('semanal')) return 'calendar-outline';
   if (f.includes('mensual')) return 'calendar-number-outline';
   return 'repeat-outline';
+}
+
+function getFrecuenciaDias(frecuencia: string): number | null {
+  switch (frecuencia.toLowerCase()) {
+    case 'diaria':
+      return 1;
+    case 'semanal':
+      return 7;
+    case 'mensual':
+      return 30;
+    default:
+      return null; // ocasional → sin ciclo fijo
+  }
+}
+
+function getHaceXDias(fechaISO: string | null): string | null {
+  if (!fechaISO) return null;
+  const dias = Math.floor((Date.now() - new Date(fechaISO).getTime()) / 86_400_000);
+  if (dias === 0) return 'hoy';
+  if (dias === 1) return 'hace 1 día';
+  return `hace ${dias} días`;
+}
+
+function getDiasParaProxima(tarea: TareaItem): number {
+  if (!tarea.ultimo_completado) return -9999; // nunca completada → máxima urgencia
+  const frecDias = getFrecuenciaDias(tarea.frecuencia);
+  if (frecDias === null) return 9999; // ocasional → al final
+  const proximaMs = new Date(tarea.ultimo_completado).getTime() + frecDias * 86_400_000;
+  return Math.round((proximaMs - Date.now()) / 86_400_000);
+}
+
+function getProximaLabel(tarea: TareaItem): { texto: string; urgente: boolean } | null {
+  if (!tarea.ultimo_completado) return null;
+  const frecDias = getFrecuenciaDias(tarea.frecuencia);
+  if (frecDias === null) return null;
+  const dias = Math.round(
+    (new Date(tarea.ultimo_completado).getTime() + frecDias * 86_400_000 - Date.now()) / 86_400_000
+  );
+  if (dias < 0) {
+    const n = Math.abs(dias);
+    return { texto: `vencida hace ${n} día${n === 1 ? '' : 's'}`, urgente: true };
+  }
+  if (dias === 0) return { texto: 'toca hoy', urgente: true };
+  if (dias === 1) return { texto: 'próxima mañana', urgente: false };
+  return { texto: `próxima en ${dias} días`, urgente: false };
 }
 
 export default function TasksScreen() {
@@ -103,7 +148,7 @@ export default function TasksScreen() {
       const res = await apiRequest<InterpretarTareaResponse>('/tasks/interpretar', {
         method: 'POST',
         json: { texto: textoIA.trim() },
-        timeoutMs: 45000,
+        timeoutMs: TIMEOUT.AI,
       });
       if (res.tarea) {
         setPropuestaIA(res.tarea);
@@ -188,9 +233,18 @@ export default function TasksScreen() {
     ]);
   };
 
-  const tareasFiltradas = tasks.filter((t) =>
-    filtroEstado === 'todas' ? true : t.estado === filtroEstado
-  );
+  const tareasFiltradas = tasks
+    .filter((t) => (filtroEstado === 'todas' ? true : t.estado === filtroEstado))
+    .sort((a, b) => {
+      // En vista "todas": pendientes antes que completadas
+      if (filtroEstado === 'todas' && a.estado !== b.estado)
+        return a.estado === 'pendiente' ? -1 : 1;
+      // Completadas: más reciente primero
+      if (a.estado === 'completado')
+        return (b.ultimo_completado ?? '').localeCompare(a.ultimo_completado ?? '');
+      // Pendientes: más urgente primero
+      return getDiasParaProxima(a) - getDiasParaProxima(b);
+    });
   const pendientes = tasks.filter((t) => t.estado === 'pendiente').length;
   const completadas = tasks.filter((t) => t.estado === 'completado').length;
 
@@ -353,6 +407,35 @@ export default function TasksScreen() {
                       </AppText>
                     </View>
                   </View>
+
+                  {/* Última vez + próxima ejecución */}
+                  {(() => {
+                    const haceXDias = getHaceXDias(item.ultimo_completado);
+                    const proxima = !completada ? getProximaLabel(item) : null;
+                    if (!haceXDias && !proxima) return null;
+                    return (
+                      <View
+                        style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: 5 }}
+                      >
+                        {haceXDias ? (
+                          <AppText variant="micro" color={colors.inkFaint}>
+                            {completada ? 'Completada ' : 'Última vez '}
+                            {haceXDias}
+                          </AppText>
+                        ) : null}
+                        {proxima ? (
+                          <AppText
+                            variant="micro"
+                            color={proxima.urgente ? colors.warning : colors.inkFaint}
+                            style={{ fontWeight: proxima.urgente ? '600' : '400' }}
+                          >
+                            {haceXDias ? '· ' : ''}
+                            {proxima.texto}
+                          </AppText>
+                        ) : null}
+                      </View>
+                    );
+                  })()}
                 </View>
 
                 {/* Eliminar */}
