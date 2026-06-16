@@ -68,7 +68,7 @@ jobs:
         run: |
           schemathesis run \
             --app=app.main:app \
-            http://localhost/openapi.json \
+            /openapi.json \
             --checks=not_a_server_error \
             --validate-schema=false \
             --hypothesis-max-examples=25 \
