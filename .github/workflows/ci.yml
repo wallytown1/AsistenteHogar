@@ -56,6 +56,20 @@ jobs:
           python smoke_test_validation.py
           python smoke_test_legal.py
 
+      # Schemathesis: fuzzing del esquema OpenAPI contra la app ASGI en memoria.
+      # No se levanta servidor real; schemathesis inyecta requests directamente.
+      # Check: ningún endpoint debe devolver 5xx (incluye req. sin autenticar → 401).
+      # --hypothesis-max-examples=25 mantiene el CI ágil (~30 s extra).
+      - name: Schemathesis (API schema fuzzing)
+        run: |
+          schemathesis run \
+            --app=app.main:app \
+            http://localhost/openapi.json \
+            --checks=not_a_server_error \
+            --validate-schema=false \
+            --hypothesis-max-examples=25 \
+            --workers=2
+
   # ---------------------------------------------------------------------------
   # Frontend: TypeScript (tsc) + ESLint
   # ---------------------------------------------------------------------------

@@ -18,6 +18,15 @@ Formato: `[FECHA] [ÁREA] [TIPO] Descripción`
   (`js-yaml`, `postcss`, `uuid` vía `@expo/*`). No afectan al runtime; el fix exige saltar
   a Expo SDK 56 (breaking). Aceptadas hasta la migración de SDK.
 
+### Bloque 4 — Schemathesis (API schema fuzzing)
+- **MOD** `backend/requirements.txt` — añadido `schemathesis>=3.27,<4`.
+- **MOD** `.github/workflows/ci.yml` — nuevo step en el job `backend` tras los smoke tests:
+  `schemathesis run --app=app.main:app http://localhost/openapi.json` en modo ASGI (sin servidor
+  real; schemathesis inyecta requests directamente contra la app en memoria).
+  Check: `not_a_server_error` — cualquier endpoint que devuelva 5xx falla la build.
+  25 ejemplos por endpoint (`--hypothesis-max-examples=25`), 2 workers. Requests sin autenticar
+  → 401 (correcto, no 5xx). Tiempo estimado: ~30 s extra sobre el job backend.
+
 ### Bloque 3 — Integración continua (GitHub Actions)
 - **ADD** `.github/workflows/ci.yml` — pipeline en cada push/PR a `main`, 3 jobs en paralelo:
   - **backend**: Ruff (lint+formato) + Mypy strict sobre `app/` + los 5 smoke tests (122 checks).

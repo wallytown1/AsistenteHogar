@@ -17,8 +17,12 @@ se añadió secret-scanning (gitleaks) y CI en remoto como prioridades. Trabajo 
 - `.github/workflows/ci.yml`: 3 jobs paralelos (backend lint+types+smoke, frontend tsc+eslint,
   security deps+gitleaks) en cada push/PR a `main`. Valida en remoto, no solo en pre-commit local.
 
+**Bloque 4 — Schemathesis (completado)**
+- Step añadido en el job `backend` del CI, tras los smoke tests. Modo ASGI (sin servidor real):
+  `schemathesis run --app=app.main:app http://localhost/openapi.json --checks=not_a_server_error`.
+  25 ejemplos por endpoint, 2 workers. Cualquier 5xx falla la build.
+
 **Pendiente de F-QA2:**
-- Bloque 4 — Schemathesis (tests de API desde el OpenAPI, integrar en el job security del CI).
 - Bloque 5 — Revisión de seguridad enfocada → `SECURITY.md` (multi-tenant, auth, LLM, secretos).
 - Bloque 6 — OWASP ZAP (una pasada contra Railway, baja prioridad).
 - Diferidos a post-lanzamiento: SonarCloud, Maestro E2E, Langfuse.
