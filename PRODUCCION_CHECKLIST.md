@@ -14,18 +14,27 @@
 - Build con **Nixpacks/Railpack**; arranque por `backend/Procfile`
   (`alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port $PORT`).
 
+> ⚠️ **Aprendizaje (2026-06-16):** Railway **no ejecuta el `Procfile`** (arranca `uvicorn`
+> directamente), así que `alembic upgrade head` nunca corría y la BD de producción quedó
+> **sin tablas** tras el deploy de F5. El `/health` daba 200 (solo hace `SELECT 1`), ocultando
+> el problema. Resuelto ejecutando las migraciones en el arranque de la app
+> (`RUN_MIGRATIONS_ON_STARTUP=true` → subproceso async en el lifespan de `main.py`). **No
+> quitar esa variable** en Railway, o las nuevas migraciones no se aplicarán.
+
 ### Variables ya configuradas en Railway
 | Variable | Estado | Nota |
 |---|---|---|
 | `DATABASE_URL` | ✅ | Postgres de Railway (el backend lo reescribe a `+asyncpg` en `database.py`). |
 | `REDIS_URL` | ✅ | Redis de Railway. Confirmado conectado en logs de arranque. |
-| `JWT_SECRET_KEY` | ✅ | Verificar que es un valor fuerte y **distinto del de desarrollo**. |
+| `JWT_SECRET_KEY` | ⚠️ verificar | Confirmar que es un valor fuerte y **distinto** del `.env` de desarrollo (no visible por CLI). |
 | `ENVIRONMENT` | ✅ `production` | `/docs`, `/redoc`, `/openapi.json` cerrados (404). CORS sin orígenes por defecto. |
+| `RUN_MIGRATIONS_ON_STARTUP` | ✅ `true` | Aplica migraciones al arrancar. **No quitar** (Railway ignora el Procfile). |
+| `GEMINI_API_KEY` | ✅ (clave de prueba, tier gratuito) | Funciona; cambiar a clave con *billing* antes de datos reales (§1). |
 
 ### Variables pendientes (modo prueba actual)
 | Variable | Estado | Efecto hoy |
 |---|---|---|
-| `GEMINI_API_KEY` | ⏳ se usará una **personal, solo datos de prueba** | Sin ella la IA va en fallback estático. |
+| `GEMINI_API_KEY` | ✅ puesta (clave de prueba, tier gratuito) | IA real funcionando. Cambiar a clave con *billing* antes de datos reales (§1). |
 | `REVENUECAT_SECRET_KEY` | ❌ sin definir | Gate premium **desactivado**: endpoints de IA abiertos a cualquier usuario autenticado. |
 | `REVENUECAT_ENTITLEMENT` | ❌ (default `premium`) | Solo cambiar si el entitlement en RevenueCat tiene otro id. |
 | `ALLOWED_ORIGINS` | ❌ sin definir | OK para clientes nativos. **Obligatoria solo si se añade un cliente web.** |
