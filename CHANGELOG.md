@@ -6,6 +6,32 @@ Formato: `[FECHA] [ÁREA] [TIPO] Descripción`
 
 ---
 
+## [2026-06-17] — Pivote estratégico: Recetas mediterráneas españolas
+
+### Dirección del producto
+- **MOD** Enfoque principal cambiado de "gestión del hogar generalista" a **generación de recetas
+  mediterráneas españolas tradicionales y de aprovechamiento** basadas en el stock real de la despensa.
+- Filosofía gastronómica: sofritos, ingredientes frescos, cocina de temporada. Sin fusiones incorrectas.
+- Función secundaria: planificación semanal de menús + calendario familiar (complemento).
+
+### Métodos de entrada planificados (F-PIVOT)
+- `POST /pantry/audio` — entrada por voz en NL (micro-ajustes rápidos, IA pasiva).
+- `POST /pantry/foto-nevera` — Gemini Vision analiza ingredientes visibles (IA pasiva, premium).
+- `POST /onboarding` — perfil de hogar: gustos, intolerancias, alergias, nº comensales.
+- Tabla `perfil_hogar` pendiente de migración Alembic.
+
+### Documentación actualizada (rama `feat/pivote-recetas-mediterraneas`)
+- **MOD** `CLAUDE.md` — nuevo overview, filosofía mediterránea en constraints LLM, fases actualizadas.
+- **MOD** `01_CONTEXTO_Y_ARQUITECTURA_APP.md` — v3.0: schema `perfil_hogar`, endpoints planificados, tabla LLM.
+- **MOD** `ENDPOINTS.md` — Despensa marcada como función principal; 3 endpoints planificados añadidos.
+- **MOD** `ESTADO_ACTUAL.md` — nueva sección de pivote, "qué hace la app" actualizado, deuda técnica.
+- **MOD** `MEJORAS_PENDIENTES.md` — backlog reescrito con prioridades F-PIVOT (#1–#8 anteriores movidos a CHANGELOG).
+- **MOD** `DISENO_UI.md` — próximos componentes UI (micrófono, cámara, onboarding, receta detallada).
+- **MOD** `LEGALIDAD.md` — flujos de datos nuevos (audio, foto, onboarding con datos de salud art. 9 RGPD).
+- **MOD** `PRODUCCION_CHECKLIST.md` — permisos de micrófono y cámara añadidos al build nativo.
+
+---
+
 ## [2026-06-16] — F-QA2: Auditoría y blindaje pre-producción (en curso)
 
 ### Bloque 1+2 — Auditoría de dependencias y secretos

@@ -2,7 +2,9 @@
 
 Este documento especifica la arquitectura del sistema, el esquema de la base de datos relacional, el contrato de la API y la **arquitectura de cumplimiento legal** (RGPD, Ley de IA de la UE, políticas de App Store / Google Play) para el **Asistente del Hogar IA**. Es la fuente de verdad para los agentes Frontend, Backend y Base de Datos.
 
-> **Versión:** 2.1 (2026-06-12) — actualizado para reflejar el código real tras las fases F0–F-QA y la arquitectura de compliance (fase **F-LEGAL, implementada**): purga física RGPD, eliminación de cuenta, anonimización LLM y transparencia IA.
+> **Versión:** 3.0 (2026-06-17) — pivote estratégico: función principal es la generación de recetas mediterráneas españolas basadas en stock real. Nuevos métodos de entrada (audio, foto nevera) y perfil de hogar (onboarding). Calendario y tareas pasan a función secundaria/complemento.
+>
+> Versión anterior: 2.1 (2026-06-12) — fases F0–F-QA + arquitectura de compliance F-LEGAL.
 
 ---
 
@@ -31,20 +33,18 @@ AsistenteHogar/
 │   └── .env.example
 ├── frontend/
 │   ├── src/
-│   │   ├── api/                   # api.ts — cliente fetch con Bearer token + timeout 15s
+│   │   ├── api/                   # api.ts — cliente fetch con Bearer token + timeout 15s; TIMEOUT const
 │   │   ├── components/            # AIDisclaimerBanner.tsx (transparencia IA, AI Act art. 50)
-│   │   │   └── ui/                # [rama redesign] librería de componentes (Card, Button, Screen...)
+│   │   │   └── ui/                # librería de componentes (Card, Button, Screen, Fab, Badge...)
 │   │   ├── config/                # config.ts — lee EXPO_PUBLIC_API_URL
-│   │   ├── hooks/                 # useDashboard, usePantry, useCalendar, useTasks
-│   │   ├── lib/                   # [rama redesign] haptics.ts, categoria.ts
-│   │   ├── navigation/            # AppNavigator.tsx (tabs + auth gate)
-│   │   ├── screens/               # Auth, Dashboard, Pantry, Calendar, Tasks
-│   │   │   └── SettingsScreen.tsx # F-LEGAL: ajustes + eliminación de cuenta (zona de peligro)
-│   │   ├── state/                 # authStore.ts (Zustand + expo-secure-store)
-│   │   ├── theme/                 # [rama redesign] tokens.ts — color/tipografía/espaciado
+│   │   ├── hooks/                 # useDashboard, usePantry, useCalendar, useTasks, useExpiryNotifications
+│   │   ├── lib/                   # haptics.ts, categoria.ts
+│   │   ├── navigation/            # AppNavigator.tsx (tabs + auth gate + onboarding gate)
+│   │   ├── screens/               # Auth, Dashboard, Pantry, Calendar, Tasks, Agenda, Onboarding, Settings, Paywall
+│   │   ├── state/                 # authStore.ts (Zustand + expo-secure-store), purchasesStore.ts
+│   │   ├── theme/                 # tokens.ts — color/tipografía/espaciado (StyleSheet, sin NativeWind)
 │   │   └── types/                 # types.ts — tipos compartidos del contrato API
 │   ├── .env.development           # EXPO_PUBLIC_API_URL (sin secretos; gitignored)
-│   ├── tailwind.config.js         # NativeWind v4
 │   ├── App.tsx
 │   └── package.json
 ├── CLAUDE.md                      # Guía de trabajo del repo
@@ -76,10 +76,22 @@ erDiagram
     HOGARES ||--o{ INVENTARIO_ALIMENTOS : pertenece
     HOGARES ||--o{ TAREAS_HOGAR : contiene
     HOGARES ||--o{ EVENTOS_CALENDARIO : agenda
+    HOGARES ||--o| PERFIL_HOGAR : tiene
 
     HOGARES {
         uuid id PK
         varchar nombre
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    PERFIL_HOGAR {
+        uuid id PK
+        uuid hogar_id FK
+        json gustos_culinarios
+        json intolerancias
+        json alergias
+        integer num_comensales
         timestamptz created_at
         timestamptz updated_at
     }
@@ -186,10 +198,21 @@ Prefijo global `/api/v1`. Autenticación Bearer JWT (HS256, expiración 30 días
 |---|---|---|
 | Auth | `POST /auth/registro`, `POST /auth/login`, `GET /auth/me` 🔒, `DELETE /auth/cuenta` 🔒 | Rate limit por IP; login anti-enumeración; eliminación con re-autenticación (§4.2) |
 | Dashboard | `GET /dashboard` 🔒 | Estado unificado de hoy + briefing IA (o fallback sin API key) |
-| Despensa | `GET /pantry`, `GET /pantry/recetas`, `POST /pantry`, `PATCH /pantry/{id}`, `DELETE /pantry/{id}` 🔒 | Recetas = IA pasiva |
-| Calendario | `GET /calendar`, `POST /calendar`, `POST /calendar/interpretar`, `PATCH /calendar/{id}`, `DELETE /calendar/{id}` 🔒 | Conflictos reportados en el GET (`conflictos[]`), no como 409 en el POST |
-| Tareas | `GET /tasks`, `POST /tasks`, `PATCH /tasks/{id}`, `DELETE /tasks/{id}` 🔒 | |
+| **Despensa ★** | `GET /pantry`, `GET /pantry/recetas` ⭐, `GET /pantry/plan-comidas` ⭐, `GET /pantry/sugerencias` ⭐, `POST /pantry`, `PATCH /pantry/{id}`, `DELETE /pantry/{id}` 🔒 | **Función principal.** Recetas/plan = IA pasiva + filosofía mediterránea española |
+| Despensa (entrada) | `POST /pantry/interpretar` 🔒, `POST /pantry/sugerir-metadata` ⭐, `POST /pantry/ocr-ticket` ⭐ | Tres vías de fricción cero; OCR y NL son IA pasiva |
+| Calendario | `GET /calendar`, `POST /calendar`, `POST /calendar/interpretar` ⭐, `PATCH /calendar/{id}`, `DELETE /calendar/{id}` 🔒 | Función secundaria: complemento de planificación de menús |
+| Tareas | `GET /tasks`, `POST /tasks`, `POST /tasks/interpretar` ⭐, `PATCH /tasks/{id}`, `DELETE /tasks/{id}` 🔒 | Función secundaria |
 | Salud | `GET /health`, `GET /` | Sin auth |
+
+**Planificados (F-PIVOT):**
+
+| Módulo | Endpoint | Descripción |
+|---|---|---|
+| Onboarding | `POST /onboarding` 🔒 ⏳ | Guarda perfil inicial del hogar (gustos, intolerancias, alergias, nº comensales) |
+| Despensa (audio) | `POST /pantry/audio` 🔒 ⭐ ⏳ | Entrada por voz en NL; Gemini interpreta y devuelve propuesta de alimentos (IA pasiva) |
+| Despensa (foto) | `POST /pantry/foto-nevera` 🔒 ⭐ ⏳ | Gemini Vision detecta ingredientes visibles; propuesta con confirmación (IA pasiva, premium) |
+
+⭐ = premium · ⏳ = planificado, no implementado
 
 Decisiones de contrato que sustituyen al diseño original (v1.0 de este documento):
 
@@ -263,13 +286,25 @@ Los prompts de `generate_morning_briefing` e `interpret_event_text` pueden conte
 
 ## 6. Integración LLM (estado actual)
 
-`backend/app/services/llm.py` — tres funciones sobre Gemini (`GEMINI_MODEL`, default `gemini-2.5-flash`):
+`backend/app/services/llm.py` — siete funciones sobre Gemini (`GEMINI_MODEL`, default `gemini-2.5-flash`).
+Las funciones de recetas son la columna vertebral del producto:
 
-| Función | Uso | Caché TTL |
-|---|---|---|
-| `generate_morning_briefing` | `GET /dashboard` → `briefing_texto` | 30 min |
-| `generate_recipe_suggestions` | `GET /pantry/recetas` | 60 min |
-| `interpret_event_text` | `POST /calendar/interpretar` | — |
+| Función | Uso | Caché TTL | Filosofía |
+|---|---|---|---|
+| `generate_recipe_suggestions` | `GET /pantry/recetas` ★ | 60 min | **Mediterránea española** (instrucción de sistema obligatoria) |
+| `generate_meal_plan` | `GET /pantry/plan-comidas` ★ | 2 h | **Mediterránea española** (instrucción de sistema obligatoria) |
+| `generate_morning_briefing` | `GET /dashboard` → `briefing_texto` | 30 min | — |
+| `interpret_pantry_text` | `POST /pantry/interpretar` | — | Multi-item, caducidades relativas |
+| `suggest_food_metadata` | `POST /pantry/sugerir-metadata` | — | Categoría + caducidad estimada |
+| `interpret_event_text` | `POST /calendar/interpretar` | — | — |
+| `interpret_task_text` | `POST /tasks/interpretar` | — | — |
+
+★ = función principal del producto
+
+**Instrucción de sistema obligatoria** para `generate_recipe_suggestions` y `generate_meal_plan`:
+> "Eres un chef especializado en cocina mediterránea española tradicional y de aprovechamiento.
+> Prioriza sofritos, ingredientes frescos y de temporada. Evita cualquier fusión cultural incorrecta.
+> Usa solo lo que hay en el inventario del usuario. Propón recetas que un hogar español reconocería."
 
 Temperatura 0, `thinkingBudget` 0. Claves de caché = SHA-256 de los datos del prompt (en el briefing, del prompt **ya anonimizado**, §5.2). La caché está respaldada por Redis distribuido con los TTLs correspondientes en la tabla. `generate_morning_briefing` devuelve `(texto, generado_por_ia)` para alimentar el aviso de transparencia. Sin `GEMINI_API_KEY` las tres devuelven fallbacks estáticos y la app sigue funcionando.
 
@@ -294,3 +329,5 @@ Temperatura 0, `thinkingBudget` 0. Claves de caché = SHA-256 de los datos del p
 | Soft delete universal | ✅ Vigente con excepción | Purga programada + destrucción de cuenta son los únicos hard deletes (§3.3) |
 | Caché/rate-limit in-memory | ❌ Sustituida | Migrado a Redis (F5) para diseño stateless y escalabilidad |
 | IA pasiva | ✅ Vigente | El usuario confirma toda escritura |
+| App de gestión del hogar generalista | ❌ Pivote (2026-06-17) | Foco en recetas mediterráneas españolas basadas en stock; calendario/tareas pasan a secundario |
+| Prompts de recetas sin filosofía gastronómica | ❌ Pivote (2026-06-17) | Instrucción de sistema mediterránea española obligatoria en `generate_recipe_suggestions` y `generate_meal_plan` |

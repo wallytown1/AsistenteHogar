@@ -1,41 +1,73 @@
-# Mejoras de servicio pendientes — AsistenteHogar
+# Mejoras pendientes — AsistenteHogar
 
-Backlog resultante de la auditoría de lógica de servicios y UX realizada el 2026-06-16.
-Ordenadas por impacto. Las completadas se moverán al `CHANGELOG.md`.
-
----
-
-## ✅ Completadas
-
-| # | Mejora | Rama | Commit |
-|---|--------|------|--------|
-| 1 | Conflictos de agenda incluidos en el briefing matutino | `feat/mejoras-servicio` | `f1d0247` |
-| 2 | `ultimo_completado` visible en tareas: badge, próxima ejecución, orden por urgencia | `feat/mejoras-servicio` | `9a591f5` |
-| 3 | Gate premium consistente: `requiere_premium` añadido a `/calendar/interpretar` | `feat/mejoras-servicio` | `e7ed746` |
-| 4 | OCR de ticket: FAB dedicado + modal de revisión en lote con checkboxes | `feat/mejoras-servicio` | `b81ee99` |
-| 5 | Endpoint `/pantry/sugerencias` unificado (`asyncio.gather`) + precarga en background | `feat/mejoras-servicio` | `9b938dd` |
-| 6 | Duración del solapamiento visible en Calendario: "Solapamiento: X min" | `feat/mejoras-servicio` | pendiente |
-| 7 | Anonimización RGPD en `generate_recipe_suggestions`/`generate_meal_plan` | N/A | — |
-| 8 | Timeouts consistentes: constante `TIMEOUT` exportada desde `api.ts` | `feat/mejoras-servicio` | pendiente |
-
-> **Nota #7:** Falso positivo. `generate_recipe_suggestions()` y `generate_meal_plan()` solo reciben
-> `InventarioAlimentoResponse` (nombres de alimentos como "leche", "manzanas"), nunca `asignado_a`
-> ni `participantes`. No hay datos personales que anonimizar en esas rutas.
+Backlog actualizado tras el **pivote estratégico (2026-06-17)** a recetas mediterráneas españolas.
+Ordenadas por prioridad. Las completadas se registran en `CHANGELOG.md`.
 
 ---
 
-## 🟡 Pendiente
+## 🔴 F-PIVOT — Alta prioridad (bloquean el nuevo enfoque)
 
-### #9 — Umbral de stock hardcodeado (`timedelta(days=6)`)
-`PantryService.get_stock_metrics()` usa 6 días fijo. Algunos hogares quieren 3 días
-(compra frecuente), otros 14 (congelador).
-**Esfuerzo:** Medio (nueva tabla `HogarSettings` o campo en `Hogar` + migración Alembic).
-**Decisión:** Diferido a F6 o fase posterior; requiere diseño del modelo de configuración por hogar.
+### #1 — Filosofía mediterránea española en prompts LLM
+`backend/app/services/llm.py` — `generate_recipe_suggestions` y `generate_meal_plan`.
+Añadir instrucción de sistema fija:
+> "Eres un chef especializado en cocina mediterránea española tradicional y de aprovechamiento.
+> Prioriza sofritos, ingredientes frescos y de temporada. Evita fusiones culturales incorrectas.
+> Usa solo ingredientes del inventario del usuario."
+**Esfuerzo:** Bajo (modificar los prompts existentes).
+
+### #2 — Perfil de hogar (onboarding)
+Nueva tabla `perfil_hogar` (Alembic migration): `gustos_culinarios[]`, `intolerancias[]`,
+`alergias[]`, `num_comensales`. Nuevo endpoint `POST /api/v1/onboarding` (upsert, no requiere
+nueva ruta porque es idempotente). Encuesta de onboarding en frontend (3–4 pasos, gate en
+`AppNavigator` similar al onboarding actual). El perfil se pasa al prompt de recetas para
+personalización.
+**Esfuerzo:** Medio (migración + endpoint + pantalla frontend).
+
+### #3 — Entrada por audio NL
+`POST /api/v1/pantry/audio` (premium): recibe texto transcrito por el cliente (expo-av o
+expo-speech), Gemini interpreta igual que `/pantry/interpretar`. Botón de micrófono en
+`PantryScreen` con animación de grabación. IA pasiva: devuelve propuesta, usuario confirma.
+**Esfuerzo:** Medio (endpoint backend simple + UI de micrófono).
+
+### #4 — Foto de nevera
+`POST /api/v1/pantry/foto-nevera` (premium): Gemini Vision analiza imagen JPEG en base64,
+identifica ingredientes visibles, devuelve propuesta de alimentos + recetas express posibles.
+Botón de cámara en `PantryScreen`. Modal de revisión con checkboxes (mismo patrón que OCR ticket).
+**Esfuerzo:** Medio-alto (Gemini Vision + UI de cámara).
+
+---
+
+## 🟡 Mejoras de producto (segunda iteración)
+
+### #5 — Historial de recetas cocinadas
+Nueva tabla `recetas_historial` (`hogar_id`, `nombre_receta`, `cocinada_en`, `valoracion`).
+Al confirmar una receta sugerida, el usuario puede marcarla como "cocinada". Esto alimenta
+el contexto de futuras sugerencias ("no repetir en X días").
+**Esfuerzo:** Medio (tabla + endpoint + UI de confirmación extendida).
+
+### #6 — Integrar perfil de hogar en los prompts de recetas
+Una vez implementado #2, pasar `gustos`, `intolerancias`, `alergias` y `num_comensales`
+al prompt de `generate_recipe_suggestions` y `generate_meal_plan`.
+**Esfuerzo:** Bajo (depende de #2).
+
+### #7 — Umbral de caducidad configurable por hogar
+`PantryService.get_stock_metrics()` usa 6 días fijo. Algunos hogares prefieren 3 (compra
+frecuente) o 14 (congelador). Requiere campo en `perfil_hogar` (depende de #2) o tabla
+`HogarSettings`.
+**Esfuerzo:** Bajo una vez existe `perfil_hogar`.
+
+### #8 — Pantalla de receta detallada
+Hoy las recetas son solo un título + descripción en `PantryScreen`. Crear
+`RecipeDetailScreen` con pasos numerados, lista de ingredientes con cantidades,
+tiempo estimado y botón "Marcar como cocinada" (depende de #5).
+**Esfuerzo:** Medio (nueva pantalla + navegación).
 
 ---
 
 ## 📋 Notas
 
-- El bloque de pulido (#6–#9) queda cerrado salvo #9 que requiere migración.
-- Rama `feat/mejoras-servicio` lista para PR → `main` una vez validado.
-- Actualizar este archivo al completar cada mejora y mover la entrada a CHANGELOG.
+- Las mejoras #1–#8 del backlog anterior (conflictos en briefing, `ultimo_completado`,
+  gate premium, OCR en lote, plan unificado, solapamiento visible, timeouts) están
+  **completadas** — ver `CHANGELOG.md` PR #5.
+- El bloque F-QA2 (Schemathesis, CI) está **completado** — ver `CHANGELOG.md` 2026-06-16.
+- Rama activa para F-PIVOT: `feat/pivote-recetas-mediterraneas`.

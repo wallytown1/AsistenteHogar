@@ -72,15 +72,19 @@
 
 ---
 
-## 3. 🟡 Builds nativos (F6/F7)
+## 3. 🟡 Builds nativos (F6 — tras F-PIVOT)
 
 - [ ] `react-native-purchases` **no funciona en Expo Go**: requiere un **development build**
   (EAS) para probar, y un build de producción para publicar.
-- [ ] Añadir el plugin **`expo-notifications`** en `app.json` antes del build de producción
-  (notificaciones de caducidad). Pendiente ya anotado en `ESTADO_ACTUAL.md`.
+- [ ] Añadir el plugin **`expo-notifications`** en `app.json` (notificaciones de caducidad).
+- [ ] Añadir permiso de **micrófono** en `app.json` para entrada por audio (`expo-av` o `expo-speech`):
+  `NSMicrophoneUsageDescription` (iOS) + `RECORD_AUDIO` (Android).
+- [ ] Añadir permiso de **cámara** en `app.json` para foto de nevera (`expo-image-picker`):
+  `NSCameraUsageDescription` (iOS) + `CAMERA` (Android).
 - [ ] Configurar EAS (`eas.json`), credenciales de firma iOS/Android.
 - [ ] Etiquetas de privacidad de las tiendas (App Store Privacy / Google Play Data Safety)
-  coherentes con los datos que se tratan (incluido el envío a Gemini).
+  coherentes con los datos tratados: alimentos, audio, imágenes enviados a Gemini, datos de salud
+  del onboarding (alergias/intolerancias — categoría especial RGPD art. 9).
 
 ---
 

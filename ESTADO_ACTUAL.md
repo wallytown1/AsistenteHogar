@@ -1,4 +1,18 @@
-# ESTADO ACTUAL — AsistenteHogar (2026-06-16)
+# ESTADO ACTUAL — AsistenteHogar (2026-06-17)
+
+## 🎯 Pivote estratégico (2026-06-17) — Recetas mediterráneas españolas
+
+**Nuevo enfoque principal:** la app se centra en la **generación y sugerencia de recetas mediterráneas
+españolas tradicionales y de aprovechamiento** a partir del stock real de la despensa.
+
+- **Función principal:** recetas basadas en stock (sofritos, ingredientes frescos, cocina de temporada).
+- **Función secundaria (complemento):** planificación semanal de menús + calendario familiar.
+- **Tres métodos de entrada de fricción cero:** OCR de ticket (implementado ✅), audio NL (⏳), foto de nevera (⏳).
+- **Encuesta de onboarding:** perfil de gustos, intolerancias, alergias y nº comensales (⏳).
+
+**Rama:** `feat/pivote-recetas-mediterraneas` | **Afecta a:** `.md` (esta sesión), luego código/BD.
+
+---
 
 ## 🛡️ Sesión 2026-06-16 — F-QA2: Auditoría y blindaje pre-producción (en curso)
 
@@ -343,23 +357,29 @@ IDOR) y se actualizó al diseño real (tenant del JWT) + la arquitectura de comp
 
 ## 📊 Qué hace la app ahora
 
+### Despensa ★ (función principal)
+- Inventario real con stock, categoría, caducidad
+- **Recetas sugeridas por IA** (mediterráneas españolas, priorizan lo que caduca) — con shimmer
+- **Plan de comidas semanal** (comida + cena, 7 días) por IA
+- OCR de ticket de compra con Gemini Vision (revisión en lote con checkboxes)
+- Añadir por lenguaje natural ("compré 6 huevos y leche que caduca el viernes")
+- Filtros por categoría y stock bajo
+- Alertas de caducidad (notificaciones locales ≤3 días)
+
 ### Dashboard
-- Briefing diario generado por Gemini
-- Eventos de hoy
-- Tareas pendientes
+- Briefing diario generado por Gemini (con anonimización RGPD)
+- Eventos de hoy + tareas pendientes
 - Alertas de alimentos próximos a caducar
 
-### Despensa
-- Inventario real con stock, categoría, caducidad
-- Recetas sugeridas por IA (max 3)
-- Filtros por categoría y stock bajo
-- Añadir/editar productos
-
-### Calendario
+### Calendario (función secundaria)
 - Agenda familiar con eje horario 07:00–22:00
 - Conflictos de horario detectados automáticamente
-- **Quick-add en lenguaje natural** → Gemini interpreta y propone evento → usuario confirma
-- Filtros por participantes (derivados de eventos reales)
+- Quick-add en lenguaje natural → Gemini interpreta y propone → usuario confirma
+
+### Tareas (función secundaria)
+- Lista pendientes/completadas con prioridad y frecuencia
+- Ordenación por urgencia (`ultimo_completado` + frecuencia)
+- Añadir por lenguaje natural
 
 ### Autenticación
 - Registro/login con JWT (30 días)
@@ -416,11 +436,13 @@ npm run ts:check  # Debe retornar 0 errores
 
 | Problema | Ubicación | Impacto | Solución |
 |----------|-----------|--------|----------|
-| ~~`ENVIRONMENT` sin definir~~ ✅ resuelto | Railway | — | Aplicado `ENVIRONMENT=production` (docs cerrados) |
 | `GEMINI_API_KEY` personal (datos de prueba) | panel Railway | Medio: cambiar a clave con billing antes de datos reales (RGPD) | Ver [`PRODUCCION_CHECKLIST.md`](PRODUCCION_CHECKLIST.md) §1 |
 | `REVENUECAT_SECRET_KEY` sin definir | panel Railway | Medio: gate premium desactivado en prod | Ver `PRODUCCION_CHECKLIST.md` §2 |
 | Anonimización LLM solo en briefing | backend/app/services/privacy.py | Medio (RGPD): `interpret_*` envían texto sin anonimizar | Evaluar ampliar alcance (checklist §1) |
-| Fotos unsplash de URLs | frontend/src/screens/ | Bajo (RN cachea) | Mover a assets/ |
+| Filosofía mediterránea no aplicada aún en prompts | backend/app/services/llm.py | Alto: recetas sin restricción gastronómica | Pendiente en F-PIVOT |
+| Tabla `perfil_hogar` no existe | BD / Alembic | Alto: onboarding sin persistencia | Migración Alembic en F-PIVOT |
+| Audio NL no implementado | backend + frontend | Alto: falta método de entrada | F-PIVOT |
+| Foto de nevera no implementada | backend + frontend | Alto: falta método de entrada | F-PIVOT |
 
 Ver [[technical_debt]] en memoria para detalles.
 
@@ -441,7 +463,7 @@ Ver [[technical_debt]] en memoria para detalles.
 | Componente | Versión | Notas |
 |-----------|---------|-------|
 | React Native | 0.76.9 (SDK 54) | Expo Go compatible |
-| NativeWind | v4.1.23 | Tailwind para RN |
+| NativeWind | — | Eliminado (StyleSheet + tokens) |
 | FastAPI | 0.115+ | Python 3.12 |
 | SQLAlchemy | 2.0.28+ | async + asyncpg |
 | Pydantic | 2.6.0+ | `extra='forbid'` |

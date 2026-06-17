@@ -1,5 +1,9 @@
 # Referencia de la API — Asistente del Hogar IA
 
+> **Pivote estratégico (2026-06-17):** la función principal del producto son las **recetas mediterráneas
+> españolas** generadas a partir del stock real. Los módulos Despensa/Recetas son el núcleo.
+> Calendario y Tareas son funciones secundarias de complemento de planificación.
+
 Contrato de los endpoints REST del backend, derivado del código real
 (`backend/app/api/routers/` y `backend/app/schemas/schemas.py`).
 
@@ -95,7 +99,11 @@ de enviarse a Gemini y se restauran en la respuesta.
 
 ---
 
-## Despensa (Pantry)
+## Despensa ★ (función principal del producto)
+
+> Las recetas y el plan de comidas son el núcleo del producto. Filosofía: cocina mediterránea española
+> tradicional y de aprovechamiento. Todos los endpoints de IA son **IA pasiva**: solo sugieren,
+> el usuario confirma antes de cualquier escritura.
 
 ### `GET /api/v1/pantry` 🔒
 Inventario activo y métricas de stock.
@@ -164,9 +172,35 @@ Actualización parcial (`InventarioAlimentoUpdate`, todos los campos opcionales)
 Borrado lógico (`is_deleted = true`).
 **200** → item borrado · **404** inexistente/ajeno.
 
+### `POST /api/v1/pantry/audio` 🔒 ⭐ ⏳ Planificado
+Interpreta una nota de voz en lenguaje natural y devuelve propuesta de alimentos (IA pasiva).
+Gemini procesa el texto transcrito del audio, igual que `/pantry/interpretar` pero optimizado
+para micro-ajustes rápidos ("Apunta que he gastado dos huevos").
+Rate limit: compartido con `/interpretar` (20/5 min por IP).
+
+### `POST /api/v1/pantry/foto-nevera` 🔒 ⭐ ⏳ Planificado
+Gemini Vision analiza una foto de la nevera e identifica ingredientes visibles. Devuelve propuesta
+de alimentos detectados + sugerencias de recetas express (IA pasiva — usuario confirma antes de guardar).
+**Body** (`FotoNeveraRequest`): `{ "imagen_base64": "<JPEG en base64>", "fecha_referencia": "..." }`
+**200** → `FotoNeveraResponse` `{ alimentos[], recetas_sugeridas[], mensaje }`.
+Rate limit: 10/hora por IP. Requiere `GEMINI_API_KEY`. **402** sin premium.
+
+### `POST /api/v1/onboarding` 🔒 ⏳ Planificado
+Guarda el perfil inicial del hogar para personalizar las recetas.
+**Body** (`OnboardingRequest`):
+```json
+{
+  "gustos_culinarios": ["paella", "cocido madrileño"],
+  "intolerancias": ["lactosa"],
+  "alergias": ["frutos secos"],
+  "num_comensales": 4
+}
+```
+**200** → `PerfilHogarResponse`. Idempotente (upsert).
+
 ---
 
-## Calendario
+## Calendario (función secundaria — complemento de planificación)
 
 ### `GET /api/v1/calendar` 🔒
 Agenda activa y detección de solapamientos.
@@ -206,7 +240,7 @@ Borrado lógico.
 
 ---
 
-## Tareas
+## Tareas (función secundaria)
 
 ### `GET /api/v1/tasks` 🔒
 **200** → `List[TareaHogarOut]` (lista directa, sin envoltura).

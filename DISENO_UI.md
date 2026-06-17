@@ -1,9 +1,11 @@
 # Sistema de Diseño UI — AsistenteHogar
 
-> **Rama:** `redesign/native-ui` (aún no fusionada a `main`).
-> Rediseño visual completo del frontend con un lenguaje nuevo (con color), orientado a
-> que la app se sienta **nativa en iOS y Android**. La lógica de negocio se preservó al 100%;
-> solo cambió la capa de presentación.
+> Rediseño visual completo del frontend fusionado en `main`. La lógica de negocio se preservó al 100%;
+> solo cambió la capa de presentación. NativeWind/Tailwind eliminados; todo es StyleSheet + tokens.
+>
+> **Pivote (2026-06-17):** la Despensa y las Recetas son la pantalla principal. Los próximos
+> componentes UI prioritarios son: botón de micrófono (audio NL), botón de cámara (foto nevera),
+> modal de onboarding (perfil del hogar) y pantalla de receta detallada.
 
 ---
 
@@ -91,21 +93,17 @@ por completo** (deps, `global.css`, `tailwind.config.js`, `nativewind-env.d.ts` 
 
 - `npm run ts:check` → **0 errores** (los nombres de icono se validan contra el glyphmap en tiempo de tipos).
 - **0** referencias a `className` en `src/`.
-- Dependencia añadida: `expo-haptics` (vía `npx expo install`).
-- Pendiente: validación visual en dispositivo antes de fusionar a `main`.
+- Dependencias activas: `expo-haptics`, `expo-notifications`, `react-native-purchases`.
 
 ---
 
-## 7. Cómo comparar / fusionar
+## 7. Próximos componentes UI (F-PIVOT)
 
-```bash
-# Ver diferencias contra main
-git diff main..redesign/native-ui -- frontend/
+| Componente | Pantalla | Descripción |
+|---|---|---|
+| `MicButton` | `PantryScreen` | Botón de micrófono con animación de grabación (entrada por audio) |
+| `CameraButton` | `PantryScreen` | Botón de cámara para foto de nevera |
+| `OnboardingProfileScreen` | `AppNavigator` (gate) | Encuesta inicial de gustos / intolerancias / alergias / comensales |
+| `RecipeDetailScreen` | desde `PantryScreen` | Vista completa de receta: pasos, ingredientes, "Marcar como cocinada" |
 
-# Probar el rediseño
-git checkout redesign/native-ui
-cd frontend && npm install && npm start
-
-# Cuando convenza, fusionar
-git checkout main && git merge redesign/native-ui
-```
+Paleta: la Despensa (verde `pantry`) debe ser visualmente dominante — es la función principal.

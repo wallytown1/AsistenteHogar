@@ -4,7 +4,19 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**Asistente del Hogar IA** — a family household management app with an AI assistant (Gemini 2.5-flash). Single family account model (multi-tenant isolation by `hogar_id` derived from JWT). Language: Spanish throughout (UI, logs, AI responses).
+**Asistente del Hogar IA** — app de cocina familiar centrada en la **generación y sugerencia de recetas mediterráneas españolas tradicionales y de aprovechamiento** a partir del stock real de la despensa. Filosofía gastronómica estricta: sofritos, ingredientes frescos, cocina de temporada; sin fusiones incorrectas.
+
+**Función principal:** recetas basadas en el stock real del hogar.
+**Función secundaria (complemento):** planificación semanal de menús + calendario familiar.
+
+**Tres métodos de entrada de fricción cero:**
+1. **OCR de ticket** — escanea el ticket de la compra con Gemini Vision (implementado, premium).
+2. **Audio NL** — micrófono para micro-ajustes rápidos ("Apunta que he gastado dos huevos") vía Gemini.
+3. **Foto de nevera** — análisis visual de ingredientes visibles, propuesta express con confirmación del usuario.
+
+**Encuesta de onboarding** — perfil inicial (gustos, intolerancias, alergias, nº comensales). El sistema aprende del comportamiento para optimizar las recetas con el uso.
+
+Single family account model (multi-tenant isolation by `hogar_id` derived from JWT). Language: Spanish throughout (UI, logs, AI responses).
 
 Stack: React Native (Expo SDK 54) frontend (UI styled with StyleSheet + design tokens; NativeWind/Tailwind fully removed), FastAPI + SQLAlchemy 2.0 async backend, PostgreSQL (SQLite for dev/tests).
 
@@ -128,6 +140,12 @@ expensive are cached in-process with TTL (briefing 30 min, recipes/meal plan 1�
 SHA-256 hash of the prompt data. When `GEMINI_API_KEY` is absent, all functions return static fallback
 responses — the app works without a key.
 
+**Filosofía gastronómica (restricción de prompts):** todos los prompts de `generate_recipe_suggestions`
+y `generate_meal_plan` deben incluir la instrucción de sistema: cocina mediterránea española tradicional
+y de aprovechamiento, priorizando sofritos, ingredientes frescos y de temporada. Prohibir explícitamente
+fusiones culturales incorrectas (ej. pasta con salsa teriyaki). Esta restricción es no-negociable y debe
+sobrevivir cualquier refactorización de los prompts.
+
 **`_call_gemini` infrastructure**: a single shared `httpx.AsyncClient` (keep-alive pool, closed in the
 app lifespan via `aclose_http_client`), bounded retry with backoff on transient errors (429/5xx/network),
 and `_extract_text` that distinguishes safety blocks / missing candidates / `MAX_TOKENS` truncation.
@@ -201,11 +219,20 @@ Generate a `JWT_SECRET_KEY`: `python -c "import secrets; print(secrets.token_hex
 
 ---
 
-## Next planned phase
+## Next planned phases
 
-**F6 — EAS Build**: production build with EAS, real icons/splash, `expo-notifications` plugin in `app.json`, App Store Connect + Google Play setup. See `ESTADO_ACTUAL.md` for full phase history and `PRODUCCION_CHECKLIST.md` for pre-launch requirements.
+**F-PIVOT — Recetas mediterráneas (prioridad inmediata):**
+- Tabla `perfil_hogar` (migración Alembic): gustos, intolerancias, alergias, nº comensales.
+- `POST /api/v1/onboarding` — guarda el perfil inicial del hogar.
+- Filosofía mediterránea española en los prompts de `generate_recipe_suggestions` / `generate_meal_plan`.
+- `POST /api/v1/pantry/audio` — entrada por voz, Gemini interpreta, devuelve propuesta (IA pasiva).
+- `POST /api/v1/pantry/foto-nevera` — Gemini Vision detecta ingredientes, propuesta con confirmación (premium).
+- Historial de recetas cocinadas (tabla `recetas_historial`) para mejorar sugerencias futuras.
 
-**Completed phases (summary)**: F0–F5, F-IA, F-IA-2, F-UI, F-LEGAL, F-AUDIT, F4 (Freemium/RevenueCat), F-AUDIT2 (server-side premium gate + Railway deploy). See `CHANGELOG.md` for details.
+**F6 — EAS Build** (tras F-PIVOT): production build con EAS, iconos/splash reales, plugin
+`expo-notifications` + permisos de micrófono y cámara en `app.json`, App Store Connect + Google Play.
+
+**Completed phases (summary)**: F0–F5, F-IA, F-IA-2, F-UI, F-LEGAL, F-AUDIT, F4 (Freemium/RevenueCat), F-AUDIT2 (server-side premium gate + Railway deploy), F-OCR, F-AGENDA. See `CHANGELOG.md` for details.
 
 ## graphify
 
