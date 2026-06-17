@@ -32,6 +32,7 @@ import {
   ErrorView,
 } from '../components/ui';
 import { getCategoriaIcon } from '../lib/categoria';
+import { getSemaforoCaducidad } from '../lib/caducidad';
 import { haptics } from '../lib/haptics';
 import { usePurchasesStore } from '../state/purchasesStore';
 import { useNavigation } from '@react-navigation/native';
@@ -43,8 +44,8 @@ type OcrItem = AlimentoInterpretado & { seleccionado: boolean };
 
 function getItemStatus(item: AlimentoItem): { text: string; color: string } {
   const dias = getDiasParaCaducar(item.fecha_caducidad);
-  if (dias !== null && dias <= 0) return { text: 'Caducado', color: colors.danger };
-  if (dias !== null && dias <= 2) return { text: 'Caduca pronto', color: colors.warning };
+  const semaforo = getSemaforoCaducidad(dias);
+  if (semaforo.nivel !== 'fresco') return { text: semaforo.etiqueta, color: semaforo.color };
   if (item.cantidad <= UMBRAL_BAJO_STOCK) return { text: 'Bajo stock', color: colors.danger };
   return { text: 'Stock correcto', color: colors.success };
 }
@@ -475,15 +476,15 @@ export default function PantryScreen() {
           <Card
             style={{ marginBottom: spacing.lg }}
             tint={colors.warningSoft}
-            borderColor="#FBE7BE"
+            borderColor={colors.border}
           >
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 }}>
               <Icon name="cart-outline" size={16} color={colors.warning} />
-              <AppText variant="label" color="#B45309">
+              <AppText variant="label" color={colors.warning}>
                 Recomendaciones de compra
               </AppText>
             </View>
-            <AppText variant="captionStrong" color="#92400E">
+            <AppText variant="captionStrong" color={colors.brandDark}>
               {itemsBajoStock.map((i) => i.nombre).join(', ')}
             </AppText>
           </Card>

@@ -1,61 +1,61 @@
 import { Platform, TextStyle, ViewStyle } from 'react-native';
 
 /**
- * Sistema de diseño "Hogar" — lenguaje visual con color, pensado para sentirse
- * nativo y premium en iOS y Android. Un único punto de verdad para color,
- * tipografía, espaciado, radios y sombras. Ningún componente hardcodea valores.
+ * Sistema de diseño "Tierra Cálida" — paleta mediterránea: marrones tostados,
+ * crema/lino y terracota. Un único punto de verdad para color, tipografía,
+ * espaciado, radios y sombras. Ningún componente hardcodea valores.
  */
 
 export const colors = {
-  // Marca / acción principal
-  brand: '#6366F1',
-  brandDark: '#4F46E5',
-  brandSoft: '#EEF2FF',
+  // Marca / acción principal — marrón arcilla español
+  brand: '#8B5E3C',
+  brandDark: '#6B4429',
+  brandSoft: '#F6EDE3',
 
-  // Superficies
-  bg: '#F5F6FA',
-  card: '#FFFFFF',
-  cardAlt: '#FAFBFD',
+  // Superficies — lino cálido, no gris frío
+  bg: '#FAF7F2',
+  card: '#FFFDF8',
+  cardAlt: '#F9F4EC',
 
-  // Texto
-  ink: '#111827',
-  inkMuted: '#6B7280',
-  inkFaint: '#9CA3AF',
+  // Texto — marrón oscuro (no negro frío)
+  ink: '#2C1C0E',
+  inkMuted: '#7A6045',
+  inkFaint: '#AE9B87',
   onBrand: '#FFFFFF',
 
-  // Líneas
-  border: '#ECEEF3',
-  borderStrong: '#E2E5EC',
+  // Líneas — beige cálido
+  border: '#EAE0D3',
+  borderStrong: '#D9CCBC',
 
-  // Semánticos + su tinte suave
-  success: '#10B981',
-  successSoft: '#ECFDF5',
-  warning: '#F59E0B',
-  warningSoft: '#FFFBEB',
-  danger: '#EF4444',
-  dangerSoft: '#FEF2F2',
-  info: '#3B82F6',
-  infoSoft: '#EFF6FF',
+  // Semánticos — tonos cálidos: verde salvia, ámbar arcilla, rojo terracota
+  success: '#5C8B68',
+  successSoft: '#EBF4EE',
+  warning: '#C8783A',
+  warningSoft: '#FAF0E6',
+  danger: '#B84B2D',
+  dangerSoft: '#FAF0EC',
+  info: '#5E7FA8',
+  infoSoft: '#EEF3F8',
 
-  // Acentos por módulo (categorización visual)
-  home: '#6366F1',
-  homeSoft: '#EEF2FF',
-  pantry: '#059669',
-  pantrySoft: '#ECFDF5',
-  calendar: '#6366F1',
-  calendarSoft: '#EEF2FF',
-  tasks: '#F59E0B',
-  tasksSoft: '#FFFBEB',
+  // Acentos por módulo
+  home: '#8B5E3C',
+  homeSoft: '#F6EDE3',
+  pantry: '#8B5E3C', // despensa = marrón arcilla (unificado con la marca)
+  pantrySoft: '#F6EDE3',
+  calendar: '#8B5E3C',
+  calendarSoft: '#F6EDE3',
+  tasks: '#C8783A', // tareas = ámbar terracota (urgencia cálida)
+  tasksSoft: '#FAF0E6',
 
   // Misc
   white: '#FFFFFF',
-  overlay: 'rgba(17,24,39,0.55)',
-  track: '#EDEFF4',
+  overlay: 'rgba(44,28,14,0.55)', // sombra de overlay marrón oscuro
+  track: '#EAE0D3',
 };
 
 export const spacing = { xs: 4, sm: 8, md: 12, lg: 16, xl: 20, xxl: 24, xxxl: 32 } as const;
 
-export const radius = { sm: 10, md: 14, lg: 18, xl: 22, xxl: 28, pill: 999 } as const;
+export const radius = { sm: 12, md: 16, lg: 20, xl: 24, xxl: 32, pill: 999 } as const;
 
 export const typography: Record<string, TextStyle> = {
   display: { fontSize: 28, fontWeight: '800', letterSpacing: -0.5 },
@@ -71,12 +71,22 @@ export const typography: Record<string, TextStyle> = {
 
 export const shadow = {
   card: (Platform.select({
-    ios: { shadowColor: '#1E2A4A', shadowOpacity: 0.06, shadowRadius: 14, shadowOffset: { width: 0, height: 6 } },
+    ios: {
+      shadowColor: '#3D2B1A',
+      shadowOpacity: 0.07,
+      shadowRadius: 14,
+      shadowOffset: { width: 0, height: 6 },
+    },
     android: { elevation: 2 },
     default: {},
   }) ?? {}) as ViewStyle,
   fab: (Platform.select({
-    ios: { shadowColor: '#4F46E5', shadowOpacity: 0.32, shadowRadius: 12, shadowOffset: { width: 0, height: 8 } },
+    ios: {
+      shadowColor: '#8B5E3C',
+      shadowOpacity: 0.28,
+      shadowRadius: 12,
+      shadowOffset: { width: 0, height: 8 },
+    },
     android: { elevation: 6 },
     default: {},
   }) ?? {}) as ViewStyle,

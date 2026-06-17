@@ -33,8 +33,11 @@ export function Card({
   if (onPress) {
     return (
       <Pressable
-        onPress={() => { haptics.light(); onPress(); }}
-        android_ripple={{ color: 'rgba(99,102,241,0.10)' }}
+        onPress={() => {
+          haptics.light();
+          onPress();
+        }}
+        android_ripple={{ color: 'rgba(139,94,60,0.10)' }}
         style={({ pressed }) => [base, pressed ? { opacity: 0.96 } : null, style]}
       >
         {children}

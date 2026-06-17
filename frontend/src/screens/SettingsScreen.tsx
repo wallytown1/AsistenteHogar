@@ -2,14 +2,7 @@ import React, { useState } from 'react';
 import { View } from 'react-native';
 import { useAuthStore } from '../state/authStore';
 import { colors, radius, spacing } from '../theme/tokens';
-import {
-  Screen,
-  Card,
-  Button,
-  Field,
-  AppText,
-  Icon,
-} from '../components/ui';
+import { Screen, Card, Button, Field, AppText, Icon } from '../components/ui';
 import { haptics } from '../lib/haptics';
 
 /**
@@ -53,19 +46,24 @@ export default function SettingsScreen() {
     }
   };
 
-  const filas: { label: string; value: string; icon: React.ComponentProps<typeof Icon>['name'] }[] = [
-    { label: 'Nombre', value: usuario?.nombre || '—', icon: 'person-outline' },
-    { label: 'Email', value: usuario?.email || '—', icon: 'mail-outline' },
-    { label: 'Hogar', value: hogar?.nombre || '—', icon: 'home-outline' },
-  ];
+  const filas: { label: string; value: string; icon: React.ComponentProps<typeof Icon>['name'] }[] =
+    [
+      { label: 'Nombre', value: usuario?.nombre || '—', icon: 'person-outline' },
+      { label: 'Email', value: usuario?.email || '—', icon: 'mail-outline' },
+      { label: 'Hogar', value: hogar?.nombre || '—', icon: 'home-outline' },
+    ];
 
   return (
     <Screen>
-      <AppText variant="display" style={{ marginBottom: spacing.xl }}>Ajustes</AppText>
+      <AppText variant="display" style={{ marginBottom: spacing.xl }}>
+        Ajustes
+      </AppText>
 
       {/* Tarjeta: Cuenta */}
       <Card style={{ marginBottom: spacing.lg }}>
-        <AppText variant="h2" style={{ marginBottom: spacing.md }}>Cuenta</AppText>
+        <AppText variant="h2" style={{ marginBottom: spacing.md }}>
+          Cuenta
+        </AppText>
         {filas.map((f, i) => (
           <View
             key={f.label}
@@ -78,12 +76,25 @@ export default function SettingsScreen() {
               borderTopColor: colors.border,
             }}
           >
-            <View style={{ width: 34, height: 34, borderRadius: radius.pill, backgroundColor: colors.brandSoft, alignItems: 'center', justifyContent: 'center' }}>
+            <View
+              style={{
+                width: 34,
+                height: 34,
+                borderRadius: radius.pill,
+                backgroundColor: colors.brandSoft,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
               <Icon name={f.icon} size={17} color={colors.brand} />
             </View>
             <View style={{ flex: 1 }}>
-              <AppText variant="label" color={colors.inkFaint}>{f.label}</AppText>
-              <AppText variant="body" numberOfLines={1}>{f.value}</AppText>
+              <AppText variant="label" color={colors.inkFaint}>
+                {f.label}
+              </AppText>
+              <AppText variant="body" numberOfLines={1}>
+                {f.value}
+              </AppText>
             </View>
           </View>
         ))}
@@ -91,8 +102,18 @@ export default function SettingsScreen() {
 
       {/* Tarjeta: Sesión */}
       <Card style={{ marginBottom: spacing.lg }}>
-        <AppText variant="h2" style={{ marginBottom: spacing.md }}>Sesión</AppText>
-        <Button label="Cerrar sesión" icon="log-out-outline" variant="secondary" onPress={() => { haptics.light(); logout(); }} />
+        <AppText variant="h2" style={{ marginBottom: spacing.md }}>
+          Sesión
+        </AppText>
+        <Button
+          label="Cerrar sesión"
+          icon="log-out-outline"
+          variant="secondary"
+          onPress={() => {
+            haptics.light();
+            logout();
+          }}
+        />
         <AppText variant="micro" color={colors.inkMuted} center style={{ marginTop: spacing.sm }}>
           Tus datos se conservan; podrás volver a entrar cuando quieras.
         </AppText>
@@ -100,11 +121,19 @@ export default function SettingsScreen() {
 
       {/* Tarjeta: Zona de peligro */}
       <Card borderColor={colors.dangerSoft} tint={colors.card}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: spacing.sm }}>
+        <View
+          style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: spacing.sm }}
+        >
           <Icon name="warning-outline" size={18} color={colors.danger} />
-          <AppText variant="h2" color={colors.danger}>Zona de peligro</AppText>
+          <AppText variant="h2" color={colors.danger}>
+            Zona de peligro
+          </AppText>
         </View>
-        <AppText variant="caption" color={colors.inkMuted} style={{ lineHeight: 18, marginBottom: spacing.lg }}>
+        <AppText
+          variant="caption"
+          color={colors.inkMuted}
+          style={{ lineHeight: 18, marginBottom: spacing.lg }}
+        >
           Al eliminar la cuenta se destruyen de forma permanente el hogar y todos sus datos:
           usuarios, despensa, tareas y calendario. Esta acción no se puede deshacer.
         </AppText>
@@ -114,25 +143,48 @@ export default function SettingsScreen() {
             label="Eliminar cuenta permanentemente"
             variant="ghost"
             icon="trash-outline"
-            onPress={() => { haptics.warning(); setConfirmando(true); }}
+            onPress={() => {
+              haptics.warning();
+              setConfirmando(true);
+            }}
             style={{ borderColor: colors.danger }}
           />
         ) : (
-          <View style={{ backgroundColor: colors.dangerSoft, borderWidth: 1, borderColor: colors.dangerSoft, borderRadius: radius.lg, padding: spacing.lg }}>
-            <AppText variant="captionStrong" color={colors.danger} style={{ marginBottom: spacing.md, lineHeight: 17 }}>
-              Confirmación irreversible: introduce tu contraseña para eliminar definitivamente la cuenta y todos los datos del hogar.
+          <View
+            style={{
+              backgroundColor: colors.dangerSoft,
+              borderWidth: 1,
+              borderColor: colors.dangerSoft,
+              borderRadius: radius.lg,
+              padding: spacing.lg,
+            }}
+          >
+            <AppText
+              variant="captionStrong"
+              color={colors.danger}
+              style={{ marginBottom: spacing.md, lineHeight: 17 }}
+            >
+              Confirmación irreversible: introduce tu contraseña para eliminar definitivamente la
+              cuenta y todos los datos del hogar.
             </AppText>
             <Field
               placeholder="Contraseña actual"
               secureTextEntry
               autoCapitalize="none"
               value={password}
-              onChangeText={(t: string) => { setPassword(t); setError(null); }}
+              onChangeText={(t: string) => {
+                setPassword(t);
+                setError(null);
+              }}
               editable={!borrando}
               accessibilityLabel="Contraseña actual para confirmar la eliminación"
-              inputStyle={{ backgroundColor: colors.white, borderColor: '#F3C8C8' }}
+              inputStyle={{ backgroundColor: colors.white, borderColor: colors.danger }}
             />
-            {error ? <AppText variant="micro" color={colors.danger} style={{ marginBottom: spacing.sm }}>{error}</AppText> : null}
+            {error ? (
+              <AppText variant="micro" color={colors.danger} style={{ marginBottom: spacing.sm }}>
+                {error}
+              </AppText>
+            ) : null}
             <Button
               label="Confirmar eliminación definitiva"
               variant="danger"
@@ -141,7 +193,12 @@ export default function SettingsScreen() {
               onPress={handleEliminarCuenta}
               style={{ marginBottom: spacing.sm }}
             />
-            <Button label="Cancelar" variant="ghost" onPress={cancelarEliminacion} disabled={borrando} />
+            <Button
+              label="Cancelar"
+              variant="ghost"
+              onPress={cancelarEliminacion}
+              disabled={borrando}
+            />
           </View>
         )}
       </Card>

@@ -8,6 +8,29 @@ Formato: `[FECHA] [ÁREA] [TIPO] Descripción`
 
 ## [2026-06-17] — Pivote estratégico: Recetas mediterráneas españolas
 
+### F-PIVOT #1 — Filosofía mediterránea en prompts LLM (implementado)
+- **ADD** `backend/app/services/llm.py` — constante de módulo `_FILOSOFIA_MEDITERRANEA`
+  (restricción no-negociable, ver `CLAUDE.md`) inyectada en `generate_recipe_suggestions`
+  y `generate_meal_plan`. Cocina mediterránea española tradicional y de aprovechamiento:
+  sofritos, ingredientes frescos y de temporada. Prohíbe explícitamente fusiones impropias
+  (pasta con teriyaki, paella con curry, gazpacho con leche de coco).
+- Fuente única compartida → ambos prompts no pueden desincronizarse. Verificado: import OK,
+  `smoke_test_modules.py` 43/43.
+
+### Rediseño visual — Sistema "Tierra Cálida Mediterránea" (implementado)
+- **MOD** `frontend/src/theme/tokens.ts` — nueva paleta cálida (marrón arcilla `#8B5E3C`,
+  lino `#FAF7F2`, beige, terracota), reemplaza el índigo `#6366F1`. Radios más orgánicos,
+  sombras warm-tinted. Palanca única: cambia el look global sin tocar pantallas.
+- **ADD** `frontend/src/lib/caducidad.ts` — `getSemaforoCaducidad`: semáforo centralizado
+  de 3 niveles (fresco/pronto/urgente), umbrales alineados con backend (≤6 días) y
+  notificaciones (≤3 días). Aplicado en `PantryScreen` y `DashboardScreen`.
+- **FIX** Eliminados todos los colores hardcodeados residuales del sistema índigo viejo:
+  hex en `CalendarScreen`/`SettingsScreen`/`DashboardScreen` → tokens semánticos; ripples
+  Android índigo `rgba(99,102,241,…)` en `Button`/`Chip`/`Card`/`IconButton` → marrón cálido.
+  `grep` de índigo → 0 coincidencias. `ts:check` 0 errores.
+- **ADD** `DESIGN.md` — sistema de diseño documentado (síntesis Mastercard + Airbnb + Notion).
+- **CFG** Skill `mobile-app-design` instalado en `~/.claude/skills/` (reglas RN nativas).
+
 ### Dirección del producto
 - **MOD** Enfoque principal cambiado de "gestión del hogar generalista" a **generación de recetas
   mediterráneas españolas tradicionales y de aprovechamiento** basadas en el stock real de la despensa.

@@ -28,8 +28,15 @@ export function IconButton({
 }: IconButtonProps) {
   return (
     <Pressable
-      onPress={onPress ? () => { haptics.light(); onPress(); } : undefined}
-      android_ripple={{ color: 'rgba(17,24,39,0.12)', borderless: true, radius: diameter / 2 }}
+      onPress={
+        onPress
+          ? () => {
+              haptics.light();
+              onPress();
+            }
+          : undefined
+      }
+      android_ripple={{ color: 'rgba(44,28,14,0.12)', borderless: true, radius: diameter / 2 }}
       hitSlop={6}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}

@@ -22,8 +22,13 @@ export type ButtonProps = {
 
 const palette: Record<Variant, { bg: string; fg: string; border?: string; ripple: string }> = {
   primary: { bg: colors.brand, fg: colors.onBrand, ripple: 'rgba(255,255,255,0.25)' },
-  secondary: { bg: colors.brandSoft, fg: colors.brandDark, ripple: 'rgba(99,102,241,0.18)' },
-  ghost: { bg: 'transparent', fg: colors.ink, border: colors.borderStrong, ripple: 'rgba(17,24,39,0.06)' },
+  secondary: { bg: colors.brandSoft, fg: colors.brandDark, ripple: 'rgba(139,94,60,0.18)' },
+  ghost: {
+    bg: 'transparent',
+    fg: colors.ink,
+    border: colors.borderStrong,
+    ripple: 'rgba(44,28,14,0.06)',
+  },
   danger: { bg: colors.danger, fg: colors.white, ripple: 'rgba(255,255,255,0.25)' },
 };
 
@@ -47,8 +52,8 @@ export function Button({
 }: ButtonProps) {
   const p = palette[variant];
   const s = sizing[size];
-  const blocked = disabled || loading;          // impide el press (carga o deshabilitado)
-  const dimmed = !!disabled && !loading;        // aspecto deshabilitado SOLO si no es carga
+  const blocked = disabled || loading; // impide el press (carga o deshabilitado)
+  const dimmed = !!disabled && !loading; // aspecto deshabilitado SOLO si no es carga
   const fg = dimmed ? colors.inkFaint : p.fg;
 
   const base: ViewStyle = {
@@ -67,7 +72,14 @@ export function Button({
 
   return (
     <Pressable
-      onPress={blocked ? undefined : () => { haptics.light(); onPress?.(); }}
+      onPress={
+        blocked
+          ? undefined
+          : () => {
+              haptics.light();
+              onPress?.();
+            }
+      }
       android_ripple={{ color: p.ripple }}
       disabled={blocked}
       accessibilityRole="button"

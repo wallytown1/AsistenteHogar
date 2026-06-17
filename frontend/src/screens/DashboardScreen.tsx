@@ -4,6 +4,7 @@ import { useDashboard } from '../hooks/useDashboard';
 import { useTasks } from '../hooks/useTasks';
 import { TareaItem } from '../types/types';
 import { getDiasParaCaducar } from '../hooks/usePantry';
+import { getSemaforoCaducidad } from '../lib/caducidad';
 import { useAuthStore } from '../state/authStore';
 import AIDisclaimerBanner from '../components/AIDisclaimerBanner';
 import { colors, radius, spacing } from '../theme/tokens';
@@ -269,12 +270,16 @@ export default function DashboardScreen() {
       </Card>
 
       {/* Tareas pendientes */}
-      <Card tint={colors.tasksSoft} borderColor="#FBE7BE" style={{ marginBottom: spacing.lg }}>
+      <Card
+        tint={colors.tasksSoft}
+        borderColor={colors.border}
+        style={{ marginBottom: spacing.lg }}
+      >
         <View
           style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: spacing.md }}
         >
           <Icon name="flash" size={16} color={colors.tasks} />
-          <AppText variant="captionStrong" color="#B45309">
+          <AppText variant="captionStrong" color={colors.tasks}>
             Tareas pendientes
           </AppText>
         </View>
@@ -300,7 +305,7 @@ export default function DashboardScreen() {
             >
               <AppText
                 variant="caption"
-                color="#92400E"
+                color={colors.tasks}
                 style={{ flex: 1, marginRight: spacing.sm }}
                 numberOfLines={1}
               >
@@ -313,7 +318,7 @@ export default function DashboardScreen() {
                   height: 22,
                   borderRadius: radius.pill,
                   borderWidth: 2,
-                  borderColor: '#FBD38D',
+                  borderColor: colors.border,
                   backgroundColor: colors.white,
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -322,7 +327,7 @@ export default function DashboardScreen() {
             </Pressable>
           ))
         ) : (
-          <AppText variant="caption" color="#92400E">
+          <AppText variant="caption" color={colors.tasks}>
             No hay tareas pendientes. ¡Buen trabajo!
           </AppText>
         )}
@@ -347,7 +352,7 @@ export default function DashboardScreen() {
         {alertas.length > 0 ? (
           alertas.map((item) => {
             const dias = getDiasParaCaducar(item.fecha_caducidad);
-            const isUrgent = dias !== null && dias <= 2;
+            const semaforo = getSemaforoCaducidad(dias);
             return (
               <View
                 key={item.id}
@@ -366,7 +371,7 @@ export default function DashboardScreen() {
                       width: 38,
                       height: 38,
                       borderRadius: radius.md,
-                      backgroundColor: colors.pantrySoft,
+                      backgroundColor: semaforo.colorSoft,
                       alignItems: 'center',
                       justifyContent: 'center',
                     }}
@@ -374,7 +379,7 @@ export default function DashboardScreen() {
                     <FoodIcon
                       name={getCategoriaIcon(item.categoria)}
                       size={20}
-                      color={colors.pantry}
+                      color={semaforo.color}
                     />
                   </View>
                   <View style={{ flex: 1 }}>
@@ -387,14 +392,12 @@ export default function DashboardScreen() {
                     </AppText>
                   </View>
                 </View>
-                {isUrgent ? (
-                  <Badge
-                    label="Usar pronto"
-                    color={colors.danger}
-                    bg={colors.dangerSoft}
-                    icon="time-outline"
-                  />
-                ) : null}
+                <Badge
+                  label={semaforo.etiqueta}
+                  color={semaforo.color}
+                  bg={semaforo.colorSoft}
+                  icon="time-outline"
+                />
               </View>
             );
           })

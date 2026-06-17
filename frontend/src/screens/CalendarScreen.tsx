@@ -54,20 +54,25 @@ type EventoStyle = { bg: string; border: string; fg: string; icon: IconName };
 
 function getEventoStyle(evento: EventoItem, hasConflict: boolean): EventoStyle {
   if (hasConflict)
-    return { bg: colors.dangerSoft, border: '#FBD5D5', fg: colors.danger, icon: 'warning-outline' };
+    return {
+      bg: colors.dangerSoft,
+      border: colors.danger,
+      fg: colors.danger,
+      icon: 'warning-outline',
+    };
   const t = evento.titulo.toLowerCase();
   if (t.includes('médico') || t.includes('dentista') || t.includes('pediatra'))
-    return { bg: colors.infoSoft, border: '#CFE3FB', fg: colors.info, icon: 'medkit-outline' };
+    return { bg: colors.infoSoft, border: colors.info, fg: colors.info, icon: 'medkit-outline' };
   if (t.includes('tarea') || t.includes('basura') || t.includes('limpiar'))
     return {
       bg: colors.successSoft,
-      border: '#C6F0DD',
+      border: colors.success,
       fg: colors.success,
       icon: 'checkbox-outline',
     };
   return {
     bg: colors.calendarSoft,
-    border: '#DADBF7',
+    border: colors.calendar,
     fg: colors.calendar,
     icon: 'calendar-outline',
   };
@@ -509,7 +514,7 @@ export default function CalendarScreen() {
                   style={{
                     backgroundColor: colors.dangerSoft,
                     borderWidth: 1,
-                    borderColor: '#FBD5D5',
+                    borderColor: colors.danger,
                     borderRadius: radius.lg,
                     padding: spacing.md,
                     marginBottom: spacing.sm,
@@ -767,7 +772,7 @@ export default function CalendarScreen() {
               style={{
                 backgroundColor: colors.dangerSoft,
                 borderWidth: 1,
-                borderColor: '#FBD5D5',
+                borderColor: colors.danger,
                 borderRadius: radius.lg,
                 padding: spacing.md,
                 marginBottom: spacing.lg,

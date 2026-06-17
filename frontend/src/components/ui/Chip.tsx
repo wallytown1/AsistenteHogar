@@ -15,11 +15,25 @@ export type ChipProps = {
 };
 
 /** Pastilla de filtro/selección con estado activo. */
-export function Chip({ label, active, onPress, icon, activeColor = colors.brand, flex }: ChipProps) {
+export function Chip({
+  label,
+  active,
+  onPress,
+  icon,
+  activeColor = colors.brand,
+  flex,
+}: ChipProps) {
   return (
     <Pressable
-      onPress={onPress ? () => { haptics.selection(); onPress(); } : undefined}
-      android_ripple={{ color: 'rgba(99,102,241,0.15)' }}
+      onPress={
+        onPress
+          ? () => {
+              haptics.selection();
+              onPress();
+            }
+          : undefined
+      }
+      android_ripple={{ color: 'rgba(139,94,60,0.15)' }}
       style={({ pressed }) => [
         {
           flexDirection: 'row',

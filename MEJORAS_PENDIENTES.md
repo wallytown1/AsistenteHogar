@@ -7,13 +7,10 @@ Ordenadas por prioridad. Las completadas se registran en `CHANGELOG.md`.
 
 ## 🔴 F-PIVOT — Alta prioridad (bloquean el nuevo enfoque)
 
-### #1 — Filosofía mediterránea española en prompts LLM
-`backend/app/services/llm.py` — `generate_recipe_suggestions` y `generate_meal_plan`.
-Añadir instrucción de sistema fija:
-> "Eres un chef especializado en cocina mediterránea española tradicional y de aprovechamiento.
-> Prioriza sofritos, ingredientes frescos y de temporada. Evita fusiones culturales incorrectas.
-> Usa solo ingredientes del inventario del usuario."
-**Esfuerzo:** Bajo (modificar los prompts existentes).
+### #1 — Filosofía mediterránea española en prompts LLM ✅ COMPLETADO (2026-06-17)
+`backend/app/services/llm.py` — constante `_FILOSOFIA_MEDITERRANEA` inyectada en
+`generate_recipe_suggestions` y `generate_meal_plan`. Fuente única para que ambos prompts
+no se desincronicen y la restricción sobreviva refactorizaciones. Ver `CHANGELOG.md`.
 
 ### #2 — Perfil de hogar (onboarding)
 Nueva tabla `perfil_hogar` (Alembic migration): `gustos_culinarios[]`, `intolerancias[]`,

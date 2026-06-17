@@ -450,6 +450,22 @@ _RECETAS_RESPONSE_SCHEMA = {
 }
 
 
+# Filosofía gastronómica: restricción NO-NEGOCIABLE de prompts (ver CLAUDE.md).
+# Debe inyectarse en generate_recipe_suggestions y generate_meal_plan, y sobrevivir
+# cualquier refactorización de los prompts. No eliminar ni suavizar.
+_FILOSOFIA_MEDITERRANEA = (
+    "FILOSOFÍA GASTRONÓMICA (obligatoria e innegociable):\n"
+    "- Cocina mediterránea española tradicional y de aprovechamiento.\n"
+    "- Prioriza sofritos, ingredientes frescos y productos de temporada.\n"
+    "- Platos caseros y honestos: guisos, potajes, arroces, tortillas, legumbres, "
+    "verduras de temporada, pescado y carne a la plancha, sopas y cremas.\n"
+    "- PROHIBIDO mezclar culturas culinarias de forma incorrecta o hacer fusiones "
+    "impropias (p. ej. pasta con salsa teriyaki, paella con curry, gazpacho con "
+    "leche de coco). Nada de fusiones asiáticas, americanas ni experimentales: "
+    "únicamente tradición mediterránea española.\n"
+)
+
+
 async def generate_recipe_suggestions(
     items: list[InventarioAlimentoResponse],
     alertas_caducidad: list[InventarioAlimentoResponse],
@@ -486,6 +502,7 @@ async def generate_recipe_suggestions(
     system_instruction = (
         "Eres el chef asistente de un hogar en España. A partir del inventario real de la "
         "despensa, sugiere entre 1 y 3 recetas caseras sencillas en español.\n"
+        f"{_FILOSOFIA_MEDITERRANEA}"
         "Reglas estrictas:\n"
         "- Usa únicamente ingredientes del inventario proporcionado (más básicos universales: agua, sal, aceite, pimienta).\n"
         "- Prioriza recetas que aprovechen los alimentos que caducan pronto.\n"
@@ -946,6 +963,7 @@ async def generate_meal_plan(
     system_instruction = (
         "Eres el planificador de comidas de un hogar en España. A partir del inventario real de la "
         "despensa, propón un plan semanal de 7 días (lunes a domingo) con comida y cena.\n"
+        f"{_FILOSOFIA_MEDITERRANEA}"
         "Reglas estrictas:\n"
         "- Usa preferentemente ingredientes del inventario (más básicos universales: agua, sal, aceite).\n"
         "- Prioriza en los primeros días los alimentos que caducan pronto.\n"
