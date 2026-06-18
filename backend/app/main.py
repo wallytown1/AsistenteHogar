@@ -16,6 +16,9 @@ load_dotenv()
 
 # Importar routers
 from app.api.routers import (
+    admin_auth,
+    admin_prompts,
+    admin_recetario,
     auth,
     dashboard,
     historial,
@@ -202,6 +205,9 @@ app.include_router(dashboard.router, prefix="/api/v1")
 app.include_router(pantry.router, prefix="/api/v1")
 app.include_router(onboarding.router, prefix="/api/v1")
 app.include_router(historial.router, prefix="/api/v1")
+app.include_router(admin_auth.router, prefix="/api/v1")
+app.include_router(admin_prompts.router, prefix="/api/v1")
+app.include_router(admin_recetario.router, prefix="/api/v1")
 
 
 @app.get("/health", tags=["Health"])

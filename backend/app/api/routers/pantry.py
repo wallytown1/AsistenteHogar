@@ -8,6 +8,7 @@ from app.api.deps import (
     get_hogar_id,
     get_onboarding_service,
     get_pantry_service,
+    get_prompt_config_service,
     requiere_premium,
 )
 from app.core.rate_limit import (
@@ -47,6 +48,7 @@ from app.services.llm import (
 )
 from app.services.onboarding import OnboardingService
 from app.services.pantry import PantryService
+from app.services.prompt_config import PromptConfigService
 
 router = APIRouter(tags=["Pantry"])
 
@@ -70,6 +72,7 @@ async def get_recetas_sugeridas(
     pantry_service: PantryService = Depends(get_pantry_service),
     onboarding_service: OnboardingService = Depends(get_onboarding_service),
     historial_service: RecetaHistorialService = Depends(get_historial_service),
+    prompt_config: PromptConfigService = Depends(get_prompt_config_service),
 ) -> RecetasSugeridasResponse:
     """Sugiere recetas con IA a partir del inventario real de la despensa del Hogar,
     priorizando los alimentos próximos a caducar y personalizando según el perfil del
@@ -78,7 +81,7 @@ async def get_recetas_sugeridas(
     perfil = await onboarding_service.get_perfil(hogar_id)
     historial = await historial_service.get_historial(hogar_id)
     return await generate_recipe_suggestions(
-        metrics.items, metrics.alertas_caducidad, perfil, historial
+        metrics.items, metrics.alertas_caducidad, perfil, historial, prompt_config
     )
 
 
@@ -91,13 +94,16 @@ async def get_plan_comidas(
     hogar_id: uuid.UUID = Depends(get_hogar_id),
     pantry_service: PantryService = Depends(get_pantry_service),
     onboarding_service: OnboardingService = Depends(get_onboarding_service),
+    prompt_config: PromptConfigService = Depends(get_prompt_config_service),
 ) -> PlanComidasResponse:
     """Genera un plan de comidas semanal con IA a partir de la despensa real,
     priorizando lo que caduca pronto y personalizando según el perfil del hogar.
     IA pasiva: solo sugiere."""
     metrics = await pantry_service.get_stock_metrics(hogar_id)
     perfil = await onboarding_service.get_perfil(hogar_id)
-    return await generate_meal_plan(metrics.items, metrics.alertas_caducidad, perfil)
+    return await generate_meal_plan(
+        metrics.items, metrics.alertas_caducidad, perfil, prompt_config
+    )
 
 
 @router.get(
@@ -114,6 +120,7 @@ async def get_sugerencias(
     pantry_service: PantryService = Depends(get_pantry_service),
     onboarding_service: OnboardingService = Depends(get_onboarding_service),
     historial_service: RecetaHistorialService = Depends(get_historial_service),
+    prompt_config: PromptConfigService = Depends(get_prompt_config_service),
 ) -> SugerenciasResponse:
     """Devuelve recetas sugeridas y plan de comidas en una sola llamada (asyncio.gather),
     personalizadas según el perfil del hogar e historial de comportamiento. Reutiliza
@@ -123,9 +130,11 @@ async def get_sugerencias(
     historial = await historial_service.get_historial(hogar_id)
     recetas_res, plan_res = await asyncio.gather(
         generate_recipe_suggestions(
-            metrics.items, metrics.alertas_caducidad, perfil, historial
+            metrics.items, metrics.alertas_caducidad, perfil, historial, prompt_config
         ),
-        generate_meal_plan(metrics.items, metrics.alertas_caducidad, perfil),
+        generate_meal_plan(
+            metrics.items, metrics.alertas_caducidad, perfil, prompt_config
+        ),
     )
     return SugerenciasResponse(recetas=recetas_res, plan_comidas=plan_res)
 

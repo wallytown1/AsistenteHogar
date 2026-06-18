@@ -5,18 +5,23 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core import config as core_config
 from app.core.security import decode_access_token
 from app.database import get_async_session
-from app.models.models import Usuario
+from app.models.models import AdminUser, Usuario
+from app.repositories.admin_user import AdminUserRepository
 from app.repositories.historial import RecetaHistorialRepository
 from app.repositories.pantry import PantryRepository
 from app.repositories.perfil import PerfilHogarRepository
+from app.repositories.prompt_template import PromptTemplateRepository
 from app.repositories.user import UserRepository
+from app.services.admin_auth import AdminAuthService
 from app.services.auth import AuthService
 from app.services.dashboard import DashboardService
 from app.services.historial import RecetaHistorialService
 from app.services.onboarding import OnboardingService
 from app.services.pantry import PantryService
+from app.services.prompt_config import PromptConfigService
 
 # Esquema Bearer: auto_error=False para emitir nuestros propios mensajes 401 en español
 bearer_scheme = HTTPBearer(auto_error=False)
@@ -126,3 +131,75 @@ async def get_historial_service(
 ) -> RecetaHistorialService:
     """Provee una instancia de RecetaHistorialService inyectando su repositorio asíncrono."""
     return RecetaHistorialService(RecetaHistorialRepository(session))
+
+
+# --- ADMIN ---
+
+admin_bearer_scheme = HTTPBearer(auto_error=False)
+
+
+async def get_current_admin(
+    credentials: HTTPAuthorizationCredentials = Depends(admin_bearer_scheme),
+    session: AsyncSession = Depends(get_async_session),
+) -> AdminUser:
+    """Valida un JWT de admin (firmado con ADMIN_JWT_SECRET_KEY, role=='admin').
+    Completamente separado de los tokens familiares — ningún token familiar puede
+    acceder a rutas de admin y viceversa."""
+    unauthorized_headers = {"WWW-Authenticate": "Bearer"}
+
+    if not core_config.ADMIN_JWT_SECRET_KEY:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="El panel de administración no está configurado en este servidor.",
+        )
+
+    if credentials is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Se requiere autenticación de administrador.",
+            headers=unauthorized_headers,
+        )
+
+    try:
+        payload = jwt.decode(
+            credentials.credentials,
+            core_config.ADMIN_JWT_SECRET_KEY,
+            algorithms=[core_config.JWT_ALGORITHM],
+        )
+        if payload.get("role") != "admin":
+            raise ValueError("role != admin")
+        admin_id = uuid.UUID(payload["sub"])
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="La sesión de administrador ha expirado.",
+            headers=unauthorized_headers,
+        ) from None
+    except (jwt.PyJWTError, KeyError, ValueError):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token de administrador inválido.",
+            headers=unauthorized_headers,
+        ) from None
+
+    repo = AdminUserRepository(session)
+    admin = await repo.get_by_id(admin_id)
+    if admin is None or not admin.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Cuenta de administrador no encontrada o desactivada.",
+            headers=unauthorized_headers,
+        )
+    return admin
+
+
+async def get_admin_auth_service(
+    session: AsyncSession = Depends(get_async_session),
+) -> AdminAuthService:
+    return AdminAuthService(AdminUserRepository(session))
+
+
+async def get_prompt_config_service(
+    session: AsyncSession = Depends(get_async_session),
+) -> PromptConfigService:
+    return PromptConfigService(PromptTemplateRepository(session))

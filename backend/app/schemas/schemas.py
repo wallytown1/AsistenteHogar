@@ -418,3 +418,100 @@ class TicketOcrResponse(BaseSchema):
     mensaje: str | None = Field(
         None, description="Motivo cuando no se pudo extraer la información"
     )
+
+
+# --- ADMIN AUTH ---
+
+
+class AdminLoginRequest(BaseSchema):
+    email: EmailStr
+    password: str = Field(..., min_length=1, max_length=72)
+
+
+class AdminBootstrapRequest(BaseSchema):
+    email: EmailStr
+    password: str = Field(..., min_length=8, max_length=72)
+    nombre: str = Field(..., min_length=2, max_length=100)
+    bootstrap_token: str = Field(..., min_length=1)
+
+
+class _AdminInfo(BaseSchema):
+    id: UUID
+    email: str
+    nombre: str
+
+
+class AdminTokenResponse(BaseSchema):
+    access_token: str
+    token_type: str = "bearer"
+    admin: _AdminInfo
+
+
+# --- PROMPT TEMPLATES ---
+
+
+class PromptTemplateUpdate(BaseSchema):
+    system_instruction: str | None = Field(None, min_length=10, max_length=8000)
+    activo: bool | None = None
+
+
+class PromptTemplateResponse(BaseSchema):
+    id: UUID
+    clave: str
+    system_instruction: str
+    activo: bool
+    version: int
+    updated_at: datetime
+
+
+# --- RECETARIO MAESTRO ---
+
+
+class RecetaMaestraCreate(BaseSchema):
+    nombre: str = Field(..., min_length=2, max_length=200)
+    ingredientes: list[str] = Field(..., min_length=1)
+    pasos: list[str] = Field(..., min_length=1)
+    categoria: str = Field(..., min_length=2, max_length=50)
+    temporada: str | None = Field(None, max_length=50)
+    aprovechamiento: bool = False
+
+    @field_validator("ingredientes", "pasos")
+    @classmethod
+    def no_vacios(cls, v: list[str]) -> list[str]:
+        limpio = [x.strip() for x in v if x.strip()]
+        if not limpio:
+            raise ValueError("La lista no puede estar vacía")
+        return limpio
+
+
+class RecetaMaestraUpdate(BaseSchema):
+    nombre: str | None = Field(None, min_length=2, max_length=200)
+    ingredientes: list[str] | None = None
+    pasos: list[str] | None = None
+    categoria: str | None = Field(None, min_length=2, max_length=50)
+    temporada: str | None = Field(None, max_length=50)
+    aprovechamiento: bool | None = None
+    activa: bool | None = None
+
+    @field_validator("ingredientes", "pasos")
+    @classmethod
+    def no_vacios_update(cls, v: list[str] | None) -> list[str] | None:
+        if v is None:
+            return v
+        limpio = [x.strip() for x in v if x.strip()]
+        if not limpio:
+            raise ValueError("La lista no puede estar vacía")
+        return limpio
+
+
+class RecetaMaestraResponse(BaseSchema):
+    id: UUID
+    nombre: str
+    ingredientes: list[str]
+    pasos: list[str]
+    categoria: str
+    temporada: str | None
+    aprovechamiento: bool
+    activa: bool
+    created_at: datetime
+    updated_at: datetime

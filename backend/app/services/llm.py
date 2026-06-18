@@ -4,7 +4,10 @@ import hashlib
 import json
 import logging
 import time
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from app.services.prompt_config import PromptConfigService
 
 import httpx
 
@@ -416,11 +419,25 @@ def _bloque_historial(historial: list[RecetaHistorialResponse] | None) -> str:
     return "Historial del hogar:\n" + "\n".join(lineas) + "\n"
 
 
+_DEFAULT_RECETAS = (
+    "Eres el chef asistente de un hogar en España. A partir del inventario real de la "
+    "despensa, sugiere entre 1 y 3 recetas caseras sencillas en español.\n"
+    "Reglas estrictas:\n"
+    "- Usa únicamente ingredientes del inventario proporcionado (más básicos universales: agua, sal, aceite, pimienta).\n"
+    "- Prioriza recetas que aprovechen los alimentos que caducan pronto.\n"
+    "- 'ingredientes_usados' solo puede contener nombres que aparezcan en el inventario.\n"
+    "- 'pasos': máximo 5 pasos breves por receta.\n"
+    "- 'tiempo_min': tiempo realista de preparación en minutos.\n"
+    "- Si el inventario es insuficiente para una receta digna, devuelve un array vacío []."
+)
+
+
 async def generate_recipe_suggestions(
     items: list[InventarioAlimentoResponse],
     alertas_caducidad: list[InventarioAlimentoResponse],
     perfil: PerfilHogarResponse | None = None,
     historial: list[RecetaHistorialResponse] | None = None,
+    prompt_config: "PromptConfigService | None" = None,
 ) -> RecetasSugeridasResponse:
     """Sugiere hasta 3 recetas a partir de la despensa del hogar, priorizando los
     alimentos a punto de caducar. IA pasiva: solo sugiere, nunca modifica datos."""
@@ -453,18 +470,12 @@ async def generate_recipe_suggestions(
     if cached is not None:
         return RecetasSugeridasResponse.model_validate(cached)
 
-    system_instruction = (
-        "Eres el chef asistente de un hogar en España. A partir del inventario real de la "
-        "despensa, sugiere entre 1 y 3 recetas caseras sencillas en español.\n"
-        f"{_FILOSOFIA_MEDITERRANEA}"
-        "Reglas estrictas:\n"
-        "- Usa únicamente ingredientes del inventario proporcionado (más básicos universales: agua, sal, aceite, pimienta).\n"
-        "- Prioriza recetas que aprovechen los alimentos que caducan pronto.\n"
-        "- 'ingredientes_usados' solo puede contener nombres que aparezcan en el inventario.\n"
-        "- 'pasos': máximo 5 pasos breves por receta.\n"
-        "- 'tiempo_min': tiempo realista de preparación en minutos.\n"
-        "- Si el inventario es insuficiente para una receta digna, devuelve un array vacío []."
-    )
+    if prompt_config is not None:
+        system_instruction = await prompt_config.get_system_instruction(
+            "recetas", _DEFAULT_RECETAS
+        )
+    else:
+        system_instruction = _DEFAULT_RECETAS + "\n\n" + _FILOSOFIA_MEDITERRANEA
 
     texto = await _call_gemini(
         system_instruction,
@@ -720,10 +731,22 @@ _PLAN_RESPONSE_SCHEMA = {
 PLAN_CACHE_TTL = 2 * 60 * 60  # 2 horas
 
 
+_DEFAULT_PLAN = (
+    "Eres el planificador de comidas de un hogar en España. A partir del inventario real de la "
+    "despensa, propón un plan semanal de 7 días (lunes a domingo) con comida y cena.\n"
+    "Reglas estrictas:\n"
+    "- Usa preferentemente ingredientes del inventario (más básicos universales: agua, sal, aceite).\n"
+    "- Prioriza en los primeros días los alimentos que caducan pronto.\n"
+    "- 'comida' y 'cena': nombre breve del plato, no la receta completa.\n"
+    "- Devuelve exactamente 7 objetos, uno por día, en orden de lunes a domingo."
+)
+
+
 async def generate_meal_plan(
     items: list[InventarioAlimentoResponse],
     alertas_caducidad: list[InventarioAlimentoResponse],
     perfil: PerfilHogarResponse | None = None,
+    prompt_config: "PromptConfigService | None" = None,
 ) -> PlanComidasResponse:
     """Genera un plan de comidas semanal (comida + cena) aprovechando la despensa,
     priorizando lo que caduca pronto. IA pasiva: solo sugiere. Cacheado 2 h."""
@@ -754,16 +777,12 @@ async def generate_meal_plan(
     if cached is not None:
         return PlanComidasResponse.model_validate(cached)
 
-    system_instruction = (
-        "Eres el planificador de comidas de un hogar en España. A partir del inventario real de la "
-        "despensa, propón un plan semanal de 7 días (lunes a domingo) con comida y cena.\n"
-        f"{_FILOSOFIA_MEDITERRANEA}"
-        "Reglas estrictas:\n"
-        "- Usa preferentemente ingredientes del inventario (más básicos universales: agua, sal, aceite).\n"
-        "- Prioriza en los primeros días los alimentos que caducan pronto.\n"
-        "- 'comida' y 'cena': nombre breve del plato, no la receta completa.\n"
-        "- Devuelve exactamente 7 objetos, uno por día, en orden de lunes a domingo."
-    )
+    if prompt_config is not None:
+        system_instruction = await prompt_config.get_system_instruction(
+            "plan_comidas", _DEFAULT_PLAN
+        )
+    else:
+        system_instruction = _DEFAULT_PLAN + "\n\n" + _FILOSOFIA_MEDITERRANEA
 
     texto = await _call_gemini(
         system_instruction,

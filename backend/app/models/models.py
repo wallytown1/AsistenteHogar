@@ -267,3 +267,78 @@ class RecetaHistorial(Base):
     )
 
     hogar: Mapped["Hogar"] = relationship("Hogar", back_populates="historial_recetas")
+
+
+class AdminUser(Base):
+    """Usuario del panel de administración. Global (sin hogar_id).
+    JWT firmado con ADMIN_JWT_SECRET_KEY, completamente separado de los JWT familiares."""
+
+    __tablename__ = "admin_users"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID_TYPE, primary_key=True, default=uuid.uuid4
+    )
+    email: Mapped[str] = mapped_column(
+        String(255), nullable=False, unique=True, index=True
+    )
+    hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
+    nombre: Mapped[str] = mapped_column(String(100), nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    created_at: Mapped[datetime] = mapped_column(
+        TZDateTime, nullable=False, server_default=utcnow()
+    )
+
+
+class PromptTemplate(Base):
+    """Plantilla de system instruction editable desde el panel admin.
+    La clave identifica el prompt (ej. 'recetas', 'plan_comidas').
+    PromptConfigService siempre añade _FILOSOFIA_MEDITERRANEA al resultado final."""
+
+    __tablename__ = "prompt_templates"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID_TYPE, primary_key=True, default=uuid.uuid4
+    )
+    clave: Mapped[str] = mapped_column(
+        String(50), nullable=False, unique=True, index=True
+    )
+    system_instruction: Mapped[str] = mapped_column(String(8000), nullable=False)
+    activo: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    updated_at: Mapped[datetime] = mapped_column(
+        TZDateTime,
+        nullable=False,
+        server_default=utcnow(),
+        onupdate=lambda: datetime.now(UTC),
+    )
+
+
+class RecetaMaestra(Base):
+    """Receta mediterránea española del catálogo maestro. Global (sin hogar_id).
+    Hard delete autorizado: no contiene datos personales."""
+
+    __tablename__ = "recetario_maestro"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID_TYPE, primary_key=True, default=uuid.uuid4
+    )
+    nombre: Mapped[str] = mapped_column(
+        String(200), nullable=False, unique=True, index=True
+    )
+    ingredientes: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    pasos: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    categoria: Mapped[str] = mapped_column(String(50), nullable=False)
+    temporada: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    aprovechamiento: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False
+    )
+    activa: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    created_at: Mapped[datetime] = mapped_column(
+        TZDateTime, nullable=False, server_default=utcnow()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        TZDateTime,
+        nullable=False,
+        server_default=utcnow(),
+        onupdate=lambda: datetime.now(UTC),
+    )

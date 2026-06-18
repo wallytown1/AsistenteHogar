@@ -15,6 +15,11 @@ __pycache__/
 frontend/node_modules/
 frontend/.expo/
 
+# Admin panel (Next.js)
+admin-web/node_modules/
+admin-web/.next/
+admin-web/.env.local
+
 # IDE y sistema
 .vscode/*.log
 Thumbs.db

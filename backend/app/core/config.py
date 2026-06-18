@@ -49,3 +49,12 @@ REDIS_URL = os.getenv("REDIS_URL")
 REVENUECAT_SECRET_KEY = os.getenv("REVENUECAT_SECRET_KEY")
 # Identificador del entitlement premium configurado en RevenueCat.
 REVENUECAT_ENTITLEMENT = os.getenv("REVENUECAT_ENTITLEMENT", "premium")
+
+# Panel de administración. JWT firmado con una clave SEPARADA del JWT familiar
+# para que los tokens de admin y los de usuarios del hogar no sean intercambiables.
+# Si ADMIN_JWT_SECRET_KEY no está definida, los endpoints /admin/* devuelven 503.
+ADMIN_JWT_SECRET_KEY: str | None = os.getenv("ADMIN_JWT_SECRET_KEY")
+ADMIN_JWT_EXPIRE_MINUTES: int = int(os.getenv("ADMIN_JWT_EXPIRE_MINUTES", "480"))
+# Token de un solo uso para crear el primer admin (bootstrap). Desactivado si no
+# está definido (501). Después del primer admin se recomienda borrar esta variable.
+ADMIN_BOOTSTRAP_TOKEN: str | None = os.getenv("ADMIN_BOOTSTRAP_TOKEN")
