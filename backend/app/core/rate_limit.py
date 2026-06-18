@@ -148,3 +148,6 @@ metadata_rate_limiter = RateLimiter(max_requests=40, window_seconds=300)  # 40 /
 plan_comidas_rate_limiter = RateLimiter(
     max_requests=10, window_seconds=3600
 )  # 10 / hora
+foto_nevera_rate_limiter = RateLimiter(
+    max_requests=10, window_seconds=3600
+)  # 10 / hora (Vision es más costosa)

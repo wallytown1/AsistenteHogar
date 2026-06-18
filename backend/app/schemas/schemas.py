@@ -628,6 +628,32 @@ class RecetaHistorialResponse(BaseSchema):
     created_at: datetime
 
 
+# --- FOTO DE NEVERA (IA VISION) ---
+
+
+class FotoNeveraRequest(BaseSchema):
+    imagen_base64: str = Field(
+        ..., description="Imagen de la nevera o despensa codificada en Base64"
+    )
+    fecha_referencia: date = Field(
+        ..., description="Fecha actual del dispositivo para estimar caducidades"
+    )
+
+
+class FotoNeveraResponse(BaseSchema):
+    alimentos: list[AlimentoInterpretado] = Field(
+        default_factory=list,
+        description="Ingredientes detectados visualmente (el usuario los confirma)",
+    )
+    sugerencias_rapidas: list[str] = Field(
+        default_factory=list,
+        description="Nombres de recetas express posibles con los ingredientes visibles",
+    )
+    mensaje: str | None = Field(
+        None, description="Motivo cuando no se pudieron detectar ingredientes"
+    )
+
+
 # --- OCR DE TICKETS DE COMPRA (IA) ---
 
 

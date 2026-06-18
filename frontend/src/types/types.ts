@@ -65,6 +65,12 @@ export interface PantryStockMetrics {
   items: AlimentoItem[];
 }
 
+export interface FotoNeveraResponse {
+  alimentos: AlimentoInterpretado[];
+  sugerencias_rapidas: string[];
+  mensaje: string | null;
+}
+
 export interface RecetaHistorial {
   id: string;
   hogar_id: string;

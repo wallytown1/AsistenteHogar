@@ -12,12 +12,15 @@ from app.api.deps import (
 )
 from app.core.rate_limit import (
     audio_rate_limiter,
+    foto_nevera_rate_limiter,
     interpretar_rate_limiter,
     metadata_rate_limiter,
     plan_comidas_rate_limiter,
     recetas_rate_limiter,
 )
 from app.schemas.schemas import (
+    FotoNeveraRequest,
+    FotoNeveraResponse,
     InterpretarDespensaRequest,
     InterpretarDespensaResponse,
     InventarioAlimentoCreate,
@@ -34,6 +37,7 @@ from app.schemas.schemas import (
 )
 from app.services.historial import RecetaHistorialService
 from app.services.llm import (
+    analyze_fridge_photo,
     generate_meal_plan,
     generate_recipe_suggestions,
     interpret_pantry_audio,
@@ -188,6 +192,21 @@ async def ocr_ticket_compra(
 ) -> TicketOcrResponse:
     """Procesa una imagen en Base64 de un ticket de compra usando Gemini Vision y devuelve una lista de productos propuestos."""
     return await process_receipt_ocr(schema.imagen_base64, schema.fecha_referencia)
+
+
+@router.post(
+    "/pantry/foto-nevera",
+    response_model=FotoNeveraResponse,
+    dependencies=[Depends(requiere_premium), Depends(foto_nevera_rate_limiter)],
+)
+async def analizar_foto_nevera(
+    schema: FotoNeveraRequest,
+    hogar_id: uuid.UUID = Depends(get_hogar_id),
+) -> FotoNeveraResponse:
+    """Analiza una foto de nevera o despensa con Gemini Vision e identifica los
+    ingredientes visibles. Devuelve propuesta de alimentos para confirmación y
+    sugerencias de recetas express. IA pasiva: nunca añade nada directamente."""
+    return await analyze_fridge_photo(schema.imagen_base64, schema.fecha_referencia)
 
 
 @router.post(

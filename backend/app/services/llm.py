@@ -15,6 +15,7 @@ from app.schemas.schemas import (
     DashboardUnifiedContext,
     DiaPlanComidas,
     EventoInterpretado,
+    FotoNeveraResponse,
     InterpretarDespensaResponse,
     InterpretarEventoResponse,
     InterpretarTareaResponse,
@@ -1134,4 +1135,123 @@ async def process_receipt_ocr(
         logger.error(f"Error parseando OCR de ticket: {e}")
         return TicketOcrResponse(
             alimentos=[], mensaje="Error interno procesando el ticket."
+        )
+
+
+# --- Análisis de foto de nevera (Gemini Vision) ---
+
+_FOTO_NEVERA_RESPONSE_SCHEMA = {
+    "type": "OBJECT",
+    "properties": {
+        "alimentos": {
+            "type": "ARRAY",
+            "items": {
+                "type": "OBJECT",
+                "properties": {
+                    "nombre": {"type": "STRING"},
+                    "cantidad": {"type": "NUMBER"},
+                    "unidad": {"type": "STRING"},
+                    "categoria": {"type": "STRING"},
+                    "fecha_caducidad": {"type": "STRING"},
+                },
+                "required": [
+                    "nombre",
+                    "cantidad",
+                    "unidad",
+                    "categoria",
+                    "fecha_caducidad",
+                ],
+            },
+        },
+        "sugerencias_rapidas": {
+            "type": "ARRAY",
+            "items": {"type": "STRING"},
+        },
+    },
+    "required": ["alimentos", "sugerencias_rapidas"],
+}
+
+
+async def analyze_fridge_photo(
+    imagen_base64: str, fecha_referencia: datetime.date
+) -> FotoNeveraResponse:
+    """Analiza una foto de nevera o despensa con Gemini Vision e identifica los
+    ingredientes visibles. Devuelve propuesta de alimentos y sugerencias de recetas
+    express. IA pasiva: el usuario confirma cada ingrediente antes de añadirlo."""
+    if not GEMINI_API_KEY:
+        return FotoNeveraResponse(
+            alimentos=[],
+            sugerencias_rapidas=[],
+            mensaje="Gemini AI no configurado. Función de foto de nevera deshabilitada.",
+        )
+
+    system_instruction = (
+        "Eres el asistente de despensa de un hogar en España. Analiza la foto de la nevera "
+        "o despensa y extrae los ingredientes o alimentos que se ven con claridad.\n"
+        f"Fecha actual de referencia: {fecha_referencia.isoformat()}\n"
+        "Para cada alimento visible:\n"
+        "1. Nombre descriptivo en español (ej: 'Huevos', 'Leche semidesnatada', 'Pimiento rojo').\n"
+        "2. Cantidad estimada visible y unidad (ej: 6 unidades, 1 litro, 200 gramos).\n"
+        "3. Categoría (Lácteos, Huevos, Frutas, Verduras, Carnes, Bebidas, Despensa, etc.).\n"
+        "4. fecha_caducidad: estima una fecha realista si el producto tiene vida corta; "
+        "cadena vacía si es indefinida o no visible.\n"
+        "5. En 'sugerencias_rapidas': hasta 3 nombres de recetas sencillas mediterráneas "
+        "que se podrían hacer con lo que se ve (solo nombres, sin detalles).\n"
+        "Si la imagen no muestra alimentos o es ilegible, devuelve alimentos=[] y "
+        "sugerencias_rapidas=[]."
+    )
+
+    user_prompt = "Aquí tienes la foto de mi nevera/despensa. Identifica los ingredientes visibles."
+
+    start_time = time.time()
+    try:
+        raw_json = await _call_gemini(
+            system_instruction=system_instruction,
+            user_prompt=user_prompt,
+            response_schema=_FOTO_NEVERA_RESPONSE_SCHEMA,
+            timeout=30.0,
+            image_base64=imagen_base64,
+        )
+        if not raw_json:
+            return FotoNeveraResponse(
+                alimentos=[],
+                sugerencias_rapidas=[],
+                mensaje="No se pudo procesar la imagen. Intenta con una foto más clara.",
+            )
+
+        data = json.loads(raw_json)
+        alimentos = [
+            AlimentoInterpretado(**item)
+            for item in data.get("alimentos", [])
+            if isinstance(item, dict)
+        ]
+        sugerencias_rapidas = [
+            s
+            for s in data.get("sugerencias_rapidas", [])
+            if isinstance(s, str) and s.strip()
+        ][:3]
+
+        logger.info(
+            f"Foto nevera procesada en {time.time() - start_time:.2f}s. "
+            f"{len(alimentos)} ingredientes, {len(sugerencias_rapidas)} sugerencias."
+        )
+        return FotoNeveraResponse(
+            alimentos=alimentos, sugerencias_rapidas=sugerencias_rapidas
+        )
+
+    except json.JSONDecodeError:
+        logger.error(
+            "Error decodificando respuesta JSON del análisis de foto de nevera."
+        )
+        return FotoNeveraResponse(
+            alimentos=[],
+            sugerencias_rapidas=[],
+            mensaje="El formato de respuesta de la IA fue inválido.",
+        )
+    except Exception as e:
+        logger.error(f"Error analizando foto de nevera: {e}")
+        return FotoNeveraResponse(
+            alimentos=[],
+            sugerencias_rapidas=[],
+            mensaje="Error interno analizando la foto.",
         )
