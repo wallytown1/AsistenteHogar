@@ -140,6 +140,9 @@ cuenta_eliminar_rate_limiter = RateLimiter(
 interpretar_rate_limiter = RateLimiter(
     max_requests=20, window_seconds=300
 )  # 20 / 5 min
+audio_rate_limiter = RateLimiter(
+    max_requests=30, window_seconds=300
+)  # 30 / 5 min (dictado más frecuente que texto)
 recetas_rate_limiter = RateLimiter(max_requests=20, window_seconds=3600)  # 20 / hora
 metadata_rate_limiter = RateLimiter(max_requests=40, window_seconds=300)  # 40 / 5 min
 plan_comidas_rate_limiter = RateLimiter(

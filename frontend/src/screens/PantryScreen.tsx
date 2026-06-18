@@ -117,6 +117,64 @@ export default function PantryScreen() {
   const [sugerenciasLoading, setSugerenciasLoading] = useState(false);
   const autoFetchedRef = useRef(false);
 
+  // --- Modal de entrada por voz (F-PIVOT #3) ---
+  const [audioModalVisible, setAudioModalVisible] = useState(false);
+  const [textoAudio, setTextoAudio] = useState('');
+  const [propuestasAudio, setPropuestasAudio] = useState<AlimentoInterpretado[]>([]);
+  const [interpretandoAudio, setInterpretandoAudio] = useState(false);
+  const [mensajeAudio, setMensajeAudio] = useState<string | null>(null);
+
+  const resetAudioModal = () => {
+    setAudioModalVisible(false);
+    setTextoAudio('');
+    setPropuestasAudio([]);
+    setMensajeAudio(null);
+  };
+
+  const handleInterpretarAudio = async () => {
+    if (!checkPremiumGate()) return;
+    if (textoAudio.trim().length < 3) {
+      Alert.alert('Texto muy corto', 'Describe al menos 3 caracteres.');
+      return;
+    }
+    setInterpretandoAudio(true);
+    setMensajeAudio(null);
+    setPropuestasAudio([]);
+    try {
+      const hoy = new Date().toISOString().split('T')[0];
+      const res = await apiRequest<InterpretarDespensaResponse>('/pantry/audio', {
+        method: 'POST',
+        json: { texto: textoAudio.trim(), fecha_referencia: hoy },
+        timeoutMs: TIMEOUT.AI,
+      });
+      if (res.alimentos.length > 0) {
+        setPropuestasAudio(res.alimentos);
+      } else {
+        setMensajeAudio(res.mensaje || 'No se identificaron productos en esa frase.');
+      }
+    } catch (err: any) {
+      setMensajeAudio(err.message || 'Error al interpretar el audio.');
+    } finally {
+      setInterpretandoAudio(false);
+    }
+  };
+
+  const handleConfirmarAudio = async (alimento: AlimentoInterpretado, idx: number) => {
+    try {
+      await addItem({
+        nombre: alimento.nombre,
+        cantidad: alimento.cantidad,
+        unidad: alimento.unidad,
+        categoria: alimento.categoria,
+        fecha_caducidad: alimento.fecha_caducidad,
+      });
+      haptics.success();
+      setPropuestasAudio((prev) => prev.filter((_, i) => i !== idx));
+    } catch (err: any) {
+      Alert.alert('Error', err.message || 'No se pudo añadir el producto.');
+    }
+  };
+
   // --- OCR en lote (flujo directo desde FAB de cámara) ---
   const [ocrScanning, setOcrScanning] = useState(false);
   const [ocrReviewVisible, setOcrReviewVisible] = useState(false);
@@ -1029,6 +1087,137 @@ export default function PantryScreen() {
         onPress={handleEscanearTicketFab}
         accessibilityLabel="Escanear ticket de compra"
       />
+      {/* FAB terciario: entrada por voz (apilado encima del de OCR) */}
+      <Fab
+        icon="mic-outline"
+        color={colors.calendar}
+        bottom={152}
+        onPress={() => {
+          if (!checkPremiumGate()) return;
+          setAudioModalVisible(true);
+        }}
+        accessibilityLabel="Dictar producto a la despensa"
+      />
+
+      {/* Modal de entrada por voz */}
+      <Modal
+        visible={audioModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={resetAudioModal}
+      >
+        <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: colors.overlay }}>
+          <View
+            style={{
+              backgroundColor: colors.card,
+              borderTopLeftRadius: radius.xxl,
+              borderTopRightRadius: radius.xxl,
+              padding: spacing.xl,
+              paddingBottom: spacing.xxxl,
+              maxHeight: '88%',
+            }}
+          >
+            {/* Handle */}
+            <View style={{ alignItems: 'center', marginBottom: spacing.md }}>
+              <View
+                style={{
+                  width: 40,
+                  height: 4,
+                  borderRadius: 2,
+                  backgroundColor: colors.borderStrong,
+                }}
+              />
+            </View>
+
+            {/* Cabecera */}
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: spacing.sm,
+                marginBottom: spacing.xs,
+              }}
+            >
+              <Icon name="mic-outline" size={20} color={colors.calendar} />
+              <AppText variant="h2">Dictar productos</AppText>
+            </View>
+            <AppText variant="caption" color={colors.inkMuted} style={{ marginBottom: spacing.lg }}>
+              Habla o escribe lo que compraste. Usa el micrófono del teclado para dictar.
+            </AppText>
+
+            <AIDisclaimerBanner texto="La IA interpretará tu dictado y propondrá los productos. Confirma cada uno antes de añadirlo." />
+
+            <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+              {/* Campo de texto con autoFocus para mostrar teclado con micrófono */}
+              <Field
+                placeholder='Ej: "compré seis huevos, leche y dos pimientos rojos"'
+                value={textoAudio}
+                onChangeText={setTextoAudio}
+                containerStyle={{ marginBottom: spacing.md }}
+                autoFocus
+              />
+
+              <Button
+                label={interpretandoAudio ? 'Interpretando...' : 'Interpretar'}
+                icon="sparkles"
+                loading={interpretandoAudio}
+                onPress={handleInterpretarAudio}
+                style={{ marginBottom: spacing.md }}
+              />
+
+              {mensajeAudio ? (
+                <AppText
+                  variant="caption"
+                  color={colors.inkMuted}
+                  center
+                  style={{ marginBottom: spacing.md }}
+                >
+                  {mensajeAudio}
+                </AppText>
+              ) : null}
+
+              {propuestasAudio.map((alimento, idx) => (
+                <Card
+                  key={idx}
+                  tint={colors.calendarSoft}
+                  borderColor={colors.calendar}
+                  style={{ marginBottom: spacing.sm }}
+                >
+                  <View
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                    }}
+                  >
+                    <View style={{ flex: 1, marginRight: spacing.md }}>
+                      <AppText variant="captionStrong">{alimento.nombre}</AppText>
+                      <AppText variant="micro" color={colors.inkMuted}>
+                        {alimento.cantidad} {alimento.unidad} · {alimento.categoria}
+                        {alimento.fecha_caducidad ? ` · Cad: ${alimento.fecha_caducidad}` : ''}
+                      </AppText>
+                    </View>
+                    <Button
+                      label="Añadir"
+                      size="sm"
+                      variant="secondary"
+                      fullWidth={false}
+                      onPress={() => handleConfirmarAudio(alimento, idx)}
+                    />
+                  </View>
+                </Card>
+              ))}
+
+              <Button
+                label="Cerrar"
+                variant="ghost"
+                onPress={resetAudioModal}
+                style={{ marginTop: spacing.sm }}
+              />
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
 
       {/* Overlay de escaneo OCR */}
       <Modal visible={ocrScanning} transparent animationType="fade">

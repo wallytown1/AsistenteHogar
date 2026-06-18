@@ -889,6 +889,19 @@ async def interpret_pantry_text(
     return InterpretarDespensaResponse(alimentos=alimentos, mensaje=None)
 
 
+async def interpret_pantry_audio(
+    texto: str, fecha_referencia: datetime.date
+) -> InterpretarDespensaResponse:
+    """Interpreta texto dictado por voz para extraer productos de despensa.
+
+    El texto llega transcrito por el STT nativo del dispositivo (teclado iOS/Android
+    u otro motor). Puede contener muletillas, falsos comienzos y lenguaje coloquial
+    ('pues mira, compré como seis huevos y leche'). Delega en interpret_pantry_text
+    que ya maneja este lenguaje informal; el endpoint propio permite rate limit
+    independiente y trazabilidad por canal de entrada."""
+    return await interpret_pantry_text(texto, fecha_referencia)
+
+
 # --- Sugerencia de metadatos de alimento (categoría + caducidad estimada) -------
 
 _METADATA_RESPONSE_SCHEMA = {

@@ -11,6 +11,7 @@ from app.api.deps import (
     requiere_premium,
 )
 from app.core.rate_limit import (
+    audio_rate_limiter,
     interpretar_rate_limiter,
     metadata_rate_limiter,
     plan_comidas_rate_limiter,
@@ -35,6 +36,7 @@ from app.services.historial import RecetaHistorialService
 from app.services.llm import (
     generate_meal_plan,
     generate_recipe_suggestions,
+    interpret_pantry_audio,
     interpret_pantry_text,
     process_receipt_ocr,
     suggest_food_metadata,
@@ -138,6 +140,25 @@ async def interpretar_despensa(
     IA pasiva: nunca añade nada; el cliente confirma y llama a POST /pantry por cada uno.
     """
     return await interpret_pantry_text(schema.texto, schema.fecha_referencia)
+
+
+@router.post(
+    "/pantry/audio",
+    response_model=InterpretarDespensaResponse,
+    dependencies=[Depends(requiere_premium), Depends(audio_rate_limiter)],
+)
+async def interpretar_audio_despensa(
+    schema: InterpretarDespensaRequest,
+    hogar_id: uuid.UUID = Depends(get_hogar_id),
+) -> InterpretarDespensaResponse:
+    """Interpreta un texto dictado por voz y devuelve PROPUESTAS de producto.
+
+    El cliente transcribe el audio (dictado del teclado nativo de iOS/Android
+    u otro motor STT) y envía el texto resultante. Semánticamente equivalente
+    a /pantry/interpretar pero con rate limit propio para entrada por voz.
+    IA pasiva: nunca añade nada; el cliente confirma y llama a POST /pantry.
+    """
+    return await interpret_pantry_audio(schema.texto, schema.fecha_referencia)
 
 
 @router.post(
