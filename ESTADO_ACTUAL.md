@@ -1,16 +1,15 @@
-# ESTADO ACTUAL — AsistenteHogar (2026-06-17)
+# ESTADO ACTUAL — AsistenteHogar (2026-06-18)
 
-## 🎯 Pivote estratégico (2026-06-17) — Recetas mediterráneas españolas
+## 🎯 Pivote 2 (2026-06-18) — App exclusivamente de comida, stock y recetas
 
-**Nuevo enfoque principal:** la app se centra en la **generación y sugerencia de recetas mediterráneas
-españolas tradicionales y de aprovechamiento** a partir del stock real de la despensa.
+La app es **exclusivamente comida, stock y recetas mediterráneas españolas**. Los módulos de
+Eventos (calendario) y Tareas (domésticas) fueron **eliminados por completo** del backend,
+frontend y base de datos. Ver `ARCHITECTURE_MAP.md`.
 
-- **Función principal:** recetas basadas en stock (sofritos, ingredientes frescos, cocina de temporada).
-- **Función secundaria (complemento):** planificación semanal de menús + calendario familiar.
-- **Tres métodos de entrada de fricción cero:** OCR de ticket (implementado ✅), audio NL (⏳), foto de nevera (⏳).
-- **Encuesta de onboarding:** perfil de gustos culinarios + nº comensales (implementado ✅). Intolerancias/alergias (datos de salud art. 9) pospuestas a iteración con consentimiento (⏳).
-
-**Rama:** `feat/pivote-recetas-mediterraneas` | **Afecta a:** `.md` (esta sesión), luego código/BD.
+- **Función única:** recetas y stock real de la despensa (sofritos, ingredientes frescos, temporada).
+- **Tres métodos de entrada de fricción cero:** OCR de ticket ✅, audio NL ✅, foto de nevera ✅ (backend).
+- **Onboarding:** perfil de gustos culinarios + nº comensales ✅. Intolerancias/alergias (RGPD art. 9) ⏳.
+- **Rama activa:** `feat/pivote-recetas-mediterraneas`
 
 ---
 
@@ -359,45 +358,41 @@ IDOR) y se actualizó al diseño real (tenant del JWT) + la arquitectura de comp
 
 ### Despensa ★ (función principal)
 - Inventario real con stock, categoría, caducidad
-- **Recetas sugeridas por IA** (mediterráneas españolas, priorizan lo que caduca) — con shimmer
+- **Recetas sugeridas por IA** (mediterráneas españolas, priorizan lo que caduca)
 - **Plan de comidas semanal** (comida + cena, 7 días) por IA
 - OCR de ticket de compra con Gemini Vision (revisión en lote con checkboxes)
 - Añadir por lenguaje natural ("compré 6 huevos y leche que caduca el viernes")
+- Añadir por audio NL (FAB micrófono, dictado nativo)
+- Foto de nevera: Gemini Vision detecta ingredientes (backend listo)
+- Historial de recetas cocinadas/rechazadas → mejora las sugerencias futuras
 - Filtros por categoría y stock bajo
 - Alertas de caducidad (notificaciones locales ≤3 días)
 
 ### Dashboard
-- Briefing diario generado por Gemini (con anonimización RGPD)
-- Eventos de hoy + tareas pendientes
+- Briefing diario generado por Gemini (o fallback estático sin API key)
 - Alertas de alimentos próximos a caducar
-
-### Calendario (función secundaria)
-- Agenda familiar con eje horario 07:00–22:00
-- Conflictos de horario detectados automáticamente
-- Quick-add en lenguaje natural → Gemini interpreta y propone → usuario confirma
-
-### Tareas (función secundaria)
-- Lista pendientes/completadas con prioridad y frecuencia
-- Ordenación por urgencia (`ultimo_completado` + frecuencia)
-- Añadir por lenguaje natural
 
 ### Autenticación
 - Registro/login con JWT (30 días)
 - Token en SecureStore (cifrado nativo)
 - Aislamiento multi-tenant garantizado
 
+### Eliminados en Pivote 2
+- ~~Calendario~~ (agenda familiar, conflictos de horario, quick-add NL)
+- ~~Tareas~~ (lista doméstica con prioridad, frecuencia, `ultimo_completado`)
+
 ---
 
 ## 🔧 Verificación mínima antes de cambios
 
 ```bash
-# Backend — suite completa (122 checks). Requiere JWT_SECRET_KEY en el entorno.
+# Backend — suite completa. Requiere JWT_SECRET_KEY en el entorno.
 cd backend
 python smoke_test_auth.py        # 12/12
-python smoke_test_modules.py     # 43/43
-python smoke_test_dashboard.py   # 19/19
-python smoke_test_validation.py  # 22/22
-python smoke_test_legal.py       # 26/26
+python smoke_test_modules.py     # must pass
+python smoke_test_dashboard.py   # must pass
+python smoke_test_validation.py  # must pass
+python smoke_test_legal.py       # must pass
 
 # Frontend
 cd frontend
@@ -411,17 +406,15 @@ npm run ts:check  # Debe retornar 0 errores
 ### Backend
 - `backend/.env` — JWT_SECRET_KEY, GEMINI_API_KEY, DATABASE_URL, ENVIRONMENT
 - `backend/app/main.py` — punto de entrada FastAPI
-- `backend/app/services/llm.py` — Gemini (briefing, recetas, interpretar)
-- `backend/app/api/routers/` — endpoints auth, dashboard, pantry, calendar, tasks
+- `backend/app/services/llm.py` — Gemini (briefing, recetas, audio, foto-nevera, interpretar)
+- `backend/app/api/routers/` — endpoints: auth, dashboard, pantry, onboarding, historial
 - `backend/alembic/versions/` — migraciones SQL
-
-- `backend/smoke_test_*.py` — suite de pruebas de humo (auth, modules, dashboard, validation)
+- `backend/smoke_test_*.py` — suite de pruebas de humo
 
 ### Frontend
-- `frontend/src/screens/` — DashboardScreen, PantryScreen, CalendarScreen, TasksScreen (UI principal)
+- `frontend/src/screens/` — DashboardScreen, PantryScreen, SettingsScreen (UI principal)
 - `frontend/src/state/authStore.ts` — Zustand (token, usuario, hogar)
-- `frontend/src/api/api.ts` — httpx client con Bearer token
-- `frontend/tailwind.config.js` — Tailwind config para NativeWind
+- `frontend/src/api/api.ts` — cliente HTTP con Bearer token
 
 ### Documentación
 - `CLAUDE.md` — guía de trabajo del repo (comandos + arquitectura) para Claude Code
@@ -438,13 +431,9 @@ npm run ts:check  # Debe retornar 0 errores
 |----------|-----------|--------|----------|
 | `GEMINI_API_KEY` personal (datos de prueba) | panel Railway | Medio: cambiar a clave con billing antes de datos reales (RGPD) | Ver [`PRODUCCION_CHECKLIST.md`](PRODUCCION_CHECKLIST.md) §1 |
 | `REVENUECAT_SECRET_KEY` sin definir | panel Railway | Medio: gate premium desactivado en prod | Ver `PRODUCCION_CHECKLIST.md` §2 |
-| Anonimización LLM solo en briefing | backend/app/services/privacy.py | Medio (RGPD): `interpret_*` envían texto sin anonimizar | Evaluar ampliar alcance (checklist §1) |
-| ~~Filosofía mediterránea no aplicada en prompts~~ | — | — | ✅ RESUELTO (F-PIVOT #1, `_FILOSOFIA_MEDITERRANEA`) |
-| ~~Tabla `perfil_hogar` no existe~~ | — | — | ✅ RESUELTO (F-PIVOT #2, migración `a1c3e5f70b92`) |
-| Perfil del hogar aún no influye en los prompts | backend/app/services/llm.py | Medio: onboarding guardado pero no usado en recetas | F-PIVOT #6 (pasar gustos/comensales al prompt) |
-| Migración `perfil_hogar` sin aplicar en Railway | panel Railway / Alembic | Alto: el endpoint fallará en prod hasta migrar | `alembic upgrade head` antes del deploy |
-| Audio NL no implementado | backend + frontend | Alto: falta método de entrada | F-PIVOT #3 |
-| Foto de nevera no implementada | backend + frontend | Alto: falta método de entrada | F-PIVOT |
+| Foto de nevera: UI no integrada | `PantryScreen` / Home redesign | Bajo-medio: backend listo, falta botón de cámara en UI | F-PIVOT #4 UI |
+| `RecipeDetailScreen` no implementada | frontend/src/screens/ | Bajo: recetas solo muestran título+descripción | `MEJORAS_PENDIENTES.md` #8 |
+| Migración `drop_eventos_tareas` pendiente en Railway | panel Railway / Alembic | Bajo (tablas vacías, no rompe nada) | `alembic upgrade head` en próximo deploy |
 
 Ver [[technical_debt]] en memoria para detalles.
 
@@ -453,7 +442,7 @@ Ver [[technical_debt]] en memoria para detalles.
 ## 🎯 Restricciones inamovibles
 
 1. **Multi-tenant:** `hogar_id` SIEMPRE del JWT, NUNCA de cabecera cliente
-2. **IA pasiva:** IA solo sugiere, usuario siempre confirma
+2. **IA y escrituras:** confirmación explícita para acciones destructivas; se permiten escrituras de bajo riesgo reversibles con undo visible
 3. **Temperatura LLM = 0:** Reproducibilidad, no creatividad
 4. **Pydantic v2:** `extra='forbid'` en todos los schemas
 5. **Sin modelos ORM:** Routers retornan schemas, no models

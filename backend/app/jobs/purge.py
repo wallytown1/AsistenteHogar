@@ -14,9 +14,7 @@ import logging
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.models import RegistroBorrado
-from app.repositories.calendar import CalendarRepository
 from app.repositories.pantry import PantryRepository
-from app.repositories.task import TaskRepository
 
 logger = logging.getLogger("app.jobs.purge")
 
@@ -28,18 +26,13 @@ class PurgeService:
     def __init__(self, session: AsyncSession):
         self.session = session
         self.pantry_repo = PantryRepository(session)
-        self.task_repo = TaskRepository(session)
-        self.calendar_repo = CalendarRepository(session)
 
     async def run(self, retention_days: int = RETENTION_DAYS) -> int:
-        """Purga las tres tablas de negocio en una única transacción y registra
-        la evidencia agregada. Devuelve el total de filas eliminadas."""
+        """Purga físicamente la despensa (única tabla de negocio con soft-delete) en
+        una transacción y registra la evidencia agregada. Devuelve el total de filas
+        eliminadas."""
         try:
-            total = (
-                await self.pantry_repo.purge_expired(retention_days)
-                + await self.task_repo.purge_expired(retention_days)
-                + await self.calendar_repo.purge_expired(retention_days)
-            )
+            total = await self.pantry_repo.purge_expired(retention_days)
             if total > 0:
                 # Auditoría sin datos personales: solo tipo, motivo y recuento
                 self.session.add(

@@ -97,12 +97,6 @@ class Hogar(Base):
     alimentos: Mapped[list["InventarioAlimento"]] = relationship(
         "InventarioAlimento", back_populates="hogar", cascade="all, delete-orphan"
     )
-    tareas: Mapped[list["TareaHogar"]] = relationship(
-        "TareaHogar", back_populates="hogar", cascade="all, delete-orphan"
-    )
-    eventos: Mapped[list["EventoCalendario"]] = relationship(
-        "EventoCalendario", back_populates="hogar", cascade="all, delete-orphan"
-    )
     usuarios: Mapped[list["Usuario"]] = relationship(
         "Usuario", back_populates="hogar", cascade="all, delete-orphan"
     )
@@ -185,43 +179,6 @@ class InventarioAlimento(Base):
     hogar: Mapped["Hogar"] = relationship("Hogar", back_populates="alimentos")
 
 
-class TareaHogar(Base):
-    __tablename__ = "tareas_hogar"
-
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID_TYPE, primary_key=True, default=uuid.uuid4
-    )
-    hogar_id: Mapped[uuid.UUID] = mapped_column(
-        UUID_TYPE,
-        ForeignKey("hogares.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
-    )
-    nombre: Mapped[str] = mapped_column(String(200), nullable=False)
-    asignado_a: Mapped[str | None] = mapped_column(String(100), nullable=True)
-    frecuencia: Mapped[str] = mapped_column(String(50), nullable=False)
-    ultimo_completado: Mapped[datetime | None] = mapped_column(
-        TZDateTime, nullable=True
-    )
-    estado: Mapped[str] = mapped_column(String(30), nullable=False, default="pendiente")
-    prioridad: Mapped[str] = mapped_column(String(20), nullable=False, default="media")
-    is_deleted: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, default=False, index=True
-    )
-    created_at: Mapped[datetime] = mapped_column(
-        TZDateTime, nullable=False, server_default=utcnow()
-    )
-    updated_at: Mapped[datetime] = mapped_column(
-        TZDateTime,
-        nullable=False,
-        server_default=utcnow(),
-        onupdate=lambda: datetime.now(UTC),
-    )
-
-    # Relaciones
-    hogar: Mapped["Hogar"] = relationship("Hogar", back_populates="tareas")
-
-
 class RegistroBorrado(Base):
     """Auditoría de supresión (RGPD art. 5.2 y 17). Deliberadamente sin datos
     personales ni hogar_id: solo acredita que el mecanismo de borrado se ejecutó,
@@ -243,40 +200,6 @@ class RegistroBorrado(Base):
     ejecutado_en: Mapped[datetime] = mapped_column(
         TZDateTime, nullable=False, server_default=utcnow()
     )
-
-
-class EventoCalendario(Base):
-    __tablename__ = "eventos_calendario"
-
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID_TYPE, primary_key=True, default=uuid.uuid4
-    )
-    hogar_id: Mapped[uuid.UUID] = mapped_column(
-        UUID_TYPE,
-        ForeignKey("hogares.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
-    )
-    titulo: Mapped[str] = mapped_column(String(200), nullable=False)
-    descripcion: Mapped[str | None] = mapped_column(String, nullable=True)
-    fecha_inicio: Mapped[datetime] = mapped_column(TZDateTime, nullable=False)
-    fecha_fin: Mapped[datetime] = mapped_column(TZDateTime, nullable=False)
-    participantes: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
-    is_deleted: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, default=False, index=True
-    )
-    created_at: Mapped[datetime] = mapped_column(
-        TZDateTime, nullable=False, server_default=utcnow()
-    )
-    updated_at: Mapped[datetime] = mapped_column(
-        TZDateTime,
-        nullable=False,
-        server_default=utcnow(),
-        onupdate=lambda: datetime.now(UTC),
-    )
-
-    # Relaciones
-    hogar: Mapped["Hogar"] = relationship("Hogar", back_populates="eventos")
 
 
 class PerfilHogar(Base):

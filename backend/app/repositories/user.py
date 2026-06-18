@@ -82,8 +82,6 @@ class UserRepository:
             .options(
                 selectinload(Hogar.usuarios),
                 selectinload(Hogar.alimentos),
-                selectinload(Hogar.tareas),
-                selectinload(Hogar.eventos),
             )
         )
         result = await self.session.execute(stmt)
@@ -91,13 +89,7 @@ class UserRepository:
         if hogar is None:
             return 0
 
-        afectados = (
-            1
-            + len(hogar.usuarios)
-            + len(hogar.alimentos)
-            + len(hogar.tareas)
-            + len(hogar.eventos)
-        )
+        afectados = 1 + len(hogar.usuarios) + len(hogar.alimentos)
         try:
             await self.session.delete(hogar)
             self.session.add(

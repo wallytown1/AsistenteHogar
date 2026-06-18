@@ -14,11 +14,8 @@ from app.schemas.schemas import (
     AlimentoInterpretado,
     DashboardUnifiedContext,
     DiaPlanComidas,
-    EventoInterpretado,
     FotoNeveraResponse,
     InterpretarDespensaResponse,
-    InterpretarEventoResponse,
-    InterpretarTareaResponse,
     InventarioAlimentoResponse,
     PerfilHogarResponse,
     PlanComidasResponse,
@@ -26,10 +23,8 @@ from app.schemas.schemas import (
     RecetasSugeridasResponse,
     RecetaSugerida,
     SugerenciaMetadataResponse,
-    TareaInterpretada,
     TicketOcrResponse,
 )
-from app.services.privacy import AnonimizadorLLM
 
 logger = logging.getLogger("app.llm")
 
@@ -266,57 +261,11 @@ def generate_fallback_briefing(context: DashboardUnifiedContext) -> str:
 
     lines = [
         "### ☀️ ¡Buenos días! 🏡",
-        "No hemos podido conectar con el asistente de IA para redactar el informe personalizado, pero aquí tienes los datos importantes de tu hogar listos:",
+        "No hemos podido conectar con el asistente de IA para redactar el informe personalizado, pero aquí tienes el estado de tu despensa:",
         "",
     ]
 
-    # 1. Eventos
-    lines.append("**📅 Agenda de hoy:**")
-    if context.eventos_hoy:
-        for ev in context.eventos_hoy:
-            hora_inicio = (
-                ev.fecha_inicio.strftime("%H:%M") if ev.fecha_inicio else "Todo el día"
-            )
-            participantes = (
-                f" con {', '.join(ev.participantes)}" if ev.participantes else ""
-            )
-            lines.append(f"- **{hora_inicio}**: {ev.titulo}{participantes}")
-    else:
-        lines.append("- No hay eventos programados para hoy.")
-    lines.append("")
-
-    # 2. Conflictos de agenda
-    if context.conflictos_agenda:
-        lines.append("**⚠️ Conflictos de horario:**")
-        for c in context.conflictos_agenda:
-            hora_a = (
-                c.evento_a.fecha_inicio.strftime("%H:%M")
-                if c.evento_a.fecha_inicio
-                else "?"
-            )
-            hora_b = (
-                c.evento_b.fecha_inicio.strftime("%H:%M")
-                if c.evento_b.fecha_inicio
-                else "?"
-            )
-            mins = round(c.duracion_solapamiento_segundos / 60)
-            lines.append(
-                f"- **{c.evento_a.titulo}** ({hora_a}) y **{c.evento_b.titulo}** ({hora_b}) "
-                f"se solapan {mins} min"
-            )
-        lines.append("")
-
-    # 3. Tareas
-    lines.append("**⚡ Tareas pendientes:**")
-    if context.tareas_pendientes:
-        for t in context.tareas_pendientes:
-            asignado = f" (Asignado a: {t.asignado_a})" if t.asignado_a else ""
-            lines.append(f"- {t.nombre}{asignado}")
-    else:
-        lines.append("- No hay tareas domésticas pendientes para hoy.")
-    lines.append("")
-
-    # 3. Despensa
+    # Despensa: alimentos próximos a caducar (núcleo de la app)
     lines.append("**🥫 Alertas de despensa:**")
     if context.alertas_despensa and context.alertas_despensa.alertas_caducidad:
         for a in context.alertas_despensa.alertas_caducidad:
@@ -341,32 +290,8 @@ async def generate_morning_briefing(
     if not GEMINI_API_KEY:
         return generate_fallback_briefing(context), False
 
-    # Minimización de datos (RGPD): los nombres propios de la familia se
-    # sustituyen por tokens Familiar_N antes de salir hacia Gemini. El
-    # diccionario de alias se construye solo desde los campos estructurados.
-    nombres: list[str | None] = [t.asignado_a for t in context.tareas_pendientes]
-    for ev in context.eventos_hoy:
-        nombres.extend(ev.participantes or [])
-    for conflicto in context.conflictos_agenda:
-        nombres.extend(conflicto.evento_a.participantes or [])
-        nombres.extend(conflicto.evento_b.participantes or [])
-    anonimizador = AnonimizadorLLM(nombres)
-
-    # Optimización de tokens para el payload del prompt (enviando solo campos esenciales)
-    resumen_eventos = [
-        {
-            "titulo": ev.titulo,
-            "hora_inicio": ev.fecha_inicio.strftime("%H:%M") if ev.fecha_inicio else "",
-            "participantes": ev.participantes,
-        }
-        for ev in context.eventos_hoy
-    ]
-
-    resumen_tareas = [
-        {"nombre": t.nombre, "asignado_a": t.asignado_a}
-        for t in context.tareas_pendientes
-    ]
-
+    # El briefing solo maneja datos de despensa (nombres de alimentos), nunca
+    # datos personales, por lo que no requiere anonimización.
     resumen_alimentos = [
         {
             "nombre": a.nombre,
@@ -379,51 +304,29 @@ async def generate_morning_briefing(
         for a in context.alertas_despensa.alertas_caducidad
     ]
 
-    resumen_conflictos = [
-        {
-            "evento_a": conflicto.evento_a.titulo,
-            "hora_a": conflicto.evento_a.fecha_inicio.strftime("%H:%M")
-            if conflicto.evento_a.fecha_inicio
-            else "",
-            "evento_b": conflicto.evento_b.titulo,
-            "hora_b": conflicto.evento_b.fecha_inicio.strftime("%H:%M")
-            if conflicto.evento_b.fecha_inicio
-            else "",
-            "solapamiento_min": round(conflicto.duracion_solapamiento_segundos / 60),
-        }
-        for conflicto in context.conflictos_agenda
-    ]
-
-    prompt_usuario = anonimizador.anonimizar(
+    prompt_usuario = (
         f"Fecha: {context.fecha}\n"
-        f"Eventos programados para hoy: {resumen_eventos}\n"
-        f"Conflictos de horario detectados (solapamientos): {resumen_conflictos}\n"
-        f"Tareas pendientes de hoy: {resumen_tareas}\n"
         f"Alimentos que vencen pronto en despensa: {resumen_alimentos}\n"
     )
 
-    # Caché: si los datos del hogar no cambiaron, reutilizar el briefing reciente.
-    # Orden crítico: la clave se calcula sobre el prompt YA anonimizado y la
-    # entrada cacheada es la respuesta AÚN anonimizada (la reversión va después),
-    # de modo que la caché nunca contiene datos personales.
+    # Caché: si la despensa no cambió, reutilizar el briefing reciente.
     cache_key = _hash_key("briefing", prompt_usuario)
     cached = await _cache_get(cache_key)
     if cached is not None:
-        return anonimizador.revertir(cached), True
+        return cached, True
 
     system_instruction = (
-        "Eres el asistente y mayordomo inteligente de este hogar en España. "
+        "Eres el chef asistente de este hogar en España. "
         "Tu tarea consiste en dar los buenos días de manera sumamente natural, amena y cálida. "
         "Debes redactar un mensaje conversacional (no uses listas, ni viñetas, ni asteriscos). "
         "Habla en primera persona del singular, con un tono elegante pero muy cercano.\n"
-        "Estructura tu mensaje en exactamente 3 párrafos cortos y fluidos separados por saltos de línea:\n"
-        "1. Un saludo matutino inspirador que mencione fluidamente la agenda. Si hay conflictos de horario en los datos, avisa de ellos con naturalidad y urgencia suave (ej: 'ten en cuenta que la reunión de las 10 se solapa con...').\n"
-        "2. Un recordatorio suave sobre quién tiene que hacer las tareas más importantes de la casa hoy.\n"
-        "3. Una recomendación amable sobre qué alimentos de la despensa aprovechar pronto porque están a punto de caducar.\n\n"
+        "Estructura tu mensaje en 2 párrafos cortos y fluidos separados por saltos de línea:\n"
+        "1. Un saludo matutino cálido y apetitoso que invite a cocinar algo casero hoy.\n"
+        "2. Una recomendación amable sobre qué alimentos de la despensa aprovechar pronto porque están a punto de caducar, sugiriendo de forma natural algún plato tradicional español para aprovecharlos.\n\n"
         "Restricciones críticas de seguridad e IA:\n"
-        "- Sé extremadamente veraz y fiel a los datos proporcionados. Prohibido inventar eventos, tareas, alimentos o nombres.\n"
-        "- NO uses NINGUNA marca de formato Markdown (ni *, ni -, ni #). Solo usa texto plano y puntos y aparte.\n"
-        "- Tu rol es exclusivamente de lectura; no sugieras acciones que no puedan realizar en la casa de forma natural."
+        "- Sé extremadamente veraz y fiel a los datos proporcionados. Prohibido inventar alimentos.\n"
+        "- Cocina mediterránea española tradicional y de aprovechamiento; nada de fusiones impropias.\n"
+        "- NO uses NINGUNA marca de formato Markdown (ni *, ni -, ni #). Solo usa texto plano y puntos y aparte."
     )
 
     texto = await _call_gemini(
@@ -433,7 +336,7 @@ async def generate_morning_briefing(
         return generate_fallback_briefing(context), False
 
     await _cache_set(cache_key, texto, BRIEFING_CACHE_TTL)
-    return anonimizador.revertir(texto), True
+    return texto, True
 
 
 # --- Sugerencias de recetas -----------------------------------------------------
@@ -599,181 +502,6 @@ async def generate_recipe_suggestions(
     )
     await _cache_set(cache_key, respuesta, RECETAS_CACHE_TTL)
     return respuesta
-
-
-# --- Interpretación de eventos en lenguaje natural ------------------------------
-
-_EVENTO_RESPONSE_SCHEMA = {
-    "type": "OBJECT",
-    "properties": {
-        "titulo": {"type": "STRING"},
-        "descripcion": {"type": "STRING"},
-        "fecha_inicio": {"type": "STRING"},
-        "fecha_fin": {"type": "STRING"},
-        "participantes": {"type": "ARRAY", "items": {"type": "STRING"}},
-        "interpretable": {"type": "BOOLEAN"},
-    },
-    "required": ["titulo", "fecha_inicio", "fecha_fin", "interpretable"],
-}
-
-_DIAS_SEMANA = [
-    "lunes",
-    "martes",
-    "miércoles",
-    "jueves",
-    "viernes",
-    "sábado",
-    "domingo",
-]
-
-_MENSAJE_NO_INTERPRETABLE = (
-    "No he podido interpretar esa frase como un evento. "
-    "Prueba con algo como: 'dentista mañana a las 10' o 'cena familiar el viernes a las 21'."
-)
-
-
-async def interpret_event_text(
-    texto: str, fecha_referencia: datetime.datetime
-) -> InterpretarEventoResponse:
-    """Convierte una frase en lenguaje natural en una propuesta de evento de calendario.
-    IA pasiva: devuelve solo una propuesta; el usuario debe confirmarla antes de crearla."""
-    if not GEMINI_API_KEY:
-        return InterpretarEventoResponse(
-            evento=None,
-            mensaje="El asistente de IA no está disponible. Usa el formulario de evento detallado.",
-        )
-
-    dia_semana = _DIAS_SEMANA[fecha_referencia.weekday()]
-    system_instruction = (
-        "Eres el asistente de calendario de un hogar en España. Convierte la frase del usuario "
-        "en un evento de calendario estructurado.\n"
-        f"Fecha y hora actual de referencia: {dia_semana} {fecha_referencia.isoformat()}\n"
-        "Reglas estrictas:\n"
-        "- Resuelve expresiones relativas ('mañana', 'el viernes', 'en dos horas') respecto a la fecha de referencia.\n"
-        "- Las fechas resultantes deben ser futuras y en el mismo huso horario que la referencia, formato ISO-8601 con offset.\n"
-        "- Si no se indica duración, el evento dura 1 hora.\n"
-        "- Si no se indica hora, asume una hora razonable según el tipo de evento (citas médicas por la mañana, cenas a las 21:00...).\n"
-        "- 'participantes': solo nombres de personas mencionados explícitamente en la frase.\n"
-        "- No inventes datos que no estén en la frase; 'descripcion' solo si la frase aporta detalles extra.\n"
-        "- Si la frase NO describe un evento de calendario, devuelve interpretable=false."
-    )
-
-    texto_llm = await _call_gemini(
-        system_instruction,
-        texto.strip(),
-        max_output_tokens=300,
-        response_schema=_EVENTO_RESPONSE_SCHEMA,
-    )
-
-    if texto_llm is None:
-        return InterpretarEventoResponse(
-            evento=None,
-            mensaje="No se pudo contactar con el asistente de IA. Inténtalo de nuevo o usa el formulario detallado.",
-        )
-
-    try:
-        data = json.loads(texto_llm)
-        if not data.get("interpretable") or not data.get("titulo", "").strip():
-            return InterpretarEventoResponse(
-                evento=None, mensaje=_MENSAJE_NO_INTERPRETABLE
-            )
-
-        evento = EventoInterpretado(
-            titulo=data["titulo"].strip(),
-            descripcion=(data.get("descripcion") or "").strip() or None,
-            fecha_inicio=datetime.datetime.fromisoformat(data["fecha_inicio"]),
-            fecha_fin=datetime.datetime.fromisoformat(data["fecha_fin"]),
-            participantes=data.get("participantes") or None,
-        )
-        if evento.fecha_fin <= evento.fecha_inicio:
-            return InterpretarEventoResponse(
-                evento=None, mensaje=_MENSAJE_NO_INTERPRETABLE
-            )
-    except (json.JSONDecodeError, ValueError, KeyError) as e:
-        logger.error(
-            f"La respuesta de interpretación de evento de Gemini no es válida: {e}"
-        )
-        return InterpretarEventoResponse(evento=None, mensaje=_MENSAJE_NO_INTERPRETABLE)
-
-    return InterpretarEventoResponse(evento=evento, mensaje=None)
-
-
-# --- Interpretación de tareas en lenguaje natural -------------------------------
-
-_TAREA_RESPONSE_SCHEMA = {
-    "type": "OBJECT",
-    "properties": {
-        "nombre": {"type": "STRING"},
-        "asignado_a": {"type": "STRING"},
-        "frecuencia": {
-            "type": "STRING",
-            "enum": ["diaria", "semanal", "mensual", "ocasional"],
-        },
-        "prioridad": {"type": "STRING", "enum": ["alta", "media", "baja"]},
-        "interpretable": {"type": "BOOLEAN"},
-    },
-    "required": ["nombre", "frecuencia", "prioridad", "interpretable"],
-}
-
-_MENSAJE_TAREA_NO_INTERPRETABLE = (
-    "No he podido interpretar esa frase como una tarea. "
-    "Prueba con algo como: 'sacar la basura los lunes' o 'limpiar el baño cada semana, le toca a Ana'."
-)
-
-
-async def interpret_task_text(texto: str) -> InterpretarTareaResponse:
-    """Convierte una frase en lenguaje natural en una propuesta de tarea doméstica.
-    IA pasiva: devuelve solo una propuesta; el usuario debe confirmarla antes de crearla."""
-    if not GEMINI_API_KEY:
-        return InterpretarTareaResponse(
-            tarea=None,
-            mensaje="El asistente de IA no está disponible. Usa el formulario de tarea.",
-        )
-
-    system_instruction = (
-        "Eres el asistente de tareas domésticas de un hogar en España. Convierte la frase del usuario "
-        "en una tarea estructurada.\n"
-        "Reglas estrictas:\n"
-        "- 'nombre': descripción breve y clara de la tarea (sin incluir la frecuencia ni la persona).\n"
-        "- 'frecuencia': una de diaria, semanal, mensual, ocasional (dedúcela; si no se indica, 'ocasional').\n"
-        "- 'prioridad': una de alta, media, baja (si no se indica, 'media').\n"
-        "- 'asignado_a': solo si la frase menciona explícitamente a una persona; si no, cadena vacía.\n"
-        "- Si la frase NO describe una tarea doméstica, devuelve interpretable=false."
-    )
-
-    texto_llm = await _call_gemini(
-        system_instruction,
-        texto.strip(),
-        max_output_tokens=200,
-        response_schema=_TAREA_RESPONSE_SCHEMA,
-    )
-    if texto_llm is None:
-        return InterpretarTareaResponse(
-            tarea=None,
-            mensaje="No se pudo contactar con el asistente de IA. Inténtalo de nuevo o usa el formulario.",
-        )
-
-    try:
-        data = json.loads(texto_llm)
-        if not data.get("interpretable") or not (data.get("nombre") or "").strip():
-            return InterpretarTareaResponse(
-                tarea=None, mensaje=_MENSAJE_TAREA_NO_INTERPRETABLE
-            )
-        tarea = TareaInterpretada(
-            nombre=data["nombre"].strip(),
-            asignado_a=(data.get("asignado_a") or "").strip() or None,
-            frecuencia=(data.get("frecuencia") or "ocasional"),
-            prioridad=(data.get("prioridad") or "media"),
-        )
-    except (json.JSONDecodeError, ValueError, KeyError) as e:
-        logger.error(
-            f"La respuesta de interpretación de tarea de Gemini no es válida: {e}"
-        )
-        return InterpretarTareaResponse(
-            tarea=None, mensaje=_MENSAJE_TAREA_NO_INTERPRETABLE
-        )
-
-    return InterpretarTareaResponse(tarea=tarea, mensaje=None)
 
 
 # --- Interpretación de despensa en lenguaje natural (multi-item) -----------------

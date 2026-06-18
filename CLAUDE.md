@@ -7,7 +7,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 **Asistente del Hogar IA** — app de cocina familiar centrada en la **generación y sugerencia de recetas mediterráneas españolas tradicionales y de aprovechamiento** a partir del stock real de la despensa. Filosofía gastronómica estricta: sofritos, ingredientes frescos, cocina de temporada; sin fusiones incorrectas.
 
 **Función principal:** recetas basadas en el stock real del hogar.
-**Función secundaria (complemento):** planificación semanal de menús + calendario familiar.
+**Función secundaria (complemento):** planificación semanal de menús de aprovechamiento.
+
+> **Pivote 2 (2026-06-18):** la app es **exclusivamente de comida, stock y recetas**.
+> Se eliminaron de raíz los módulos de **Eventos (calendario)** y **Tareas (domésticas)**;
+> no reintroducir nada relacionado. Ver `ARCHITECTURE_MAP.md`.
 
 **Tres métodos de entrada de fricción cero:**
 1. **OCR de ticket** — escanea el ticket de la compra con Gemini Vision (implementado, premium).
@@ -48,7 +52,7 @@ alembic revision --autogenerate -m "description"
 
 # Smoke tests (each uses its own separate temp SQLite DB)
 python smoke_test_auth.py       # auth + multi-tenant isolation (12 checks)
-python smoke_test_modules.py    # pantry/calendar/tasks CRUD + AI endpoints, validation, isolation (43 checks)
+python smoke_test_modules.py    # pantry CRUD + AI endpoints (recetas, audio, foto-nevera, plan), onboarding, historial, isolation
 python smoke_test_dashboard.py  # dashboard aggregation/filtering + isolation (19 checks)
 python smoke_test_validation.py # endpoint error contract: 400/401/404/422 (20 checks)
 python smoke_test_legal.py      # GDPR purge, account deletion, LLM anonymization (26 checks)
@@ -99,7 +103,7 @@ with instructions instead of silently skipping the shield.
 # Backend
 cd backend
 python smoke_test_auth.py        # 12/12 must pass
-python smoke_test_modules.py     # 43/43 must pass
+python smoke_test_modules.py     # must pass
 python smoke_test_dashboard.py   # 19/19 must pass
 python smoke_test_validation.py  # 20/20 must pass
 python smoke_test_legal.py       # 26/26 must pass
@@ -132,10 +136,11 @@ Dependency injection is done via FastAPI `Depends()` chains defined in `api/deps
 ### LLM integration (`services/llm.py`)
 
 Seven Gemini functions, all via the shared `_call_gemini` helper (temperature=0, thinkingBudget=0):
-`generate_morning_briefing`, `generate_recipe_suggestions`, `interpret_event_text`,
-`interpret_task_text`, `interpret_pantry_text` (multi-item), `suggest_food_metadata`, `generate_meal_plan`.
-The `interpret_*` and `suggest_*` functions use Gemini structured output (`responseSchema`) and follow
-the **AI-passive** rule: they return a proposal the user must confirm before any write. Results that are
+`generate_morning_briefing`, `generate_recipe_suggestions`, `interpret_pantry_text` (multi-item),
+`analyze_fridge_photo` (Vision), `suggest_food_metadata`, `generate_meal_plan`, `interpret_audio_text`.
+The `interpret_*` / `analyze_*` functions use Gemini structured output (`responseSchema`) and return a
+proposal the user must confirm before any destructive write. Low-risk writes (stock depletion, profile
+micro-adjustments via function calling) may happen automatically with visible undo. Results that are
 expensive are cached in-process with TTL (briefing 30 min, recipes/meal plan 1–2 h); the cache key is a
 SHA-256 hash of the prompt data. When `GEMINI_API_KEY` is absent, all functions return static fallback
 responses — the app works without a key.
@@ -149,14 +154,15 @@ sobrevivir cualquier refactorización de los prompts.
 **`_call_gemini` infrastructure**: a single shared `httpx.AsyncClient` (keep-alive pool, closed in the
 app lifespan via `aclose_http_client`), bounded retry with backoff on transient errors (429/5xx/network),
 and `_extract_text` that distinguishes safety blocks / missing candidates / `MAX_TOKENS` truncation.
-The AI endpoints are rate-limited (see `core/rate_limit.py`): `/{calendar,tasks,pantry}/interpretar` share
-20/5 min, `/pantry/recetas` 20/h, `/pantry/sugerir-metadata` 40/5 min, `/pantry/plan-comidas` 10/h.
+The AI endpoints are rate-limited (see `core/rate_limit.py`): `/pantry/interpretar` and `/pantry/audio`
+share 20/5 min, `/pantry/recetas` 20/h, `/pantry/sugerir-metadata` 40/5 min, `/pantry/plan-comidas` 10/h,
+`/pantry/foto-nevera` 10/h.
 
 **Gemini data-tier compliance (RGPD)**: the `GEMINI_API_KEY` must belong to a **billing-enabled** Google AI
 project (where prompts are NOT used to improve Google's products) or Vertex AI with a DPA / EU region. The
 free tier may use prompts for product improvement, which is not acceptable for household personal data.
 
-**LLM anonymization (`services/privacy.py`)**: family names (from structured fields `asignado_a`/`participantes`) are replaced with `Familiar_N` tokens before the briefing prompt leaves for Gemini, and restored in the response. Critical ordering: the cache key is hashed over the *anonymized* prompt and the cached value is the *anonymized* response — reversal always happens after the cache. `generate_morning_briefing` returns `(text, generado_por_ia)`; the flag drives the AI transparency banner (`AIDisclaimerBanner`) in the frontend, which must never label the static fallback as AI.
+**LLM anonymization (`services/privacy.py`)**: `AnonimizadorLLM` is preserved for future use (chat). The briefing no longer receives personal names (pantry data only), so anonymization is not called there. If personal names re-enter any prompt (e.g., chat context), `AnonimizadorLLM` must be applied before the prompt leaves for Gemini and reverted after. `generate_morning_briefing` returns `(text, generado_por_ia)`; the flag drives the AI transparency banner (`AIDisclaimerBanner`) in the frontend, which must never label the static fallback as AI.
 
 ### Pydantic schemas (`schemas/schemas.py`)
 
@@ -166,21 +172,21 @@ All schemas extend `BaseSchema` which enforces `extra='forbid'` globally. The pa
 
 - **Auth**: Zustand store at `src/state/authStore.ts` — holds JWT token, user, and hogar. Persists to `expo-secure-store` (encrypted). On app boot, `hydrate()` restores the session before rendering.
 - **API calls**: `src/api/api.ts` — adds `Authorization: Bearer <token>` to every request automatically.
-- **Feature hooks**: `src/hooks/use{Dashboard,Pantry,Calendar}.ts` — fetch data and expose loading/error state to screens.
+- **Feature hooks**: `src/hooks/use{Dashboard,Pantry}.ts` — fetch data and expose loading/error state to screens.
 
 ### Frontend design system
 
 > Rediseño visual completo para un look nativo iOS/Android.
 
-- **Tokens**: `src/theme/tokens.ts` — única fuente de color, tipografía, espaciado, radios y sombras. Marca índigo `#6366F1`; acentos por módulo (despensa verde, calendario índigo, tareas ámbar). No hardcodear valores en componentes/pantallas.
+- **Tokens**: `src/theme/tokens.ts` — única fuente de color, tipografía, espaciado, radios y sombras. Marca índigo `#6366F1`; acento de despensa verde. No hardcodear valores en componentes/pantallas.
 - **Componentes UI**: `src/components/ui/` (barrel en `index.ts`): `Screen` (safe-area + pull-to-refresh), `Card`, `Button`, `IconButton`, `Chip`, `StatCard`, `SectionHeader`, `Fab`, `Badge`, `EmptyState`, `Field`, `AppText`, `Icon`/`FoodIcon`, `LoadingView`/`ErrorView`.
 - **Iconos**: vectoriales vía `@expo/vector-icons` (Ionicons + MaterialCommunityIcons para comida). Sin emoji en la UI.
 - **Haptics**: `src/lib/haptics.ts` — wrapper seguro sobre `expo-haptics` (no-op en web).
 - **Importante**: la UI ya **no usa NativeWind `className`**; todo es StyleSheet + tokens. NativeWind y Tailwind se **desinstalaron por completo** (deps + `global.css` + `tailwind.config.js` + `nativewind-env.d.ts` + cableado en `babel.config.js`/`metro.config.js`). No reintroducir `className` en pantallas.
 
-### AI passive rule
+### AI write policy (Pivote 2 — revised)
 
-The AI (Gemini) **only suggests; it never writes to the database**. The `interpret_event_text` function returns a proposed event that the user must confirm in the UI before a `POST /api/v1/calendar/eventos` is made. Do not add any LLM call that directly mutates data.
+The AI (Gemini) **suggests by default; confirmación explícita requerida para acciones destructivas o de alto impacto** (borrar stock en bloque, eliminar cuenta). Se permiten escrituras automáticas de **bajo riesgo y reversibles** con undo visible (descontar stock estimado al terminar receta; ajustar perfil individual vía function calling al rechazar un ingrediente). El banner de transparencia IA (`AIDisclaimerBanner`) sigue siendo obligatorio donde haya generación visible.
 
 ---
 
@@ -190,7 +196,7 @@ The AI (Gemini) **only suggests; it never writes to the database**. The `interpr
 2. All Pydantic schemas use `extra='forbid'`.
 3. LLM temperature = 0 for all backend calls.
 4. Routers return schemas, not ORM models.
-5. AI is passive: suggests only, user confirms before any write.
+5. AI writes are allowed only for low-risk reversible actions (stock depletion, profile micro-update) with visible undo. Destructive/high-impact actions always require explicit user confirmation.
 
 ---
 
@@ -225,16 +231,17 @@ Generate a `JWT_SECRET_KEY`: `python -c "import secrets; print(secrets.token_hex
 - ✅ Filosofía mediterránea española en los prompts (`_FILOSOFIA_MEDITERRANEA` en `llm.py`).
 - ✅ Tabla `perfil_hogar` (migración `a1c3e5f70b92`) + `GET`/`POST /api/v1/onboarding` (gustos +
   nº comensales; intolerancias/alergias pospuestas por RGPD art. 9).
+- ✅ `POST /api/v1/pantry/audio` — entrada por voz, Gemini interpreta, devuelve propuesta.
+- ✅ `POST /api/v1/pantry/foto-nevera` — Gemini Vision detecta ingredientes, propuesta con confirmación (premium).
+- ✅ **Pivote 2** — eliminados Eventos y Tareas; app 100% comida. Ver `ARCHITECTURE_MAP.md`.
 - ⏳ Integrar el perfil del hogar en los prompts de recetas (`generate_recipe_suggestions` /
   `generate_meal_plan`) — siguiente paso (F-PIVOT #6).
-- ⏳ `POST /api/v1/pantry/audio` — entrada por voz, Gemini interpreta, devuelve propuesta (IA pasiva).
-- ⏳ `POST /api/v1/pantry/foto-nevera` — Gemini Vision detecta ingredientes, propuesta con confirmación (premium).
 - ⏳ Historial de recetas cocinadas (tabla `recetas_historial`) para mejorar sugerencias futuras.
 
 **F6 — EAS Build** (tras F-PIVOT): production build con EAS, iconos/splash reales, plugin
 `expo-notifications` + permisos de micrófono y cámara en `app.json`, App Store Connect + Google Play.
 
-**Completed phases (summary)**: F0–F5, F-IA, F-IA-2, F-UI, F-LEGAL, F-AUDIT, F4 (Freemium/RevenueCat), F-AUDIT2 (server-side premium gate + Railway deploy), F-OCR, F-AGENDA. See `CHANGELOG.md` for details.
+**Completed phases (summary)**: F0–F5, F-IA, F-IA-2, F-UI, F-LEGAL, F-AUDIT, F4 (Freemium/RevenueCat), F-AUDIT2 (server-side premium gate + Railway deploy), F-OCR, F-AGENDA, F-PIVOT #1–5 (audio NL, foto nevera, Pivote 2 demolición). See `CHANGELOG.md` for details.
 
 ## graphify
 

@@ -72,23 +72,14 @@ with TestClient(app) as client:
     check("Dashboard expone briefing_generado_por_ia=False sin API key",
           r.status_code == 200 and r.json().get("briefing_generado_por_ia") is False)
 
-    # Crear y soft-borrar un recurso de cada tipo (candidatos a purga)
+    # Crear y soft-borrar un recurso (candidato a purga). Tras el pivote a app de
+    # comida, la despensa es la única tabla de negocio con soft-delete.
     ids_purga = {}
     r = client.post("/api/v1/pantry", headers=h, json={
         "nombre": "Yogur viejo", "cantidad": 1.0, "unidad": "unidades", "categoria": "Lácteos"})
     ids_purga["inventario_alimentos"] = r.json()["id"]
-    r = client.post("/api/v1/tasks", headers=h, json={
-        "nombre": "Tarea antigua", "frecuencia": "diaria"})
-    ids_purga["tareas_hogar"] = r.json()["id"]
-    r = client.post("/api/v1/calendar", headers=h, json={
-        "titulo": "Evento antiguo",
-        "fecha_inicio": "2030-01-01T10:00:00+00:00",
-        "fecha_fin": "2030-01-01T11:00:00+00:00"})
-    ids_purga["eventos_calendario"] = r.json()["id"]
 
     client.delete(f"/api/v1/pantry/{ids_purga['inventario_alimentos']}", headers=h)
-    client.delete(f"/api/v1/tasks/{ids_purga['tareas_hogar']}", headers=h)
-    client.delete(f"/api/v1/calendar/{ids_purga['eventos_calendario']}", headers=h)
 
     # Un soft-delete RECIENTE que NO debe purgarse, y un item activo
     r = client.post("/api/v1/pantry", headers=h, json={
@@ -113,7 +104,7 @@ with TestClient(app) as client:
 
     # Ejecutar la purga manualmente (misma vía que el CLI y el scheduler)
     purgados = asyncio.run(run_purge_once())
-    check("Purga: elimina exactamente los 3 registros caducados", purgados == 3, f"(purgados={purgados})")
+    check("Purga: elimina exactamente el registro caducado", purgados == 1, f"(purgados={purgados})")
 
     con = sqlite3.connect(TEST_DB)
     restantes = sum(
@@ -130,7 +121,7 @@ with TestClient(app) as client:
     auditoria = con.execute(
         "SELECT tipo_evento, motivo, registros_afectados FROM registros_borrado").fetchall()
     check("Purga: queda evidencia agregada en registros_borrado",
-          ("purga_programada", "retencion_30_dias", 3) in auditoria, f"(auditoria={auditoria})")
+          ("purga_programada", "retencion_30_dias", 1) in auditoria, f"(auditoria={auditoria})")
     columnas = [c[1] for c in con.execute("PRAGMA table_info(registros_borrado)").fetchall()]
     check("Auditoría sin datos personales (sin hogar_id/email/nombre)",
           not any(c in columnas for c in ("hogar_id", "email", "nombre")), f"(columnas={columnas})")
@@ -159,7 +150,7 @@ with TestClient(app) as client:
     con = sqlite3.connect(TEST_DB)
     totales = {
         tabla: con.execute(f"SELECT COUNT(*) FROM {tabla}").fetchone()[0]
-        for tabla in ("hogares", "usuarios", "inventario_alimentos", "tareas_hogar", "eventos_calendario")
+        for tabla in ("hogares", "usuarios", "inventario_alimentos")
     }
     check("Destrucción física total del hogar y datos vinculados",
           all(n == 0 for n in totales.values()), f"({totales})")

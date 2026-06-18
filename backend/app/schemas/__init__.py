@@ -1,18 +1,10 @@
 from app.schemas.schemas import (
-    CalendarAgendaResponse,
-    ConflictoDetalle,
     DashboardUnifiedContext,
-    EventoCalendarioCreate,
-    EventoCalendarioResponse,
-    EventoCalendarioUpdate,
     HogarResponse,
     InventarioAlimentoCreate,
     InventarioAlimentoResponse,
     InventarioAlimentoUpdate,
     PantryStockMetrics,
-    TareaHogarCreate,
-    TareaHogarResponse,
-    TareaHogarUpdate,
 )
 
 __all__ = [
@@ -20,14 +12,6 @@ __all__ = [
     "InventarioAlimentoCreate",
     "InventarioAlimentoUpdate",
     "InventarioAlimentoResponse",
-    "TareaHogarCreate",
-    "TareaHogarUpdate",
-    "TareaHogarResponse",
-    "EventoCalendarioCreate",
-    "EventoCalendarioUpdate",
-    "EventoCalendarioResponse",
-    "ConflictoDetalle",
     "PantryStockMetrics",
     "DashboardUnifiedContext",
-    "CalendarAgendaResponse",
 ]

@@ -1,33 +1,13 @@
 import React from 'react';
-import { View, Alert, Pressable, ActivityIndicator } from 'react-native';
+import { View, Alert, ActivityIndicator } from 'react-native';
 import { useDashboard } from '../hooks/useDashboard';
-import { useTasks } from '../hooks/useTasks';
-import { TareaItem } from '../types/types';
 import { getDiasParaCaducar } from '../hooks/usePantry';
 import { getSemaforoCaducidad } from '../lib/caducidad';
 import { useAuthStore } from '../state/authStore';
 import AIDisclaimerBanner from '../components/AIDisclaimerBanner';
 import { colors, radius, spacing } from '../theme/tokens';
-import {
-  Screen,
-  Card,
-  IconButton,
-  Badge,
-  AppText,
-  Icon,
-  FoodIcon,
-  Button,
-  LoadingView,
-  ErrorView,
-} from '../components/ui';
+import { Screen, Card, IconButton, Badge, AppText, Icon, FoodIcon, Button } from '../components/ui';
 import { getCategoriaIcon } from '../lib/categoria';
-import { haptics } from '../lib/haptics';
-
-function formatHora(iso: string): string {
-  if (!iso) return '';
-  const d = new Date(iso);
-  return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
-}
 
 function formatFechaCorta(iso?: string): string {
   const d = iso ? new Date(iso) : new Date();
@@ -35,8 +15,7 @@ function formatFechaCorta(iso?: string): string {
 }
 
 export default function DashboardScreen() {
-  const { loading, briefing, error, refetch: refetchDashboard } = useDashboard();
-  const { tasks, error: tasksError, toggleTaskStatus, refetch: refetchTasks } = useTasks();
+  const { loading, briefing, error, refetch } = useDashboard();
   const usuario = useAuthStore((s) => s.usuario);
   const logout = useAuthStore((s) => s.logout);
 
@@ -53,37 +32,6 @@ export default function DashboardScreen() {
     ]);
   };
 
-  const refetch = () => {
-    refetchDashboard();
-    refetchTasks();
-  };
-
-  // El loader y el error globales se han eliminado.
-  // Ahora la app siempre renderiza el layout (Header, Tareas, Despensa)
-  // y el Briefing se carga en segundo plano con un spinner local.
-
-  const handleToggleTask = (tarea: TareaItem) => {
-    Alert.alert('Confirmar tarea', `¿Deseas marcar la tarea "${tarea.nombre}" como completada?`, [
-      { text: 'Cancelar', style: 'cancel' },
-      {
-        text: 'Confirmar',
-        onPress: async () => {
-          try {
-            haptics.success();
-            await toggleTaskStatus(tarea.id, tarea.estado);
-          } catch (err: any) {
-            Alert.alert(
-              'Error de Sincronización',
-              err.message || 'No se pudo actualizar el estado de la tarea.'
-            );
-          }
-        },
-      },
-    ]);
-  };
-
-  const eventos = briefing?.eventos_hoy ?? [];
-  const pendientes = tasks.filter((t) => t.estado === 'pendiente');
   const alertas = briefing?.alertas_despensa?.alertas_caducidad ?? [];
 
   return (
@@ -173,7 +121,7 @@ export default function DashboardScreen() {
             </AppText>
 
             {briefing?.briefing_texto ? (
-              <View style={{ marginBottom: spacing.md }}>
+              <View>
                 <View
                   style={{
                     backgroundColor: colors.cardAlt,
@@ -205,131 +153,7 @@ export default function DashboardScreen() {
                 {briefing.briefing_generado_por_ia ? <AIDisclaimerBanner /> : null}
               </View>
             ) : null}
-
-            {/* Eventos de hoy */}
-            <View
-              style={{
-                flexDirection: 'row',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                marginBottom: spacing.sm,
-              }}
-            >
-              <AppText variant="captionStrong">Eventos hoy</AppText>
-              <Badge
-                label={`${eventos.length}`}
-                icon="calendar-outline"
-                color={colors.calendar}
-                bg={colors.calendarSoft}
-              />
-            </View>
-            {eventos.length > 0 ? (
-              eventos.map((evento) => (
-                <View
-                  key={evento.id}
-                  style={{ flexDirection: 'row', alignItems: 'flex-start', marginTop: spacing.sm }}
-                >
-                  <AppText
-                    variant="captionStrong"
-                    color={colors.calendar}
-                    style={{ width: 44, paddingTop: 1 }}
-                  >
-                    {formatHora(evento.fecha_inicio)}
-                  </AppText>
-                  <View
-                    style={{
-                      width: 7,
-                      height: 7,
-                      borderRadius: 4,
-                      backgroundColor: colors.calendar,
-                      marginTop: 5,
-                      marginRight: spacing.md,
-                    }}
-                  />
-                  <View style={{ flex: 1 }}>
-                    <AppText variant="captionStrong" numberOfLines={1}>
-                      {evento.titulo}
-                    </AppText>
-                    <AppText variant="micro" color={colors.inkMuted} numberOfLines={1}>
-                      {evento.descripcion || 'Sin descripción'}
-                    </AppText>
-                  </View>
-                </View>
-              ))
-            ) : (
-              <AppText
-                variant="caption"
-                color={colors.inkFaint}
-                style={{ paddingVertical: spacing.sm }}
-              >
-                No hay eventos programados para hoy.
-              </AppText>
-            )}
           </>
-        )}
-      </Card>
-
-      {/* Tareas pendientes */}
-      <Card
-        tint={colors.tasksSoft}
-        borderColor={colors.border}
-        style={{ marginBottom: spacing.lg }}
-      >
-        <View
-          style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: spacing.md }}
-        >
-          <Icon name="flash" size={16} color={colors.tasks} />
-          <AppText variant="captionStrong" color={colors.tasks}>
-            Tareas pendientes
-          </AppText>
-        </View>
-        {tasksError ? (
-          <AppText variant="micro" color={colors.danger} style={{ marginBottom: spacing.sm }}>
-            {tasksError}
-          </AppText>
-        ) : null}
-        {pendientes.length > 0 ? (
-          pendientes.map((tarea) => (
-            <Pressable
-              key={tarea.id}
-              onPress={() => handleToggleTask(tarea)}
-              accessibilityRole="checkbox"
-              accessibilityState={{ checked: false }}
-              accessibilityLabel={`Marcar tarea ${tarea.nombre} como completada`}
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                paddingVertical: 6,
-              }}
-            >
-              <AppText
-                variant="caption"
-                color={colors.tasks}
-                style={{ flex: 1, marginRight: spacing.sm }}
-                numberOfLines={1}
-              >
-                {tarea.nombre}
-                {tarea.asignado_a ? ` · ${tarea.asignado_a}` : ''}
-              </AppText>
-              <View
-                style={{
-                  width: 22,
-                  height: 22,
-                  borderRadius: radius.pill,
-                  borderWidth: 2,
-                  borderColor: colors.border,
-                  backgroundColor: colors.white,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              />
-            </Pressable>
-          ))
-        ) : (
-          <AppText variant="caption" color={colors.tasks}>
-            No hay tareas pendientes. ¡Buen trabajo!
-          </AppText>
         )}
       </Card>
 

@@ -8,14 +8,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.security import decode_access_token
 from app.database import get_async_session
 from app.models.models import Usuario
-from app.repositories.calendar import CalendarRepository
 from app.repositories.historial import RecetaHistorialRepository
 from app.repositories.pantry import PantryRepository
 from app.repositories.perfil import PerfilHogarRepository
-from app.repositories.task import TaskRepository
 from app.repositories.user import UserRepository
 from app.services.auth import AuthService
-from app.services.calendar import CalendarService
 from app.services.dashboard import DashboardService
 from app.services.historial import RecetaHistorialService
 from app.services.onboarding import OnboardingService
@@ -110,29 +107,11 @@ async def get_pantry_service(
     return PantryService(pantry_repo)
 
 
-async def get_calendar_service(
-    session: AsyncSession = Depends(get_async_session),
-) -> CalendarService:
-    """Provee una instancia de CalendarService inyectando su repositorio asíncrono."""
-    calendar_repo = CalendarRepository(session)
-    return CalendarService(calendar_repo)
-
-
 async def get_dashboard_service(
-    session: AsyncSession = Depends(get_async_session),
     pantry_service: PantryService = Depends(get_pantry_service),
-    calendar_service: CalendarService = Depends(get_calendar_service),
 ) -> DashboardService:
-    """Provee una instancia de DashboardService inyectando sus dependencias secundarias."""
-    task_repo = TaskRepository(session)
-    return DashboardService(task_repo, pantry_service, calendar_service)
-
-
-async def get_task_repository(
-    session: AsyncSession = Depends(get_async_session),
-) -> TaskRepository:
-    """Provee una instancia de TaskRepository inyectando su sesión de base de datos."""
-    return TaskRepository(session)
+    """Provee una instancia de DashboardService (resumen de despensa)."""
+    return DashboardService(pantry_service)
 
 
 async def get_onboarding_service(

@@ -17,12 +17,10 @@ load_dotenv()
 # Importar routers
 from app.api.routers import (
     auth,
-    calendar,
     dashboard,
     historial,
     onboarding,
     pantry,
-    tasks,
 )
 from app.core.config import IS_PRODUCTION
 from app.core.logging_config import setup_logging
@@ -31,7 +29,6 @@ from app.database import engine
 # Importar excepciones de negocio
 from app.repositories.exceptions import (
     DatabaseIntegrityError,
-    EventoNotFoundError,
     ItemNotFoundError,
     ReglaNegocioError,
     RepositoryError,
@@ -174,14 +171,6 @@ async def item_not_found_exception_handler(
     return JSONResponse(status_code=404, content={"detail": exc.message})
 
 
-@app.exception_handler(EventoNotFoundError)
-async def evento_not_found_exception_handler(
-    request: Request, exc: EventoNotFoundError
-) -> JSONResponse:
-    """Mapea EventoNotFoundError a HTTP 404 Not Found."""
-    return JSONResponse(status_code=404, content={"detail": exc.message})
-
-
 @app.exception_handler(DatabaseIntegrityError)
 async def database_integrity_exception_handler(
     request: Request, exc: DatabaseIntegrityError
@@ -211,8 +200,6 @@ async def generic_repository_exception_handler(
 app.include_router(auth.router, prefix="/api/v1")
 app.include_router(dashboard.router, prefix="/api/v1")
 app.include_router(pantry.router, prefix="/api/v1")
-app.include_router(calendar.router, prefix="/api/v1")
-app.include_router(tasks.router, prefix="/api/v1")
 app.include_router(onboarding.router, prefix="/api/v1")
 app.include_router(historial.router, prefix="/api/v1")
 

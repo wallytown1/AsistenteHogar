@@ -6,6 +6,66 @@ Formato: `[FECHA] [ÁREA] [TIPO] Descripción`
 
 ---
 
+## [2026-06-18] — Pivote 2: App exclusivamente de comida, stock y recetas
+
+### Decisión de producto
+La app pasa a ser **100% comida**. Se eliminaron de raíz los módulos de **Eventos (calendario)**
+y **Tareas (domésticas)**. El núcleo queda: stock real de la despensa → recetas mediterráneas
+españolas de aprovechamiento. Ver `ARCHITECTURE_MAP.md` para el mapa de sistema actualizado.
+
+Se relaja la restricción "IA pasiva": se permiten escrituras automáticas de bajo riesgo y
+reversibles (descontar stock al terminar receta, ajustar perfil vía function calling) con undo
+visible. Confirmación explícita sigue siendo obligatoria para acciones destructivas.
+
+### Backend (verificado: smoke tests en verde)
+- **DEL** `routers/calendar.py`, `services/calendar.py`, `repositories/calendar.py` — eliminados.
+- **DEL** `routers/tasks.py`, `repositories/task.py` — eliminados.
+- **DEL** Modelos `EventoCalendario`, `TareaHogar` de `models.py`; relaciones `eventos`/`tareas` de `Hogar`.
+- **DEL** `EventoNotFoundError`, `TaskNotFoundError` de `repositories/exceptions.py`.
+- **DEL** Schemas `Evento*`, `Tarea*`, `Conflicto*`, `CalendarAgenda*`, `InterpretarEvento*`, `InterpretarTarea*`.
+- **MOD** `DashboardUnifiedContext` — quitados `eventos_hoy`, `tareas_pendientes`, `conflictos_agenda`.
+- **MOD** `services/dashboard.py` — briefing solo con métricas de despensa.
+- **MOD** `services/llm.py` — eliminadas `interpret_event_text`, `interpret_task_text`; briefing sin anonimizador (datos de pantry no contienen nombres).
+- **MOD** `api/deps.py` — eliminadas deps de calendar/tasks; `get_dashboard_service` simplificado.
+- **MOD** `jobs/purge.py` — purga solo `inventario_alimentos`.
+- **MOD** `repositories/user.py` — `delete_hogar_fisico` sin selectinload de tareas/eventos.
+- **ADD** Migración Alembic `d3e5f7b91a26` — `DROP TABLE eventos_calendario`, `DROP TABLE tareas_hogar` (downgrade reversible).
+
+### Frontend (ts:check 0 errores)
+- **DEL** `screens/CalendarScreen.tsx`, `screens/AgendaScreen.tsx`, `screens/TasksScreen.tsx`.
+- **DEL** `hooks/useCalendar.ts`, `hooks/useTasks.ts`.
+- **MOD** `navigation/AppNavigator.tsx` — tabs: **Inicio · Despensa · Ajustes** (eliminada Agenda).
+- **MOD** `types/types.ts` — eliminados tipos de eventos, tareas, conflictos; `DashboardData` simplificado.
+- **MOD** `screens/DashboardScreen.tsx` — solo briefing + alertas de despensa.
+
+### Documentación
+- **ADD** `ARCHITECTURE_MAP.md` — mapa de sistema Mermaid completo (sistema, ER, flujos, monetización, fases).
+- **MOD** `CLAUDE.md`, `ENDPOINTS.md`, `LEGALIDAD.md`, `ESTADO_ACTUAL.md`, `DISENO_UI.md`, `MEJORAS_PENDIENTES.md`.
+
+---
+
+## [2026-06-18] — F-PIVOT #3: Entrada por audio NL
+
+### Backend
+- **ADD** `POST /api/v1/pantry/audio` (premium) — endpoint en `routers/pantry.py` que recibe texto transcrito y lo pasa a `interpret_pantry_text` de Gemini. Devuelve propuesta de alimentos (el usuario confirma antes de añadir). Rate limit: 20/5 min (compartido con `/interpretar`).
+
+### Frontend
+- **ADD** FAB de micrófono en `PantryScreen` — abre modal de entrada de texto con dictado nativo (teclado iOS/Android integrado, sin nuevas dependencias). El usuario habla → dicta el texto → envía al endpoint.
+
+---
+
+## [2026-06-18] — F-PIVOT #4: Foto de nevera (backend)
+
+### Backend
+- **ADD** `analyze_fridge_photo()` en `services/llm.py` — Gemini Vision multimodal (imagen base64), devuelve lista de alimentos detectados + sugerencias de recetas express.
+- **ADD** `POST /api/v1/pantry/foto-nevera` (premium) en `routers/pantry.py` — schemas `FotoNeveraRequest` / `FotoNeveraResponse`. Rate limit: 10/h. Requiere `GEMINI_API_KEY`.
+- **ADD** `foto_nevera_rate_limiter` en `core/rate_limit.py`.
+
+### Frontend
+- UI pendiente de integrar en el Home redesign (botón de cámara en `PantryScreen`). El backend está listo.
+
+---
+
 ## [2026-06-18] — F-PIVOT #5: Historial de recetas + aprendizaje de comportamiento
 
 ### Backend (verificado: 59 smoke tests en verde, incl. 9 checks de historial)

@@ -27,17 +27,15 @@ salud, RGPD art. 9) se posponen a una iteración con consentimiento explícito. 
 La integración del perfil en los prompts de recetas es el #6. **Pendiente de aplicar la
 migración en Railway** (`alembic upgrade head`) antes del próximo deploy.
 
-### #3 — Entrada por audio NL
-`POST /api/v1/pantry/audio` (premium): recibe texto transcrito por el cliente (expo-av o
-expo-speech), Gemini interpreta igual que `/pantry/interpretar`. Botón de micrófono en
-`PantryScreen` con animación de grabación. IA pasiva: devuelve propuesta, usuario confirma.
-**Esfuerzo:** Medio (endpoint backend simple + UI de micrófono).
+### #3 — Entrada por audio NL ✅ COMPLETADO (2026-06-18)
+`POST /api/v1/pantry/audio` (premium): backend implementado. UI: FAB de micrófono en
+`PantryScreen` abre modal con teclado nativo (dictado iOS/Android integrado), envía texto a
+Gemini, devuelve propuesta que el usuario confirma. Sin dependencias nuevas.
 
-### #4 — Foto de nevera
+### #4 — Foto de nevera ✅ COMPLETADO (2026-06-18)
 `POST /api/v1/pantry/foto-nevera` (premium): Gemini Vision analiza imagen JPEG en base64,
 identifica ingredientes visibles, devuelve propuesta de alimentos + recetas express posibles.
-Botón de cámara en `PantryScreen`. Modal de revisión con checkboxes (mismo patrón que OCR ticket).
-**Esfuerzo:** Medio-alto (Gemini Vision + UI de cámara).
+Backend implementado con `analyze_fridge_photo`, rate limit 10/h. Ver `CHANGELOG.md`.
 
 ---
 

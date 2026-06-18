@@ -10,7 +10,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import DashboardScreen from '../screens/DashboardScreen';
 import PantryScreen from '../screens/PantryScreen';
-import AgendaScreen from '../screens/AgendaScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import AuthScreen from '../screens/AuthScreen';
 import OnboardingScreen, { hasSeenOnboarding } from '../screens/OnboardingScreen';
@@ -24,7 +23,6 @@ import { colors } from '../theme/tokens';
 type RootTabParamList = {
   Inicio: undefined;
   Despensa: undefined;
-  Agenda: undefined;
   Ajustes: undefined;
 };
 
@@ -42,7 +40,6 @@ const ICONS: Record<
 > = {
   Inicio: { on: 'home', off: 'home-outline' },
   Despensa: { on: 'basket', off: 'basket-outline' },
-  Agenda: { on: 'calendar', off: 'calendar-outline' },
   Ajustes: { on: 'settings', off: 'settings-outline' },
 };
 
@@ -82,7 +79,6 @@ function MainTabs() {
     >
       <Tab.Screen name="Inicio" component={DashboardScreen} />
       <Tab.Screen name="Despensa" component={PantryScreen} />
-      <Tab.Screen name="Agenda" component={AgendaScreen} />
       <Tab.Screen name="Ajustes" component={SettingsScreen} />
     </Tab.Navigator>
   );

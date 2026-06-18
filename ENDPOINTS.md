@@ -1,8 +1,8 @@
 # Referencia de la API — Asistente del Hogar IA
 
-> **Pivote estratégico (2026-06-17):** la función principal del producto son las **recetas mediterráneas
-> españolas** generadas a partir del stock real. Los módulos Despensa/Recetas son el núcleo.
-> Calendario y Tareas son funciones secundarias de complemento de planificación.
+> **Pivote 2 (2026-06-18):** la app es **exclusivamente comida, stock y recetas mediterráneas españolas**.
+> Los módulos Eventos (calendario) y Tareas (domésticas) fueron **eliminados por completo**.
+> Ver `ARCHITECTURE_MAP.md`.
 
 Contrato de los endpoints REST del backend, derivado del código real
 (`backend/app/api/routers/` y `backend/app/schemas/schemas.py`).
@@ -61,8 +61,8 @@ Devuelve el perfil del usuario autenticado.
 
 ### `DELETE /api/v1/auth/cuenta` 🔒
 Destrucción **física y definitiva** de la cuenta: elimina el hogar derivado del JWT
-y todos sus datos vinculados (usuarios, despensa, tareas, eventos — incluidos los
-soft-deleted). RGPD art. 17 + App Store 5.1.1(v) / Google Play. Irreversible.
+y todos sus datos vinculados (usuarios, inventario — incluidos los soft-deleted).
+RGPD art. 17 + App Store 5.1.1(v) / Google Play. Irreversible.
 Requiere re-autenticación con la contraseña actual (un token activo no basta).
 Deja evidencia agregada sin datos personales en `registros_borrado`.
 Rate limit: 5 intentos/hora por IP.
@@ -75,27 +75,21 @@ Rate limit: 5 intentos/hora por IP.
 ## Dashboard
 
 ### `GET /api/v1/dashboard` 🔒
-Estado unificado del hogar para hoy. Orquesta despensa, calendario y tareas de
-forma concurrente, filtra eventos/conflictos a **hoy (UTC)** y tareas a estado
-**pendiente**, y genera el briefing con Gemini (o un fallback estático sin API key).
+Estado de la despensa para hoy + briefing generado por Gemini (o fallback estático sin API key).
 
 **200** → `DashboardUnifiedContext`:
 ```json
 {
-  "fecha": "2026-06-12",
-  "eventos_hoy": [ /* EventoCalendarioResponse */ ],
+  "fecha": "2026-06-18",
   "alertas_despensa": { "porcentaje_stock": 80.0, "items_disponibles": 5, "alertas_caducidad": [], "items": [] },
-  "tareas_pendientes": [ /* TareaHogarOut */ ],
-  "conflictos_agenda": [ /* ConflictoDetalle */ ],
   "briefing_texto": "Buenos días...",
   "briefing_generado_por_ia": false
 }
 ```
 
 `briefing_generado_por_ia` es `true` solo cuando el texto proviene del modelo
-(obliga al cliente a mostrar el aviso de transparencia de IA); `false` con el
-fallback estático. Los nombres de la familia se anonimizan (`Familiar_N`) antes
-de enviarse a Gemini y se restauran en la respuesta.
+(obliga al cliente a mostrar el aviso de transparencia de IA `AIDisclaimerBanner`); `false` con el
+fallback estático.
 
 ---
 
@@ -172,13 +166,15 @@ Actualización parcial (`InventarioAlimentoUpdate`, todos los campos opcionales)
 Borrado lógico (`is_deleted = true`).
 **200** → item borrado · **404** inexistente/ajeno.
 
-### `POST /api/v1/pantry/audio` 🔒 ⭐ ⏳ Planificado
-Interpreta una nota de voz en lenguaje natural y devuelve propuesta de alimentos (IA pasiva).
-Gemini procesa el texto transcrito del audio, igual que `/pantry/interpretar` pero optimizado
-para micro-ajustes rápidos ("Apunta que he gastado dos huevos").
-Rate limit: compartido con `/interpretar` (20/5 min por IP).
+### `POST /api/v1/pantry/audio` 🔒 ⭐ Premium ✅ Implementado
+Interpreta texto transcrito de una nota de voz y devuelve propuesta de alimentos (IA pasiva — usuario confirma).
+Gemini procesa el texto igual que `/pantry/interpretar` pero optimizado para micro-ajustes
+rápidos ("Apunta que he gastado dos huevos"). UI: FAB micrófono con dictado nativo.
+**Body** (`InterpretarDespensaRequest`): igual que `/pantry/interpretar`.
+**200** → `InterpretarDespensaResponse`. Rate limit: 20/5 min por IP (compartido con `/interpretar`).
+**402** sin premium.
 
-### `POST /api/v1/pantry/foto-nevera` 🔒 ⭐ ⏳ Planificado
+### `POST /api/v1/pantry/foto-nevera` 🔒 ⭐ Premium ✅ Implementado (backend)
 Gemini Vision analiza una foto de la nevera e identifica ingredientes visibles. Devuelve propuesta
 de alimentos detectados + sugerencias de recetas express (IA pasiva — usuario confirma antes de guardar).
 **Body** (`FotoNeveraRequest`): `{ "imagen_base64": "<JPEG en base64>", "fecha_referencia": "..." }`
@@ -202,84 +198,6 @@ Guarda (upsert) el perfil inicial del hogar para personalizar las recetas. `hoga
 **Nota RGPD:** esta iteración guarda SOLO datos no sensibles. Las intolerancias/alergias
 (datos de salud, art. 9) se posponen a una iteración con consentimiento explícito dedicado;
 el `extra='forbid'` rechaza esos campos si llegan por error.
-
----
-
-## Calendario (función secundaria — complemento de planificación)
-
-### `GET /api/v1/calendar` 🔒
-Agenda activa y detección de solapamientos.
-**200** → `CalendarAgendaResponse` `{ eventos[], conflictos[] }`.
-
-### `POST /api/v1/calendar` 🔒
-**Body** (`EventoCalendarioCreate`):
-```json
-{
-  "titulo": "Reunión Escolar",  // 2-200
-  "descripcion": "...",          // opcional
-  "fecha_inicio": "2026-06-12T10:00:00+00:00",
-  "fecha_fin": "2026-06-12T11:30:00+00:00",  // debe ser > fecha_inicio
-  "participantes": ["Papá", "Mamá"]           // opcional
-}
-```
-**201** → `EventoCalendarioResponse` · **422** validación (incl. `fecha_fin <= fecha_inicio`).
-
-### `POST /api/v1/calendar/interpretar` 🔒
-Interpreta lenguaje natural y devuelve una **propuesta** de evento (IA pasiva:
-nunca lo crea; el cliente confirma y llama a `POST /calendar`).
-
-**Body** (`InterpretarEventoRequest`):
-```json
-{ "texto": "dentista mañana a las 10 con papá", "fecha_referencia": "2026-06-12T08:00:00+00:00" }
-```
-**200** → `InterpretarEventoResponse` `{ evento, mensaje }` (`evento` es null si no se pudo interpretar o sin API key).
-Rate limit: 20/5 min por IP (compartido con los demás `/interpretar`).
-
-### `PATCH /api/v1/calendar/{evento_id}` 🔒
-Actualización parcial (`EventoCalendarioUpdate`, campos opcionales).
-**200** → evento actualizado · **400** sin cuerpo · **404** inexistente/ajeno · **422** validación.
-
-### `DELETE /api/v1/calendar/{evento_id}` 🔒
-Borrado lógico.
-**200** → evento borrado · **404** inexistente/ajeno.
-
----
-
-## Tareas (función secundaria)
-
-### `GET /api/v1/tasks` 🔒
-**200** → `List[TareaHogarOut]` (lista directa, sin envoltura).
-
-### `POST /api/v1/tasks` 🔒
-**Body** (`TareaHogarIn`):
-```json
-{
-  "nombre": "Sacar la basura",  // 2-200
-  "asignado_a": "Ana",           // opcional, ≤100
-  "frecuencia": "diaria",        // 2-50
-  "prioridad": "alta",           // alta | media | baja (default: media)
-  "estado": "pendiente"          // pendiente | completado (default: pendiente)
-}
-```
-**201** → `TareaHogarOut` · **422** validación (prioridad/estado inválidos).
-
-### `POST /api/v1/tasks/interpretar` 🔒
-Interpreta lenguaje natural y devuelve una **propuesta** de tarea (IA pasiva:
-nunca la crea; el cliente confirma y llama a `POST /tasks`).
-**Body** (`InterpretarTareaRequest`):
-```json
-{ "texto": "poner la lavadora cada martes, le toca a papá" }
-```
-**200** → `InterpretarTareaResponse` `{ tarea {nombre, asignado_a, frecuencia, prioridad}, mensaje }` (`tarea` es null si no se pudo interpretar o sin API key).
-Rate limit: 20/5 min por IP (compartido con los demás `/interpretar`).
-
-### `PATCH /api/v1/tasks/{tarea_id}` 🔒
-Actualización parcial (`TareaHogarUpdate`). Uso típico: cambiar `estado` o `prioridad`.
-**200** → tarea actualizada · **400** sin cuerpo · **404** inexistente/ajeno · **422** validación.
-
-### `DELETE /api/v1/tasks/{tarea_id}` 🔒
-Borrado lógico.
-**200** → tarea borrada · **404** inexistente/ajeno.
 
 ---
 

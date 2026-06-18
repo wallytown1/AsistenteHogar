@@ -44,17 +44,19 @@ La API **gratuita** de Google AI (`generativelanguage`) **puede usar los prompts
 **Acción requerida (contractual, no código):** usar una `GEMINI_API_KEY` de un proyecto con **facturación activada** (donde Google **no** entrena con los datos) o **Vertex AI** con DPA y región UE.
 
 ## Flujos de datos hacia Gemini (minimización, art. 5.1.c)
+
+> **Pivote 2 (2026-06-18):** eliminados `/calendar/interpretar` y `/tasks/interpretar`
+> — ya no existen endpoints de Calendario ni Tareas. Los flujos quedan solo a despensa y dashboard.
+
 | Endpoint | Qué sale hacia Gemini | PII | Mitigación |
 |---|---|---|---|
-| `GET /dashboard` (briefing) | eventos/tareas/alimentos del día | Nombres de familiares | **Anonimizados** a `Familiar_N` antes de enviar; revertidos tras la respuesta |
+| `GET /dashboard` (briefing) | stock/alimentos del día | No (sin nombres tras pivote) | Anonimizador preservado en `privacy.py` para usos futuros (chat) |
 | `GET /pantry/recetas` | inventario (alimentos) | No | — |
 | `GET /pantry/plan-comidas` | inventario (alimentos) | No | — |
 | `POST /pantry/sugerir-metadata` | nombre de un alimento | No | — |
 | `POST /pantry/interpretar` | frase del usuario sobre compra | Improbable | Input voluntario del usuario para esa finalidad |
-| `POST /calendar/interpretar` | frase del usuario sobre un evento | Posible (nombres) | Input voluntario del usuario para esa finalidad |
-| `POST /tasks/interpretar` | frase del usuario sobre una tarea | Posible (nombres) | Input voluntario del usuario para esa finalidad |
-| `POST /pantry/audio` ⏳ | texto transcrito de nota de voz | Posible (nombres, lugares) | Input voluntario; la transcripción ocurre en el cliente antes del envío |
-| `POST /pantry/foto-nevera` ⏳ | imagen JPEG de la nevera | Improbable (solo alimentos) | El cliente recorta/redimensiona antes de enviar; no se almacena la imagen en el servidor |
+| `POST /pantry/audio` ✅ | texto transcrito de nota de voz | Posible (nombres, lugares) | Input voluntario; la transcripción ocurre en el cliente antes del envío |
+| `POST /pantry/foto-nevera` ✅ | imagen JPEG de la nevera | Improbable (solo alimentos) | El cliente recorta/redimensiona antes de enviar; no se almacena la imagen en el servidor |
 | `POST /onboarding` ✅ | gustos culinarios, nº comensales | No (datos NO sensibles) | Implementado solo con datos no sensibles. `extra='forbid'` rechaza intolerancias/alergias si llegan por error |
 | `POST /onboarding` (datos de salud) ⏳ | intolerancias, alergias | Sí (categoría especial RGPD art. 9) | **POSPUESTO.** Cuando se implemente: base legal explícita (consentimiento art. 6.1.a + art. 9.2.a) antes de enviar a Gemini; no enviar datos de salud sin consentimiento explícito |
 

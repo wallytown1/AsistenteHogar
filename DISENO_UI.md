@@ -3,9 +3,9 @@
 > Rediseño visual completo del frontend fusionado en `main`. La lógica de negocio se preservó al 100%;
 > solo cambió la capa de presentación. NativeWind/Tailwind eliminados; todo es StyleSheet + tokens.
 >
-> **Pivote (2026-06-17):** la Despensa y las Recetas son la pantalla principal. Los próximos
-> componentes UI prioritarios son: botón de micrófono (audio NL), botón de cámara (foto nevera),
-> modal de onboarding (perfil del hogar) y pantalla de receta detallada.
+> **Pivote 2 (2026-06-18):** la app es **exclusivamente comida, stock y recetas**. Los módulos
+> Calendario y Tareas han sido eliminados. La Despensa / Recetas es la pantalla central.
+> Próximos componentes prioritarios: pantalla de receta detallada (`RecipeDetailScreen`).
 
 ---
 
@@ -35,7 +35,7 @@ manteniendo una identidad de marca coherente en ambas plataformas (estilo Notion
   - Superficies: `bg #F5F6FA`, `card #FFFFFF`, `cardAlt #FAFBFD`.
   - Texto: `ink`, `inkMuted`, `inkFaint`.
   - Semánticos (+ tinte `*Soft`): `success`, `warning`, `danger`, `info`.
-  - Acentos por módulo: **despensa** verde (`pantry`), **calendario** índigo (`calendar`), **tareas** ámbar (`tasks`), **inicio** marca.
+  - Acentos por módulo: **despensa** verde (`pantry`), **inicio** marca.
 - **Tipografía** (`typography`): `display`, `title`, `h2`, `bodyStrong`, `body`, `captionStrong`, `caption`, `label`, `micro`.
 - **Espaciado** (`spacing`): xs 4 · sm 8 · md 12 · lg 16 · xl 20 · xxl 24 · xxxl 32.
 - **Radios** (`radius`): sm 10 · md 14 · lg 18 · xl 22 · xxl 28 · pill 999.
@@ -76,7 +76,7 @@ Utilidades: `src/lib/haptics.ts` (wrapper seguro de `expo-haptics`, no-op en web
 - **Android**: `android_ripple` en pulsables, `Switch` Material, elevación.
 - **iOS**: sombras suaves, `Switch` estilo iOS, toggles redondeados.
 - **Haptics**: ligero al pulsar, medio en el FAB, success/warning/error en resultados.
-- **Pull-to-refresh** nativo en Dashboard, Despensa, Calendario y Tareas.
+- **Pull-to-refresh** nativo en Dashboard y Despensa.
 
 ---
 
@@ -97,13 +97,13 @@ por completo** (deps, `global.css`, `tailwind.config.js`, `nativewind-env.d.ts` 
 
 ---
 
-## 7. Próximos componentes UI (F-PIVOT)
+## 7. Próximos componentes UI
 
-| Componente | Pantalla | Descripción |
+| Componente | Pantalla | Estado |
 |---|---|---|
-| `MicButton` | `PantryScreen` | Botón de micrófono con animación de grabación (entrada por audio) |
-| `CameraButton` | `PantryScreen` | Botón de cámara para foto de nevera |
-| `OnboardingProfileScreen` ✅ | `AppNavigator` (gate `AuthedApp`) | Encuesta inicial: gustos culinarios (chips) + nº comensales (stepper). Intolerancias/alergias pospuestas (RGPD art. 9) |
-| `RecipeDetailScreen` | desde `PantryScreen` | Vista completa de receta: pasos, ingredientes, "Marcar como cocinada" |
+| `MicButton` (FAB micrófono) | `PantryScreen` | ✅ Implementado (dictado nativo, sin dependencias nuevas) |
+| `CameraButton` (foto nevera) | `PantryScreen` | ✅ Backend listo; UI pendiente de integrar en Home redesign |
+| `OnboardingProfileScreen` | `AppNavigator` (gate `AuthedApp`) | ✅ Implementado |
+| `RecipeDetailScreen` | desde `PantryScreen` | ⏳ Próximo — pasos, ingredientes, "Marcar como cocinada" |
 
-Paleta: la Despensa (verde `pantry`) debe ser visualmente dominante — es la función principal.
+Paleta: la Despensa (verde `pantry`) es visualmente dominante — es la función principal.

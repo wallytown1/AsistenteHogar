@@ -7,7 +7,6 @@ from pydantic import (
     EmailStr,
     Field,
     field_validator,
-    model_validator,
 )
 
 
@@ -195,167 +194,7 @@ class InventarioAlimentoResponse(BaseSchema):
     updated_at: datetime
 
 
-# --- TAREAS HOGAR ---
-class TareaHogarIn(BaseSchema):
-    nombre: str = Field(
-        ...,
-        min_length=2,
-        max_length=200,
-        description="Descripción o nombre de la tarea",
-    )
-    asignado_a: str | None = Field(
-        None, max_length=100, description="Miembro de la familia asignado"
-    )
-    frecuencia: str = Field(
-        ..., min_length=2, max_length=50, description="Ej: diaria, semanal, mensual"
-    )
-    prioridad: str = Field(
-        "media", description="Prioridad de la tarea (alta, media, baja)"
-    )
-    estado: str = Field(
-        "pendiente",
-        min_length=2,
-        max_length=30,
-        description="Estado inicial de la tarea",
-    )
-
-    @field_validator("prioridad")
-    @classmethod
-    def validar_prioridad(cls, v: str) -> str:
-        prioridades_validas = ["alta", "media", "baja"]
-        if v not in prioridades_validas:
-            raise ValueError("La prioridad debe ser una de: alta, media, baja")
-        return v
-
-    @field_validator("estado")
-    @classmethod
-    def validar_estado(cls, v: str) -> str:
-        estados_validos = ["pendiente", "completado"]
-        if v not in estados_validos:
-            raise ValueError(f"El estado debe ser uno de: {', '.join(estados_validos)}")
-        return v
-
-
-class TareaHogarUpdate(BaseSchema):
-    nombre: str | None = Field(None, min_length=2, max_length=200)
-    asignado_a: str | None = Field(None, max_length=100)
-    frecuencia: str | None = Field(None, min_length=2, max_length=50)
-    ultimo_completado: datetime | None = Field(None)
-    prioridad: str | None = Field(
-        None, description="Prioridad de la tarea (alta, media, baja)"
-    )
-    estado: str | None = Field(None, min_length=2, max_length=30)
-
-    @field_validator("prioridad")
-    @classmethod
-    def validar_prioridad(cls, v: str | None) -> str | None:
-        if v is None:
-            return v
-        prioridades_validas = ["alta", "media", "baja"]
-        if v not in prioridades_validas:
-            raise ValueError("La prioridad debe ser una de: alta, media, baja")
-        return v
-
-    @field_validator("estado")
-    @classmethod
-    def validar_estado(cls, v: str | None) -> str | None:
-        if v is None:
-            return v
-        estados_validos = ["pendiente", "completado"]
-        if v not in estados_validos:
-            raise ValueError(f"El estado debe ser uno de: {', '.join(estados_validos)}")
-        return v
-
-
-class TareaHogarOut(BaseSchema):
-    id: UUID
-    hogar_id: UUID
-    nombre: str
-    asignado_a: str | None
-    frecuencia: str
-    prioridad: str
-    ultimo_completado: datetime | None
-    estado: str
-    is_deleted: bool
-    created_at: datetime
-    updated_at: datetime
-
-
-# Aliases de compatibilidad para el repositorio y otros servicios
-TareaHogarCreate = TareaHogarIn
-TareaHogarResponse = TareaHogarOut
-
-
-# --- EVENTOS CALENDARIO ---
-class EventoCalendarioCreate(BaseSchema):
-    titulo: str = Field(
-        ..., min_length=2, max_length=200, description="Título del evento o cita"
-    )
-    descripcion: str | None = Field(None, description="Notas aclaratorias adicionales")
-    fecha_inicio: datetime = Field(
-        ..., description="Fecha y hora de inicio con zona horaria"
-    )
-    fecha_fin: datetime = Field(
-        ..., description="Fecha y hora de finalización con zona horaria"
-    )
-    participantes: list[str] | None = Field(
-        None, description="Miembros familiares participantes"
-    )
-
-    @model_validator(mode="after")
-    def validar_fechas_consistentes(self) -> "EventoCalendarioCreate":
-        # La fecha de fin debe ser estrictamente posterior a la de inicio.
-        if self.fecha_fin <= self.fecha_inicio:
-            raise ValueError("La fecha de fin debe ser posterior a la fecha de inicio")
-        return self
-
-
-class EventoCalendarioUpdate(BaseSchema):
-    titulo: str | None = Field(None, min_length=2, max_length=200)
-    descripcion: str | None = Field(None)
-    fecha_inicio: datetime | None = Field(None)
-    fecha_fin: datetime | None = Field(None)
-    participantes: list[str] | None = Field(None)
-
-    @model_validator(mode="after")
-    def validar_fechas_consistentes(self) -> "EventoCalendarioUpdate":
-        # PATCH parcial: solo se valida si llegan AMBAS fechas (la consistencia
-        # contra el evento persistido la garantiza CalendarService.update_event).
-        if (
-            self.fecha_inicio is not None
-            and self.fecha_fin is not None
-            and self.fecha_fin <= self.fecha_inicio
-        ):
-            raise ValueError("La fecha de fin debe ser posterior a la fecha de inicio")
-        return self
-
-
-class EventoCalendarioResponse(BaseSchema):
-    id: UUID
-    hogar_id: UUID
-    titulo: str
-    descripcion: str | None
-    fecha_inicio: datetime
-    fecha_fin: datetime
-    participantes: list[str] | None
-    is_deleted: bool
-    created_at: datetime
-    updated_at: datetime
-
-
 # --- SERVICE LAYER RESPONSES ---
-
-
-class ConflictoDetalle(BaseSchema):
-    evento_a: EventoCalendarioResponse = Field(
-        ..., description="Primer evento del conflicto"
-    )
-    evento_b: EventoCalendarioResponse = Field(
-        ..., description="Segundo evento del conflicto"
-    )
-    duracion_solapamiento_segundos: float = Field(
-        ..., description="Duración de la superposición en segundos"
-    )
 
 
 class PantryStockMetrics(BaseSchema):
@@ -405,20 +244,8 @@ class RecetasSugeridasResponse(BaseSchema):
 
 class DashboardUnifiedContext(BaseSchema):
     fecha: str = Field(..., description="Fecha del briefing en formato ISO-8601")
-    eventos_hoy: list[EventoCalendarioResponse] = Field(
-        default_factory=list,
-        description="Lista de eventos activos programados para hoy",
-    )
     alertas_despensa: PantryStockMetrics = Field(
         ..., description="Estado de métricas de stock y alertas de caducidad"
-    )
-    tareas_pendientes: list[TareaHogarResponse] = Field(
-        default_factory=list,
-        description="Lista de tareas del hogar con estado pendiente",
-    )
-    conflictos_agenda: list[ConflictoDetalle] = Field(
-        default_factory=list,
-        description="Lista de conflictos de solapamiento horario de hoy",
     )
     briefing_texto: str | None = Field(
         None, description="Resumen ejecutivo amigable generado por IA"
@@ -426,90 +253,6 @@ class DashboardUnifiedContext(BaseSchema):
     briefing_generado_por_ia: bool = Field(
         False,
         description="True si el briefing proviene del modelo de IA (obliga a mostrar el aviso de transparencia); False si es el fallback estático",
-    )
-
-
-class CalendarAgendaResponse(BaseSchema):
-    eventos: list[EventoCalendarioResponse] = Field(
-        default_factory=list, description="Eventos del hogar"
-    )
-    conflictos: list[ConflictoDetalle] = Field(
-        default_factory=list, description="Conflictos de solapamiento de horarios"
-    )
-
-
-# --- INTERPRETACIÓN DE EVENTOS EN LENGUAJE NATURAL (IA) ---
-
-
-class InterpretarEventoRequest(BaseSchema):
-    texto: str = Field(
-        ...,
-        min_length=3,
-        max_length=300,
-        description="Frase en lenguaje natural que describe el evento (ej: 'dentista mañana a las 10 con papá')",
-    )
-    fecha_referencia: datetime = Field(
-        ...,
-        description="Fecha y hora actual del dispositivo del usuario para resolver expresiones relativas",
-    )
-
-
-class EventoInterpretado(BaseSchema):
-    titulo: str = Field(..., min_length=2, max_length=200)
-    descripcion: str | None = Field(None)
-    fecha_inicio: datetime
-    fecha_fin: datetime
-    participantes: list[str] | None = Field(None)
-
-
-class InterpretarEventoResponse(BaseSchema):
-    evento: EventoInterpretado | None = Field(
-        None,
-        description="Propuesta de evento interpretada por la IA (el usuario debe confirmarla)",
-    )
-    mensaje: str | None = Field(
-        None, description="Motivo cuando no se pudo interpretar la frase"
-    )
-
-
-# --- INTERPRETACIÓN DE TAREAS EN LENGUAJE NATURAL (IA) ---
-
-
-class InterpretarTareaRequest(BaseSchema):
-    texto: str = Field(
-        ...,
-        min_length=3,
-        max_length=300,
-        description="Frase en lenguaje natural que describe la tarea (ej: 'poner la lavadora cada martes, le toca a papá')",
-    )
-
-
-class TareaInterpretada(BaseSchema):
-    nombre: str = Field(..., min_length=2, max_length=200)
-    asignado_a: str | None = Field(None, max_length=100)
-    frecuencia: str = Field(
-        "ocasional", max_length=50, description="diaria, semanal, mensual u ocasional"
-    )
-    prioridad: str = Field("media", description="alta, media o baja")
-
-    @field_validator("prioridad")
-    @classmethod
-    def normalizar_prioridad(cls, v: str) -> str:
-        return v if v in ("alta", "media", "baja") else "media"
-
-    @field_validator("frecuencia")
-    @classmethod
-    def normalizar_frecuencia(cls, v: str) -> str:
-        return v if v in ("diaria", "semanal", "mensual", "ocasional") else "ocasional"
-
-
-class InterpretarTareaResponse(BaseSchema):
-    tarea: TareaInterpretada | None = Field(
-        None,
-        description="Propuesta de tarea interpretada por la IA (el usuario debe confirmarla)",
-    )
-    mensaje: str | None = Field(
-        None, description="Motivo cuando no se pudo interpretar la frase"
     )
 
 
