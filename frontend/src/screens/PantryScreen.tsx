@@ -926,16 +926,11 @@ export default function PantryScreen() {
                     </AppText>
                   </View>
                   <Button
-                    label="Ver"
+                    label="Ver receta"
                     size="sm"
                     variant="ghost"
                     fullWidth={false}
-                    onPress={() =>
-                      Alert.alert(
-                        receta.titulo,
-                        `Ingredientes: ${receta.ingredientes_usados.join(', ')}\n\nPasos:\n${receta.pasos.map((p, i) => `${i + 1}. ${p}`).join('\n')}`
-                      )
-                    }
+                    onPress={() => navigation.navigate('RecetaDetalle', { receta })}
                   />
                 </View>
                 {/* Botones de feedback (aprendizaje de comportamiento) */}

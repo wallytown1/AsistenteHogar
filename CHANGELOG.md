@@ -6,6 +6,15 @@ Formato: `[FECHA] [ÁREA] [TIPO] Descripción`
 
 ---
 
+## [2026-06-18] — RecipeDetailScreen: pantalla de detalle de receta
+
+### Frontend (ts:check 0 errores)
+- **ADD** `screens/RecipeDetailScreen.tsx` — pantalla completa de receta con header de vuelta, badges de tiempo e ingredientes, lista de ingredientes con iconos checkmark, pasos numerados con burbuja de color marca, y footer fijo con botones "Marcar como cocinada" (primario) y "No me gusta" (ghost). Llama a `useRecetaHistorial` y navega atrás tras registrar la acción.
+- **MOD** `navigation/AppNavigator.tsx` — añadida ruta `RecetaDetalle: { receta: RecetaSugerida }` al `RootStackParamList`; `Stack.Screen` con `animation: 'slide_from_right'`.
+- **MOD** `screens/PantryScreen.tsx` — botón "Ver" en tarjeta de receta ahora navega a `RecetaDetalle` en lugar de mostrar un `Alert`. Los botones "Cocinada" / "No me gusta" se mantienen también en la tarjeta para acción rápida.
+
+---
+
 ## [2026-06-18] — Fase 2: Panel admin — prompts dinámicos, recetario maestro, admin JWT
 
 ### Backend (verificado: 26/26 smoke_test_admin + 5 suites existentes en verde)
