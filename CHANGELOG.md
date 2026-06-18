@@ -6,6 +6,18 @@ Formato: `[FECHA] [ÁREA] [TIPO] Descripción`
 
 ---
 
+## [2026-06-18] — Foto de nevera: UI completa en PantryScreen
+
+### Frontend (ts:check 0 errores)
+- **ADD** FAB cuaternario `camera-outline` (`colors.success`, bottom 216) en `PantryScreen` — acceso directo a la funcionalidad de foto de nevera (premium gate).
+- **ADD** Handler `handleFotoNevera` — premium gate → permiso de cámara → Alert para elegir entre cámara y galería → `procesarFotoNevera`.
+- **ADD** Handler `procesarFotoNevera` — llama a `POST /pantry/foto-nevera` con `imagen_base64` y `fecha_referencia`; muestra overlay de escaneo durante el análisis; mapea resultado a `OcrItem[]` y abre modal de revisión.
+- **ADD** Handlers `toggleFotoItem` / `confirmarFotoItems` — misma mecánica de selección en lote que el OCR de ticket.
+- **ADD** Overlay `fotoScanning` — modal fade con spinner verde ("Analizando nevera...").
+- **ADD** Modal de revisión `fotoReviewVisible` — lista de ingredientes con checkboxes, sección "Recetas express posibles" cuando `sugerencias_rapidas` no está vacío, botones "Añadir seleccionados" / "Cancelar", `AIDisclaimerBanner`.
+
+---
+
 ## [2026-06-18] — RecipeDetailScreen: pantalla de detalle de receta
 
 ### Frontend (ts:check 0 errores)

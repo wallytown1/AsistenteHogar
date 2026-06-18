@@ -12,6 +12,7 @@ import {
   DiaPlanComidas,
   RecetaSugerida,
   SugerenciasResponse,
+  FotoNeveraResponse,
 } from '../types/types';
 import { apiRequest, TIMEOUT } from '../api/api';
 import AIDisclaimerBanner from '../components/AIDisclaimerBanner';
@@ -181,6 +182,13 @@ export default function PantryScreen() {
   const [ocrReviewItems, setOcrReviewItems] = useState<OcrItem[]>([]);
   const [ocrAdding, setOcrAdding] = useState(false);
 
+  // --- Foto de nevera ---
+  const [fotoScanning, setFotoScanning] = useState(false);
+  const [fotoReviewVisible, setFotoReviewVisible] = useState(false);
+  const [fotoReviewItems, setFotoReviewItems] = useState<OcrItem[]>([]);
+  const [fotoSugerenciasRapidas, setFotoSugerenciasRapidas] = useState<string[]>([]);
+  const [fotoAdding, setFotoAdding] = useState(false);
+
   const resetModal = () => {
     setModalVisible(false);
     setModoModal('manual');
@@ -310,6 +318,107 @@ export default function PantryScreen() {
       Alert.alert('Error', err.message || 'Error al añadir los productos.');
     } finally {
       setOcrAdding(false);
+    }
+  };
+
+  const handleFotoNevera = async () => {
+    if (!checkPremiumGate()) return;
+    try {
+      const permission = await ImagePicker.requestCameraPermissionsAsync();
+      if (!permission.granted) {
+        Alert.alert(
+          'Permiso denegado',
+          'Necesitamos acceso a la cámara para fotografiar la nevera.'
+        );
+        return;
+      }
+      Alert.alert('Foto de nevera', '¿Cómo quieres añadir la foto?', [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Cámara',
+          onPress: async () => {
+            const result = await ImagePicker.launchCameraAsync({ base64: true, quality: 0.6 });
+            procesarFotoNevera(result);
+          },
+        },
+        {
+          text: 'Galería',
+          onPress: async () => {
+            const result = await ImagePicker.launchImageLibraryAsync({
+              base64: true,
+              quality: 0.6,
+            });
+            procesarFotoNevera(result);
+          },
+        },
+      ]);
+    } catch {
+      Alert.alert('Error', 'No se pudo abrir la cámara.');
+    }
+  };
+
+  const procesarFotoNevera = async (result: ImagePicker.ImagePickerResult) => {
+    if (result.canceled || !result.assets[0].base64) return;
+    setFotoScanning(true);
+    try {
+      const hoy = new Date().toISOString().split('T')[0];
+      const res = await apiRequest<FotoNeveraResponse>('/pantry/foto-nevera', {
+        method: 'POST',
+        json: { imagen_base64: result.assets[0].base64, fecha_referencia: hoy },
+        timeoutMs: TIMEOUT.OCR_FULL,
+      });
+      if (res.alimentos.length > 0) {
+        setFotoReviewItems(res.alimentos.map((a) => ({ ...a, seleccionado: true })));
+        setFotoSugerenciasRapidas(res.sugerencias_rapidas);
+        setFotoReviewVisible(true);
+      } else {
+        Alert.alert(
+          'Sin resultados',
+          res.mensaje || 'No se detectaron ingredientes. Intenta con una foto más nítida.'
+        );
+      }
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'Error analizando la imagen.');
+    } finally {
+      setFotoScanning(false);
+    }
+  };
+
+  const toggleFotoItem = (idx: number) => {
+    setFotoReviewItems((prev) =>
+      prev.map((item, i) => (i === idx ? { ...item, seleccionado: !item.seleccionado } : item))
+    );
+  };
+
+  const confirmarFotoItems = async () => {
+    const seleccionados = fotoReviewItems.filter((i) => i.seleccionado);
+    if (seleccionados.length === 0) {
+      Alert.alert('Sin selección', 'Selecciona al menos un ingrediente para añadir.');
+      return;
+    }
+    setFotoAdding(true);
+    try {
+      for (const alimento of seleccionados) {
+        await addItem({
+          nombre: alimento.nombre,
+          cantidad: alimento.cantidad,
+          unidad: alimento.unidad,
+          categoria: alimento.categoria,
+          fecha_caducidad: alimento.fecha_caducidad,
+        });
+      }
+      haptics.success();
+      setFotoReviewVisible(false);
+      setFotoReviewItems([]);
+      setFotoSugerenciasRapidas([]);
+      Alert.alert(
+        'Ingredientes añadidos',
+        `${seleccionados.length} ingrediente${seleccionados.length === 1 ? '' : 's'} añadido${seleccionados.length === 1 ? '' : 's'} a tu despensa.`
+      );
+    } catch (err: any) {
+      Alert.alert('Error', err.message || 'Error al añadir los ingredientes.');
+    } finally {
+      setFotoAdding(false);
     }
   };
 
@@ -1093,6 +1202,14 @@ export default function PantryScreen() {
         }}
         accessibilityLabel="Dictar producto a la despensa"
       />
+      {/* FAB cuaternario: foto de nevera */}
+      <Fab
+        icon="camera-outline"
+        color={colors.success}
+        bottom={216}
+        onPress={handleFotoNevera}
+        accessibilityLabel="Fotografiar la nevera"
+      />
 
       {/* Modal de entrada por voz */}
       <Modal
@@ -1349,6 +1466,178 @@ export default function PantryScreen() {
                 onPress={() => {
                   setOcrReviewVisible(false);
                   setOcrReviewItems([]);
+                }}
+              />
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Overlay de análisis foto nevera */}
+      <Modal visible={fotoScanning} transparent animationType="fade">
+        <View
+          style={{
+            flex: 1,
+            justifyContent: 'center',
+            alignItems: 'center',
+            backgroundColor: colors.overlay,
+          }}
+        >
+          <View
+            style={{
+              backgroundColor: colors.card,
+              borderRadius: radius.xl,
+              padding: spacing.xxl,
+              alignItems: 'center',
+              gap: spacing.md,
+            }}
+          >
+            <ActivityIndicator size="large" color={colors.success} />
+            <AppText variant="caption" color={colors.inkMuted}>
+              Analizando nevera...
+            </AppText>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Modal de revisión de foto de nevera */}
+      <Modal
+        visible={fotoReviewVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => {
+          setFotoReviewVisible(false);
+          setFotoReviewItems([]);
+          setFotoSugerenciasRapidas([]);
+        }}
+      >
+        <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: colors.overlay }}>
+          <View
+            style={{
+              backgroundColor: colors.card,
+              borderTopLeftRadius: radius.xxl,
+              borderTopRightRadius: radius.xxl,
+              padding: spacing.xl,
+              paddingBottom: spacing.xxxl,
+              maxHeight: '88%',
+            }}
+          >
+            <View style={{ alignItems: 'center', marginBottom: spacing.md }}>
+              <View
+                style={{
+                  width: 40,
+                  height: 4,
+                  borderRadius: 2,
+                  backgroundColor: colors.borderStrong,
+                }}
+              />
+            </View>
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: spacing.sm,
+                marginBottom: spacing.xs,
+              }}
+            >
+              <Icon name="camera-outline" size={20} color={colors.success} />
+              <AppText variant="h2">Ingredientes detectados</AppText>
+            </View>
+            <AppText variant="caption" color={colors.inkMuted} style={{ marginBottom: spacing.md }}>
+              Desmarca los que no quieras añadir y pulsa «Añadir seleccionados».
+            </AppText>
+            <AIDisclaimerBanner texto="Ingredientes detectados por IA. Revisa cantidades antes de confirmar." />
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {fotoReviewItems.map((alimento, idx) => (
+                <Pressable
+                  key={idx}
+                  onPress={() => toggleFotoItem(idx)}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    paddingVertical: spacing.sm,
+                    borderBottomWidth: idx < fotoReviewItems.length - 1 ? 1 : 0,
+                    borderBottomColor: colors.border,
+                  }}
+                >
+                  <View
+                    style={{
+                      width: 24,
+                      height: 24,
+                      borderRadius: 7,
+                      marginRight: spacing.md,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      borderWidth: alimento.seleccionado ? 0 : 2,
+                      borderColor: colors.borderStrong,
+                      backgroundColor: alimento.seleccionado ? colors.success : colors.cardAlt,
+                    }}
+                  >
+                    {alimento.seleccionado ? (
+                      <Icon name="checkmark" size={14} color={colors.white} />
+                    ) : null}
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <AppText
+                      variant="captionStrong"
+                      color={alimento.seleccionado ? colors.ink : colors.inkFaint}
+                    >
+                      {alimento.nombre}
+                    </AppText>
+                    <AppText variant="micro" color={colors.inkMuted}>
+                      {alimento.cantidad} {alimento.unidad} · {alimento.categoria}
+                      {alimento.fecha_caducidad ? ` · Cad: ${alimento.fecha_caducidad}` : ''}
+                    </AppText>
+                  </View>
+                </Pressable>
+              ))}
+
+              {fotoSugerenciasRapidas.length > 0 ? (
+                <View style={{ marginTop: spacing.lg }}>
+                  <View
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 6,
+                      marginBottom: spacing.sm,
+                    }}
+                  >
+                    <Icon name="sparkles" size={14} color={colors.brand} />
+                    <AppText variant="label" color={colors.inkMuted}>
+                      Recetas express posibles
+                    </AppText>
+                  </View>
+                  {fotoSugerenciasRapidas.map((sugerencia, idx) => (
+                    <AppText
+                      key={idx}
+                      variant="caption"
+                      color={colors.inkMuted}
+                      style={{ marginBottom: 2 }}
+                    >
+                      · {sugerencia}
+                    </AppText>
+                  ))}
+                </View>
+              ) : null}
+            </ScrollView>
+            <View style={{ marginTop: spacing.lg, gap: spacing.sm }}>
+              <Button
+                label={
+                  fotoAdding
+                    ? 'Añadiendo...'
+                    : `Añadir seleccionados (${fotoReviewItems.filter((i) => i.seleccionado).length})`
+                }
+                icon="checkmark-done"
+                loading={fotoAdding}
+                onPress={confirmarFotoItems}
+              />
+              <Button
+                label="Cancelar"
+                variant="ghost"
+                onPress={() => {
+                  setFotoReviewVisible(false);
+                  setFotoReviewItems([]);
+                  setFotoSugerenciasRapidas([]);
                 }}
               />
             </View>
