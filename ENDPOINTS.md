@@ -185,18 +185,23 @@ de alimentos detectados + sugerencias de recetas express (IA pasiva — usuario 
 **200** → `FotoNeveraResponse` `{ alimentos[], recetas_sugeridas[], mensaje }`.
 Rate limit: 10/hora por IP. Requiere `GEMINI_API_KEY`. **402** sin premium.
 
-### `POST /api/v1/onboarding` 🔒 ⏳ Planificado
-Guarda el perfil inicial del hogar para personalizar las recetas.
+### `GET /api/v1/onboarding` 🔒 ✅ Implementado
+Devuelve el perfil del hogar. **404** si aún no ha completado el onboarding.
+**200** → `PerfilHogarResponse`.
+
+### `POST /api/v1/onboarding` 🔒 ✅ Implementado
+Guarda (upsert) el perfil inicial del hogar para personalizar las recetas. `hogar_id` del JWT.
 **Body** (`OnboardingRequest`):
 ```json
 {
-  "gustos_culinarios": ["paella", "cocido madrileño"],
-  "intolerancias": ["lactosa"],
-  "alergias": ["frutos secos"],
+  "gustos_culinarios": ["Arroces", "Pescado"],
   "num_comensales": 4
 }
 ```
-**200** → `PerfilHogarResponse`. Idempotente (upsert).
+**200** → `PerfilHogarResponse`. Idempotente (upsert), `extra='forbid'`.
+**Nota RGPD:** esta iteración guarda SOLO datos no sensibles. Las intolerancias/alergias
+(datos de salud, art. 9) se posponen a una iteración con consentimiento explícito dedicado;
+el `extra='forbid'` rechaza esos campos si llegan por error.
 
 ---
 

@@ -87,10 +87,8 @@ erDiagram
 
     PERFIL_HOGAR {
         uuid id PK
-        uuid hogar_id FK
+        uuid hogar_id FK_unico
         json gustos_culinarios
-        json intolerancias
-        json alergias
         integer num_comensales
         timestamptz created_at
         timestamptz updated_at
@@ -204,15 +202,20 @@ Prefijo global `/api/v1`. Autenticación Bearer JWT (HS256, expiración 30 días
 | Tareas | `GET /tasks`, `POST /tasks`, `POST /tasks/interpretar` ⭐, `PATCH /tasks/{id}`, `DELETE /tasks/{id}` 🔒 | Función secundaria |
 | Salud | `GET /health`, `GET /` | Sin auth |
 
+**Implementados (F-PIVOT):**
+
+| Módulo | Endpoint | Descripción |
+|---|---|---|
+| Onboarding | `GET`/`POST /onboarding` 🔒 ✅ | Perfil del hogar (upsert): gustos culinarios + nº comensales. SOLO datos no sensibles; intolerancias/alergias (art. 9) pospuestas |
+
 **Planificados (F-PIVOT):**
 
 | Módulo | Endpoint | Descripción |
 |---|---|---|
-| Onboarding | `POST /onboarding` 🔒 ⏳ | Guarda perfil inicial del hogar (gustos, intolerancias, alergias, nº comensales) |
 | Despensa (audio) | `POST /pantry/audio` 🔒 ⭐ ⏳ | Entrada por voz en NL; Gemini interpreta y devuelve propuesta de alimentos (IA pasiva) |
 | Despensa (foto) | `POST /pantry/foto-nevera` 🔒 ⭐ ⏳ | Gemini Vision detecta ingredientes visibles; propuesta con confirmación (IA pasiva, premium) |
 
-⭐ = premium · ⏳ = planificado, no implementado
+⭐ = premium · ⏳ = planificado, no implementado · ✅ = implementado
 
 Decisiones de contrato que sustituyen al diseño original (v1.0 de este documento):
 

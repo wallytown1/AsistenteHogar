@@ -103,7 +103,7 @@ por completo** (deps, `global.css`, `tailwind.config.js`, `nativewind-env.d.ts` 
 |---|---|---|
 | `MicButton` | `PantryScreen` | Botón de micrófono con animación de grabación (entrada por audio) |
 | `CameraButton` | `PantryScreen` | Botón de cámara para foto de nevera |
-| `OnboardingProfileScreen` | `AppNavigator` (gate) | Encuesta inicial de gustos / intolerancias / alergias / comensales |
+| `OnboardingProfileScreen` ✅ | `AppNavigator` (gate `AuthedApp`) | Encuesta inicial: gustos culinarios (chips) + nº comensales (stepper). Intolerancias/alergias pospuestas (RGPD art. 9) |
 | `RecipeDetailScreen` | desde `PantryScreen` | Vista completa de receta: pasos, ingredientes, "Marcar como cocinada" |
 
 Paleta: la Despensa (verde `pantry`) debe ser visualmente dominante — es la función principal.

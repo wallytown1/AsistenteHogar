@@ -221,13 +221,15 @@ Generate a `JWT_SECRET_KEY`: `python -c "import secrets; print(secrets.token_hex
 
 ## Next planned phases
 
-**F-PIVOT — Recetas mediterráneas (prioridad inmediata):**
-- Tabla `perfil_hogar` (migración Alembic): gustos, intolerancias, alergias, nº comensales.
-- `POST /api/v1/onboarding` — guarda el perfil inicial del hogar.
-- Filosofía mediterránea española en los prompts de `generate_recipe_suggestions` / `generate_meal_plan`.
-- `POST /api/v1/pantry/audio` — entrada por voz, Gemini interpreta, devuelve propuesta (IA pasiva).
-- `POST /api/v1/pantry/foto-nevera` — Gemini Vision detecta ingredientes, propuesta con confirmación (premium).
-- Historial de recetas cocinadas (tabla `recetas_historial`) para mejorar sugerencias futuras.
+**F-PIVOT — Recetas mediterráneas (en curso, rama `feat/pivote-recetas-mediterraneas`):**
+- ✅ Filosofía mediterránea española en los prompts (`_FILOSOFIA_MEDITERRANEA` en `llm.py`).
+- ✅ Tabla `perfil_hogar` (migración `a1c3e5f70b92`) + `GET`/`POST /api/v1/onboarding` (gustos +
+  nº comensales; intolerancias/alergias pospuestas por RGPD art. 9).
+- ⏳ Integrar el perfil del hogar en los prompts de recetas (`generate_recipe_suggestions` /
+  `generate_meal_plan`) — siguiente paso (F-PIVOT #6).
+- ⏳ `POST /api/v1/pantry/audio` — entrada por voz, Gemini interpreta, devuelve propuesta (IA pasiva).
+- ⏳ `POST /api/v1/pantry/foto-nevera` — Gemini Vision detecta ingredientes, propuesta con confirmación (premium).
+- ⏳ Historial de recetas cocinadas (tabla `recetas_historial`) para mejorar sugerencias futuras.
 
 **F6 — EAS Build** (tras F-PIVOT): production build con EAS, iconos/splash reales, plugin
 `expo-notifications` + permisos de micrófono y cámara en `app.json`, App Store Connect + Google Play.

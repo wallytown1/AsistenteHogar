@@ -8,7 +8,7 @@ españolas tradicionales y de aprovechamiento** a partir del stock real de la de
 - **Función principal:** recetas basadas en stock (sofritos, ingredientes frescos, cocina de temporada).
 - **Función secundaria (complemento):** planificación semanal de menús + calendario familiar.
 - **Tres métodos de entrada de fricción cero:** OCR de ticket (implementado ✅), audio NL (⏳), foto de nevera (⏳).
-- **Encuesta de onboarding:** perfil de gustos, intolerancias, alergias y nº comensales (⏳).
+- **Encuesta de onboarding:** perfil de gustos culinarios + nº comensales (implementado ✅). Intolerancias/alergias (datos de salud art. 9) pospuestas a iteración con consentimiento (⏳).
 
 **Rama:** `feat/pivote-recetas-mediterraneas` | **Afecta a:** `.md` (esta sesión), luego código/BD.
 
@@ -439,9 +439,11 @@ npm run ts:check  # Debe retornar 0 errores
 | `GEMINI_API_KEY` personal (datos de prueba) | panel Railway | Medio: cambiar a clave con billing antes de datos reales (RGPD) | Ver [`PRODUCCION_CHECKLIST.md`](PRODUCCION_CHECKLIST.md) §1 |
 | `REVENUECAT_SECRET_KEY` sin definir | panel Railway | Medio: gate premium desactivado en prod | Ver `PRODUCCION_CHECKLIST.md` §2 |
 | Anonimización LLM solo en briefing | backend/app/services/privacy.py | Medio (RGPD): `interpret_*` envían texto sin anonimizar | Evaluar ampliar alcance (checklist §1) |
-| Filosofía mediterránea no aplicada aún en prompts | backend/app/services/llm.py | Alto: recetas sin restricción gastronómica | Pendiente en F-PIVOT |
-| Tabla `perfil_hogar` no existe | BD / Alembic | Alto: onboarding sin persistencia | Migración Alembic en F-PIVOT |
-| Audio NL no implementado | backend + frontend | Alto: falta método de entrada | F-PIVOT |
+| ~~Filosofía mediterránea no aplicada en prompts~~ | — | — | ✅ RESUELTO (F-PIVOT #1, `_FILOSOFIA_MEDITERRANEA`) |
+| ~~Tabla `perfil_hogar` no existe~~ | — | — | ✅ RESUELTO (F-PIVOT #2, migración `a1c3e5f70b92`) |
+| Perfil del hogar aún no influye en los prompts | backend/app/services/llm.py | Medio: onboarding guardado pero no usado en recetas | F-PIVOT #6 (pasar gustos/comensales al prompt) |
+| Migración `perfil_hogar` sin aplicar en Railway | panel Railway / Alembic | Alto: el endpoint fallará en prod hasta migrar | `alembic upgrade head` antes del deploy |
+| Audio NL no implementado | backend + frontend | Alto: falta método de entrada | F-PIVOT #3 |
 | Foto de nevera no implementada | backend + frontend | Alto: falta método de entrada | F-PIVOT |
 
 Ver [[technical_debt]] en memoria para detalles.

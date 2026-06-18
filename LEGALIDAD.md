@@ -55,6 +55,7 @@ La API **gratuita** de Google AI (`generativelanguage`) **puede usar los prompts
 | `POST /tasks/interpretar` | frase del usuario sobre una tarea | Posible (nombres) | Input voluntario del usuario para esa finalidad |
 | `POST /pantry/audio` ⏳ | texto transcrito de nota de voz | Posible (nombres, lugares) | Input voluntario; la transcripción ocurre en el cliente antes del envío |
 | `POST /pantry/foto-nevera` ⏳ | imagen JPEG de la nevera | Improbable (solo alimentos) | El cliente recorta/redimensiona antes de enviar; no se almacena la imagen en el servidor |
-| `POST /onboarding` ⏳ | gustos, intolerancias, alergias | Sí (datos de salud — categoría especial RGPD art. 9) | **Acción requerida:** base legal explícita (consentimiento art. 6.1.a + art. 9.2.a) antes de enviar a Gemini; no enviar datos de salud sin consentimiento explícito en el onboarding |
+| `POST /onboarding` ✅ | gustos culinarios, nº comensales | No (datos NO sensibles) | Implementado solo con datos no sensibles. `extra='forbid'` rechaza intolerancias/alergias si llegan por error |
+| `POST /onboarding` (datos de salud) ⏳ | intolerancias, alergias | Sí (categoría especial RGPD art. 9) | **POSPUESTO.** Cuando se implemente: base legal explícita (consentimiento art. 6.1.a + art. 9.2.a) antes de enviar a Gemini; no enviar datos de salud sin consentimiento explícito |
 
 Notas: la clave nunca viaja en la URL (header `x-goog-api-key`); los prompts no se registran en logs; los endpoints de IA están rate-limited para contener coste y abuso.
