@@ -106,6 +106,12 @@ class Hogar(Base):
     usuarios: Mapped[list["Usuario"]] = relationship(
         "Usuario", back_populates="hogar", cascade="all, delete-orphan"
     )
+    perfil: Mapped["PerfilHogar | None"] = relationship(
+        "PerfilHogar",
+        back_populates="hogar",
+        cascade="all, delete-orphan",
+        uselist=False,
+    )
 
 
 class Usuario(Base):
@@ -268,3 +274,39 @@ class EventoCalendario(Base):
 
     # Relaciones
     hogar: Mapped["Hogar"] = relationship("Hogar", back_populates="eventos")
+
+
+class PerfilHogar(Base):
+    """Perfil de preferencias del hogar (encuesta de onboarding). Un perfil por hogar
+    (hogar_id único, upsert). Solo datos NO sensibles: gustos culinarios y nº de
+    comensales. Las alergias e intolerancias (datos de salud, RGPD art. 9) se posponen
+    a una iteración futura con un flujo de consentimiento explícito dedicado."""
+
+    __tablename__ = "perfil_hogar"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID_TYPE, primary_key=True, default=uuid.uuid4
+    )
+    hogar_id: Mapped[uuid.UUID] = mapped_column(
+        UUID_TYPE,
+        ForeignKey("hogares.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
+        index=True,
+    )
+    gustos_culinarios: Mapped[list[str]] = mapped_column(
+        JSON, nullable=False, default=list
+    )
+    num_comensales: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    created_at: Mapped[datetime] = mapped_column(
+        TZDateTime, nullable=False, server_default=utcnow()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        TZDateTime,
+        nullable=False,
+        server_default=utcnow(),
+        onupdate=lambda: datetime.now(UTC),
+    )
+
+    # Relaciones
+    hogar: Mapped["Hogar"] = relationship("Hogar", back_populates="perfil")

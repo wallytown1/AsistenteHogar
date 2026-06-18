@@ -11,6 +11,15 @@ export interface AlimentoItem {
   updated_at: string;
 }
 
+export interface PerfilHogar {
+  id: string;
+  hogar_id: string;
+  gustos_culinarios: string[];
+  num_comensales: number;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface EventoItem {
   id: string;
   hogar_id: string;

@@ -27,6 +27,37 @@ class HogarResponse(BaseSchema):
     updated_at: datetime
 
 
+# --- PERFIL DE HOGAR (ONBOARDING) ---
+class PerfilHogarBase(BaseSchema):
+    gustos_culinarios: list[str] = Field(
+        default_factory=list,
+        max_length=30,
+        description="Gustos/preferencias culinarias del hogar (ej: arroces, pescado, picante)",
+    )
+    num_comensales: int = Field(
+        1, ge=1, le=20, description="Número de comensales habituales del hogar"
+    )
+
+    @field_validator("gustos_culinarios")
+    @classmethod
+    def limpiar_gustos(cls, v: list[str]) -> list[str]:
+        limpios = [g.strip() for g in v if g.strip()]
+        if any(len(g) > 50 for g in limpios):
+            raise ValueError("Cada gusto culinario no puede superar los 50 caracteres")
+        return limpios
+
+
+class OnboardingRequest(PerfilHogarBase):
+    """Payload de la encuesta de onboarding (upsert del perfil del hogar)."""
+
+
+class PerfilHogarResponse(PerfilHogarBase):
+    id: UUID
+    hogar_id: UUID
+    created_at: datetime
+    updated_at: datetime
+
+
 # --- AUTENTICACIÓN Y USUARIOS ---
 class RegistroRequest(BaseSchema):
     nombre_hogar: str = Field(

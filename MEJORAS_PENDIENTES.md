@@ -12,13 +12,13 @@ Ordenadas por prioridad. Las completadas se registran en `CHANGELOG.md`.
 `generate_recipe_suggestions` y `generate_meal_plan`. Fuente única para que ambos prompts
 no se desincronicen y la restricción sobreviva refactorizaciones. Ver `CHANGELOG.md`.
 
-### #2 — Perfil de hogar (onboarding)
-Nueva tabla `perfil_hogar` (Alembic migration): `gustos_culinarios[]`, `intolerancias[]`,
-`alergias[]`, `num_comensales`. Nuevo endpoint `POST /api/v1/onboarding` (upsert, no requiere
-nueva ruta porque es idempotente). Encuesta de onboarding en frontend (3–4 pasos, gate en
-`AppNavigator` similar al onboarding actual). El perfil se pasa al prompt de recetas para
-personalización.
-**Esfuerzo:** Medio (migración + endpoint + pantalla frontend).
+### #2 — Perfil de hogar (onboarding) ✅ COMPLETADO (2026-06-18)
+Tabla `perfil_hogar` (migración `a1c3e5f70b92`) + `GET`/`POST /api/v1/onboarding` (upsert,
+hogar_id del JWT) + `OnboardingProfileScreen` con gate en `AppNavigator`. **Solo datos NO
+sensibles** (`gustos_culinarios`, `num_comensales`); las alergias/intolerancias (datos de
+salud, RGPD art. 9) se posponen a una iteración con consentimiento explícito. Ver `CHANGELOG.md`.
+La integración del perfil en los prompts de recetas es el #6. **Pendiente de aplicar la
+migración en Railway** (`alembic upgrade head`) antes del próximo deploy.
 
 ### #3 — Entrada por audio NL
 `POST /api/v1/pantry/audio` (premium): recibe texto transcrito por el cliente (expo-av o

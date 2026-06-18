@@ -506,6 +506,103 @@ with TestClient(app) as client:
         f"(status={r.status_code})",
     )
 
+    # ================== ONBOARDING (perfil de hogar) ==================
+    print("\n--- Onboarding ---")
+
+    # Sin perfil aún -> 404
+    r = client.get("/api/v1/onboarding", headers=h1)
+    check(
+        "GET /onboarding sin perfil devuelve 404",
+        r.status_code == 404,
+        f"(status={r.status_code})",
+    )
+
+    # Crear perfil (upsert: primera vez = create)
+    r = client.post(
+        "/api/v1/onboarding",
+        headers=h1,
+        json={"gustos_culinarios": [" Arroces ", "Pescado", ""], "num_comensales": 4},
+    )
+    check("POST /onboarding crea perfil (200)", r.status_code == 200, f"(status={r.status_code})")
+    perfil1 = r.json()
+    check(
+        "Onboarding limpia gustos (strip + descarta vacíos)",
+        perfil1.get("gustos_culinarios") == ["Arroces", "Pescado"],
+        f"(gustos={perfil1.get('gustos_culinarios')})",
+    )
+    check("Onboarding guarda num_comensales", perfil1.get("num_comensales") == 4)
+    perfil1_id = perfil1.get("id")
+
+    # GET devuelve el perfil recién creado
+    r = client.get("/api/v1/onboarding", headers=h1)
+    check("GET /onboarding tras crear devuelve 200", r.status_code == 200)
+    check("GET /onboarding refleja num_comensales", r.json().get("num_comensales") == 4)
+
+    # Upsert: segunda vez = update (mismo id, valores nuevos)
+    r = client.post(
+        "/api/v1/onboarding",
+        headers=h1,
+        json={"gustos_culinarios": ["Legumbres"], "num_comensales": 2},
+    )
+    check("POST /onboarding actualiza (upsert) 200", r.status_code == 200)
+    check(
+        "Upsert conserva el mismo id de perfil",
+        r.json().get("id") == perfil1_id,
+        f"(id={r.json().get('id')})",
+    )
+    check("Upsert actualiza num_comensales", r.json().get("num_comensales") == 2)
+
+    # Validación: num_comensales fuera de rango -> 422
+    r = client.post(
+        "/api/v1/onboarding",
+        headers=h1,
+        json={"gustos_culinarios": [], "num_comensales": 0},
+    )
+    check(
+        "Onboarding rechaza num_comensales=0 (422)",
+        r.status_code == 422,
+        f"(status={r.status_code})",
+    )
+
+    # extra='forbid': campo no mapeado -> 422
+    r = client.post(
+        "/api/v1/onboarding",
+        headers=h1,
+        json={"gustos_culinarios": [], "num_comensales": 3, "alergias": ["gluten"]},
+    )
+    check(
+        "Onboarding rechaza campos extra (422, art. 9 no se cuela)",
+        r.status_code == 422,
+        f"(status={r.status_code})",
+    )
+
+    # Auth: sin token -> 401
+    r = client.post("/api/v1/onboarding", json={"gustos_culinarios": [], "num_comensales": 1})
+    check(
+        "POST /onboarding sin token devuelve 401",
+        r.status_code == 401,
+        f"(status={r.status_code})",
+    )
+
+    # Aislamiento multi-tenant: hogar2 no ve el perfil de hogar1
+    r = client.get("/api/v1/onboarding", headers=h2)
+    check(
+        "Aislamiento: hogar2 no ve el perfil de hogar1 (404)",
+        r.status_code == 404,
+        f"(status={r.status_code})",
+    )
+    # hogar2 crea su propio perfil, distinto del de hogar1
+    r = client.post(
+        "/api/v1/onboarding",
+        headers=h2,
+        json={"gustos_culinarios": ["Verduras"], "num_comensales": 1},
+    )
+    check("Hogar2 crea su propio perfil (200)", r.status_code == 200)
+    check(
+        "Aislamiento: el perfil de hogar2 tiene id propio",
+        r.json().get("id") != perfil1_id,
+    )
+
 print()
 if fallos:
     print(f"RESULTADO: {len(fallos)} fallos -> {fallos}")

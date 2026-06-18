@@ -6,6 +6,32 @@ Formato: `[FECHA] [ÁREA] [TIPO] Descripción`
 
 ---
 
+## [2026-06-18] — F-PIVOT #2: Perfil de hogar + onboarding
+
+### Backend (verificado: 5 suites smoke en verde, incl. 16 checks de onboarding)
+- **ADD** Modelo `PerfilHogar` (`models.py`) — un perfil por hogar (`hogar_id` único), relación
+  con cascade desde `Hogar` (el borrado de cuenta RGPD arrastra el perfil).
+- **ADD** Migración Alembic `a1c3e5f70b92` — tabla `perfil_hogar` (`gustos_culinarios` JSON,
+  `num_comensales` INT). Upgrade+downgrade probados en SQLite.
+- **ADD** Schemas `OnboardingRequest` / `PerfilHogarResponse` (`extra='forbid'`, validación de
+  `num_comensales` 1–20 y limpieza de gustos). El `extra='forbid'` bloquea que se cuelen
+  alergias/intolerancias (datos de salud) por error.
+- **ADD** `PerfilHogarRepository` (upsert), `OnboardingService`, router `GET`/`POST /api/v1/onboarding`
+  (hogar_id siempre del JWT), cableado en `deps.py` y `main.py`.
+- **Decisión RGPD:** esta iteración guarda SOLO datos no sensibles. Alergias/intolerancias
+  (art. 9) se posponen a una iteración con flujo de consentimiento explícito dedicado.
+
+### Frontend (ts:check 0 errores)
+- **ADD** `OnboardingProfileScreen` — encuesta de gustos (chips mediterráneos) + nº de comensales
+  (stepper), estética Tierra Cálida. Saltable ("Ahora no").
+- **ADD** Hook `useOnboarding` — gate robusto sin depender de códigos de estado: flag local +
+  GET /onboarding (200 → ya tiene perfil; fallo → mostrar encuesta saltable).
+- **MOD** `AppNavigator` — nuevo componente `AuthedApp` que monta el gate de perfil SOLO con
+  sesión activa (el GET /onboarding nunca corre sin token).
+- **ADD** Tipo `PerfilHogar` en `types.ts`.
+
+---
+
 ## [2026-06-17] — Pivote estratégico: Recetas mediterráneas españolas
 
 ### F-PIVOT #1 — Filosofía mediterránea en prompts LLM (implementado)

@@ -10,11 +10,13 @@ from app.database import get_async_session
 from app.models.models import Usuario
 from app.repositories.calendar import CalendarRepository
 from app.repositories.pantry import PantryRepository
+from app.repositories.perfil import PerfilHogarRepository
 from app.repositories.task import TaskRepository
 from app.repositories.user import UserRepository
 from app.services.auth import AuthService
 from app.services.calendar import CalendarService
 from app.services.dashboard import DashboardService
+from app.services.onboarding import OnboardingService
 from app.services.pantry import PantryService
 
 # Esquema Bearer: auto_error=False para emitir nuestros propios mensajes 401 en español
@@ -129,3 +131,10 @@ async def get_task_repository(
 ) -> TaskRepository:
     """Provee una instancia de TaskRepository inyectando su sesión de base de datos."""
     return TaskRepository(session)
+
+
+async def get_onboarding_service(
+    session: AsyncSession = Depends(get_async_session),
+) -> OnboardingService:
+    """Provee una instancia de OnboardingService inyectando su repositorio asíncrono."""
+    return OnboardingService(PerfilHogarRepository(session))

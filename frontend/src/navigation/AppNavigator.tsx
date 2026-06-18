@@ -14,9 +14,11 @@ import AgendaScreen from '../screens/AgendaScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import AuthScreen from '../screens/AuthScreen';
 import OnboardingScreen, { hasSeenOnboarding } from '../screens/OnboardingScreen';
+import OnboardingProfileScreen from '../screens/OnboardingProfileScreen';
 import PaywallScreen from '../screens/PaywallScreen';
 import { useAuthStore } from '../state/authStore';
 import { usePurchasesStore } from '../state/purchasesStore';
+import { useOnboarding } from '../hooks/useOnboarding';
 import { colors } from '../theme/tokens';
 
 type RootTabParamList = {
@@ -86,6 +88,49 @@ function MainTabs() {
   );
 }
 
+function CenteredLoader() {
+  return (
+    <View
+      style={{
+        flex: 1,
+        backgroundColor: colors.bg,
+        justifyContent: 'center',
+        alignItems: 'center',
+      }}
+    >
+      <ActivityIndicator size="large" color={colors.brand} />
+    </View>
+  );
+}
+
+/**
+ * Capa post-autenticación. Solo se monta cuando hay sesión activa, de modo que el
+ * gate de la encuesta de perfil (que consulta GET /onboarding con token) nunca
+ * se ejecuta sin credenciales.
+ */
+function AuthedApp() {
+  const { needsProfile, checked, savePerfil, skip } = useOnboarding();
+
+  if (!checked) {
+    return <CenteredLoader />;
+  }
+
+  if (needsProfile) {
+    return <OnboardingProfileScreen onSave={savePerfil} onSkip={skip} />;
+  }
+
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="MainTabs" component={MainTabs} />
+      <Stack.Screen
+        name="Paywall"
+        component={PaywallScreen}
+        options={{ presentation: 'fullScreenModal' }}
+      />
+    </Stack.Navigator>
+  );
+}
+
 export default function AppNavigator() {
   const token = useAuthStore((s) => s.token);
   const usuario = useAuthStore((s) => s.usuario);
@@ -143,14 +188,5 @@ export default function AppNavigator() {
     return <AuthScreen />;
   }
 
-  return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="MainTabs" component={MainTabs} />
-      <Stack.Screen
-        name="Paywall"
-        component={PaywallScreen}
-        options={{ presentation: 'fullScreenModal' }}
-      />
-    </Stack.Navigator>
-  );
+  return <AuthedApp />;
 }
