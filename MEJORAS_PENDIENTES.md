@@ -3,6 +3,13 @@
 Backlog actualizado tras el **pivote estratégico (2026-06-17)** a recetas mediterráneas españolas.
 Ordenadas por prioridad. Las completadas se registran en `CHANGELOG.md`.
 
+> **Arquitectura del motor de recetas (decidida 2026-06-18): HÍBRIDA.**
+> Fase 1 (en curso): generativo (Gemini) + personalización por perfil (#6 ✅) + aprendizaje por
+> historial de comportamiento (#5). Fase 2: sembrar un recetario base canónico (cientos de platos
+> tradicionales) como ancla de calidad. Fase 3: recomendador sobre ambos. Objetivo: experiencia
+> totalmente personalizada que aprende del comportamiento del hogar. Sourcing del catálogo (Fase 2)
+> es un proyecto de datos aparte (licencia/calidad), no solo código.
+
 ---
 
 ## 🔴 F-PIVOT — Alta prioridad (bloquean el nuevo enfoque)
@@ -42,10 +49,12 @@ Al confirmar una receta sugerida, el usuario puede marcarla como "cocinada". Est
 el contexto de futuras sugerencias ("no repetir en X días").
 **Esfuerzo:** Medio (tabla + endpoint + UI de confirmación extendida).
 
-### #6 — Integrar perfil de hogar en los prompts de recetas
-Una vez implementado #2, pasar `gustos`, `intolerancias`, `alergias` y `num_comensales`
-al prompt de `generate_recipe_suggestions` y `generate_meal_plan`.
-**Esfuerzo:** Bajo (depende de #2).
+### #6 — Integrar perfil de hogar en los prompts de recetas ✅ COMPLETADO (2026-06-18)
+Helper `_bloque_perfil` en `llm.py` inyecta `gustos_culinarios` + `num_comensales` en los
+prompts de `generate_recipe_suggestions` y `generate_meal_plan`. El bloque entra en
+`prompt_usuario`, por lo que forma parte de la clave de caché (perfiles distintos → sugerencias
+distintas). Los 3 endpoints (`/pantry/recetas`, `/plan-comidas`, `/sugerencias`) obtienen el
+perfil vía `OnboardingService` y lo pasan. (Sin intolerancias/alergias: datos de salud pospuestos.)
 
 ### #7 — Umbral de caducidad configurable por hogar
 `PantryService.get_stock_metrics()` usa 6 días fijo. Algunos hogares prefieren 3 (compra

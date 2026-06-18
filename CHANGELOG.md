@@ -6,6 +6,24 @@ Formato: `[FECHA] [ÁREA] [TIPO] Descripción`
 
 ---
 
+## [2026-06-18] — F-PIVOT #6: Recetas personalizadas por perfil + decisión de arquitectura
+
+### Decisión de arquitectura del motor de recetas: HÍBRIDA
+- Fase 1 (en curso): generativo + personalización por perfil + aprendizaje por historial (#5).
+- Fase 2: recetario base canónico (cientos de platos) como ancla de calidad.
+- Fase 3: recomendador sobre catálogo + generativo. Ver `MEJORAS_PENDIENTES.md`.
+
+### Personalización por perfil (F-PIVOT #6, verificado: 5 suites smoke en verde)
+- **ADD** Helper `_bloque_perfil` en `llm.py` — inyecta `gustos_culinarios` + `num_comensales`
+  en los prompts de `generate_recipe_suggestions` y `generate_meal_plan`. El bloque entra en
+  `prompt_usuario` → forma parte de la clave de caché (perfiles distintos = sugerencias distintas).
+- **MOD** Ambas funciones LLM aceptan `perfil: PerfilHogarResponse | None = None` (retrocompatible).
+- **MOD** Router `pantry.py` — los 3 endpoints (`/pantry/recetas`, `/plan-comidas`, `/sugerencias`)
+  obtienen el perfil vía `OnboardingService` (inyectado) y lo pasan a las funciones LLM.
+- Sin intolerancias/alergias (datos de salud pospuestos); el perfil enviado a Gemini es no sensible.
+
+---
+
 ## [2026-06-18] — F-PIVOT #2: Perfil de hogar + onboarding
 
 ### Backend (verificado: 5 suites smoke en verde, incl. 16 checks de onboarding)

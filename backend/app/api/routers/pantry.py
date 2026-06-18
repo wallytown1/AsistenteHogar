@@ -3,7 +3,12 @@ import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Path, status
 
-from app.api.deps import get_hogar_id, get_pantry_service, requiere_premium
+from app.api.deps import (
+    get_hogar_id,
+    get_onboarding_service,
+    get_pantry_service,
+    requiere_premium,
+)
 from app.core.rate_limit import (
     interpretar_rate_limiter,
     metadata_rate_limiter,
@@ -32,6 +37,7 @@ from app.services.llm import (
     process_receipt_ocr,
     suggest_food_metadata,
 )
+from app.services.onboarding import OnboardingService
 from app.services.pantry import PantryService
 
 router = APIRouter(tags=["Pantry"])
@@ -54,11 +60,16 @@ async def get_pantry_metrics(
 async def get_recetas_sugeridas(
     hogar_id: uuid.UUID = Depends(get_hogar_id),
     pantry_service: PantryService = Depends(get_pantry_service),
+    onboarding_service: OnboardingService = Depends(get_onboarding_service),
 ) -> RecetasSugeridasResponse:
     """Sugiere recetas con IA a partir del inventario real de la despensa del Hogar,
-    priorizando los alimentos próximos a caducar. IA pasiva: solo sugiere."""
+    priorizando los alimentos próximos a caducar y personalizando según el perfil del
+    hogar (gustos, nº comensales). IA pasiva: solo sugiere."""
     metrics = await pantry_service.get_stock_metrics(hogar_id)
-    return await generate_recipe_suggestions(metrics.items, metrics.alertas_caducidad)
+    perfil = await onboarding_service.get_perfil(hogar_id)
+    return await generate_recipe_suggestions(
+        metrics.items, metrics.alertas_caducidad, perfil
+    )
 
 
 @router.get(
@@ -69,11 +80,14 @@ async def get_recetas_sugeridas(
 async def get_plan_comidas(
     hogar_id: uuid.UUID = Depends(get_hogar_id),
     pantry_service: PantryService = Depends(get_pantry_service),
+    onboarding_service: OnboardingService = Depends(get_onboarding_service),
 ) -> PlanComidasResponse:
     """Genera un plan de comidas semanal con IA a partir de la despensa real,
-    priorizando lo que caduca pronto. IA pasiva: solo sugiere."""
+    priorizando lo que caduca pronto y personalizando según el perfil del hogar.
+    IA pasiva: solo sugiere."""
     metrics = await pantry_service.get_stock_metrics(hogar_id)
-    return await generate_meal_plan(metrics.items, metrics.alertas_caducidad)
+    perfil = await onboarding_service.get_perfil(hogar_id)
+    return await generate_meal_plan(metrics.items, metrics.alertas_caducidad, perfil)
 
 
 @router.get(
@@ -88,13 +102,16 @@ async def get_plan_comidas(
 async def get_sugerencias(
     hogar_id: uuid.UUID = Depends(get_hogar_id),
     pantry_service: PantryService = Depends(get_pantry_service),
+    onboarding_service: OnboardingService = Depends(get_onboarding_service),
 ) -> SugerenciasResponse:
-    """Devuelve recetas sugeridas y plan de comidas en una sola llamada (asyncio.gather).
-    Reutiliza las cachés individuales de cada función LLM."""
+    """Devuelve recetas sugeridas y plan de comidas en una sola llamada (asyncio.gather),
+    personalizadas según el perfil del hogar. Reutiliza las cachés individuales de cada
+    función LLM."""
     metrics = await pantry_service.get_stock_metrics(hogar_id)
+    perfil = await onboarding_service.get_perfil(hogar_id)
     recetas_res, plan_res = await asyncio.gather(
-        generate_recipe_suggestions(metrics.items, metrics.alertas_caducidad),
-        generate_meal_plan(metrics.items, metrics.alertas_caducidad),
+        generate_recipe_suggestions(metrics.items, metrics.alertas_caducidad, perfil),
+        generate_meal_plan(metrics.items, metrics.alertas_caducidad, perfil),
     )
     return SugerenciasResponse(recetas=recetas_res, plan_comidas=plan_res)
 

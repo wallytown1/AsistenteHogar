@@ -19,6 +19,7 @@ from app.schemas.schemas import (
     InterpretarEventoResponse,
     InterpretarTareaResponse,
     InventarioAlimentoResponse,
+    PerfilHogarResponse,
     PlanComidasResponse,
     RecetasSugeridasResponse,
     RecetaSugerida,
@@ -466,9 +467,30 @@ _FILOSOFIA_MEDITERRANEA = (
 )
 
 
+def _bloque_perfil(perfil: PerfilHogarResponse | None) -> str:
+    """Construye el bloque de personalización del prompt a partir del perfil del hogar.
+    Cadena vacía si no hay perfil (el hogar no completó el onboarding). Se incluye en
+    `prompt_usuario`, por lo que forma parte de la clave de caché: perfiles distintos
+    obtienen sugerencias distintas."""
+    if perfil is None:
+        return ""
+    lineas = []
+    if perfil.gustos_culinarios:
+        lineas.append(
+            "Gustos del hogar (prioriza estos estilos cuando encajen con el inventario): "
+            f"{', '.join(perfil.gustos_culinarios)}."
+        )
+    lineas.append(
+        f"Número de comensales: {perfil.num_comensales} "
+        "(ajusta las cantidades de las recetas a este número de personas)."
+    )
+    return "Perfil del hogar:\n" + "\n".join(lineas) + "\n"
+
+
 async def generate_recipe_suggestions(
     items: list[InventarioAlimentoResponse],
     alertas_caducidad: list[InventarioAlimentoResponse],
+    perfil: PerfilHogarResponse | None = None,
 ) -> RecetasSugeridasResponse:
     """Sugiere hasta 3 recetas a partir de la despensa del hogar, priorizando los
     alimentos a punto de caducar. IA pasiva: solo sugiere, nunca modifica datos."""
@@ -492,6 +514,7 @@ async def generate_recipe_suggestions(
     prompt_usuario = (
         f"Inventario disponible en la despensa: {inventario}\n"
         f"Alimentos que caducan pronto (priorízalos): {nombres_caducan or 'ninguno'}\n"
+        f"{_bloque_perfil(perfil)}"
     )
 
     cache_key = _hash_key("recetas", prompt_usuario)
@@ -931,6 +954,7 @@ PLAN_CACHE_TTL = 2 * 60 * 60  # 2 horas
 async def generate_meal_plan(
     items: list[InventarioAlimentoResponse],
     alertas_caducidad: list[InventarioAlimentoResponse],
+    perfil: PerfilHogarResponse | None = None,
 ) -> PlanComidasResponse:
     """Genera un plan de comidas semanal (comida + cena) aprovechando la despensa,
     priorizando lo que caduca pronto. IA pasiva: solo sugiere. Cacheado 2 h."""
@@ -953,6 +977,7 @@ async def generate_meal_plan(
     prompt_usuario = (
         f"Inventario disponible en la despensa: {inventario}\n"
         f"Alimentos que caducan pronto (priorízalos en los primeros días): {nombres_caducan or 'ninguno'}\n"
+        f"{_bloque_perfil(perfil)}"
     )
 
     cache_key = _hash_key("plancomidas", prompt_usuario)
