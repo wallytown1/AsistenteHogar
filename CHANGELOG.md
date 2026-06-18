@@ -6,6 +6,35 @@ Formato: `[FECHA] [ÁREA] [TIPO] Descripción`
 
 ---
 
+## [2026-06-18] — F-PIVOT #5: Historial de recetas + aprendizaje de comportamiento
+
+### Backend (verificado: 59 smoke tests en verde, incl. 9 checks de historial)
+- **ADD** Modelo `RecetaHistorial` (`models.py`) — registra acciones del hogar sobre recetas
+  sugeridas (`accion`: `cocinada` | `rechazada`). Aislamiento multi-tenant vía `hogar_id` (JWT).
+- **ADD** Migración Alembic `c2d4f6a80e04` — tabla `recetas_historial` compatible SQLite+Postgres.
+- **ADD** `RecetaHistorialCreate` / `RecetaHistorialResponse` en `schemas.py` con `extra='forbid'`
+  y validación de acción (`cocinada` | `rechazada`).
+- **ADD** `RecetaHistorialRepository` (`repositories/historial.py`) — `registrar` + `get_recientes`.
+- **ADD** `RecetaHistorialService` (`services/historial.py`).
+- **ADD** Router `historial.py` — `POST /api/v1/pantry/recetas/historial` (201) +
+  `GET /api/v1/pantry/recetas/historial` (lista últimas 20 entradas).
+- **ADD** Helper `_bloque_historial` en `llm.py` — inyecta señales en el prompt de Gemini:
+  cocinadas recientes (evitar repetir) + rechazadas (no sugerir nunca). Forma parte de la clave
+  de caché al entrar en `prompt_usuario`.
+- **MOD** `generate_recipe_suggestions` acepta `historial: list[RecetaHistorialResponse] | None`.
+- **MOD** Endpoints `/pantry/recetas`, `/pantry/sugerencias` obtienen historial vía
+  `RecetaHistorialService` e inyectan el contexto de comportamiento en cada llamada a Gemini.
+
+### Frontend
+- **ADD** `RecetaHistorial` interface en `types.ts`.
+- **ADD** Hook `useRecetaHistorial` (`hooks/useRecetaHistorial.ts`) — `registrarAccion` +
+  loading state por receta individual.
+- **MOD** `PantryScreen.tsx` — botones «Cocinada» / «No me gusta» en cada tarjeta de receta;
+  tras registrar la acción se recarga automáticamente la lista de sugerencias (caché invalida
+  porque el historial cambia el hash del prompt).
+
+---
+
 ## [2026-06-18] — F-PIVOT #6: Recetas personalizadas por perfil + decisión de arquitectura
 
 ### Decisión de arquitectura del motor de recetas: HÍBRIDA

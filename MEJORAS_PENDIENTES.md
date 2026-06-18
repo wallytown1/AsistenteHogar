@@ -43,11 +43,10 @@ Botón de cámara en `PantryScreen`. Modal de revisión con checkboxes (mismo pa
 
 ## 🟡 Mejoras de producto (segunda iteración)
 
-### #5 — Historial de recetas cocinadas
-Nueva tabla `recetas_historial` (`hogar_id`, `nombre_receta`, `cocinada_en`, `valoracion`).
-Al confirmar una receta sugerida, el usuario puede marcarla como "cocinada". Esto alimenta
-el contexto de futuras sugerencias ("no repetir en X días").
-**Esfuerzo:** Medio (tabla + endpoint + UI de confirmación extendida).
+### #5 — Historial de recetas cocinadas ✅ COMPLETADO (2026-06-18)
+Tabla `recetas_historial` (migración `c2d4f6a80e04`) + `POST`/`GET /api/v1/pantry/recetas/historial`.
+Acciones `cocinada` / `rechazada`. Helper `_bloque_historial` inyecta el contexto en el prompt
+de Gemini. Botones en `PantryScreen` recargan sugerencias automáticamente. Ver `CHANGELOG.md`.
 
 ### #6 — Integrar perfil de hogar en los prompts de recetas ✅ COMPLETADO (2026-06-18)
 Helper `_bloque_perfil` en `llm.py` inyecta `gustos_culinarios` + `num_comensales` en los
