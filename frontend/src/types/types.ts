@@ -65,6 +65,15 @@ export interface PantryStockMetrics {
   items: AlimentoItem[];
 }
 
+export interface RecetaHistorial {
+  id: string;
+  hogar_id: string;
+  nombre_receta: string;
+  accion: 'cocinada' | 'rechazada';
+  cocinada_en: string;
+  created_at: string;
+}
+
 export interface RecetaSugerida {
   titulo: string;
   tiempo_min: number;

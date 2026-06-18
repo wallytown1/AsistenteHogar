@@ -15,7 +15,15 @@ from starlette.middleware.base import RequestResponseEndpoint
 load_dotenv()
 
 # Importar routers
-from app.api.routers import auth, calendar, dashboard, onboarding, pantry, tasks
+from app.api.routers import (
+    auth,
+    calendar,
+    dashboard,
+    historial,
+    onboarding,
+    pantry,
+    tasks,
+)
 from app.core.config import IS_PRODUCTION
 from app.core.logging_config import setup_logging
 from app.database import engine
@@ -206,6 +214,7 @@ app.include_router(pantry.router, prefix="/api/v1")
 app.include_router(calendar.router, prefix="/api/v1")
 app.include_router(tasks.router, prefix="/api/v1")
 app.include_router(onboarding.router, prefix="/api/v1")
+app.include_router(historial.router, prefix="/api/v1")
 
 
 @app.get("/health", tags=["Health"])

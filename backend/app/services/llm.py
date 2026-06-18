@@ -21,6 +21,7 @@ from app.schemas.schemas import (
     InventarioAlimentoResponse,
     PerfilHogarResponse,
     PlanComidasResponse,
+    RecetaHistorialResponse,
     RecetasSugeridasResponse,
     RecetaSugerida,
     SugerenciaMetadataResponse,
@@ -487,10 +488,35 @@ def _bloque_perfil(perfil: PerfilHogarResponse | None) -> str:
     return "Perfil del hogar:\n" + "\n".join(lineas) + "\n"
 
 
+def _bloque_historial(historial: list[RecetaHistorialResponse] | None) -> str:
+    """Construye el bloque de historial de comportamiento para el prompt.
+    Señales positivas (cocinadas) evitan repeticiones a corto plazo.
+    Señales negativas (rechazadas) excluyen esas recetas permanentemente."""
+    if not historial:
+        return ""
+    cocinadas = [h.nombre_receta for h in historial if h.accion == "cocinada"]
+    rechazadas = [h.nombre_receta for h in historial if h.accion == "rechazada"]
+    lineas = []
+    if cocinadas:
+        lineas.append(
+            f"Recetas cocinadas recientemente (evita repetirlas a menos que hayan pasado varios días): "
+            f"{', '.join(cocinadas[:10])}."
+        )
+    if rechazadas:
+        lineas.append(
+            f"Recetas rechazadas por el hogar (NO sugerir bajo ningún concepto): "
+            f"{', '.join(rechazadas[:10])}."
+        )
+    if not lineas:
+        return ""
+    return "Historial del hogar:\n" + "\n".join(lineas) + "\n"
+
+
 async def generate_recipe_suggestions(
     items: list[InventarioAlimentoResponse],
     alertas_caducidad: list[InventarioAlimentoResponse],
     perfil: PerfilHogarResponse | None = None,
+    historial: list[RecetaHistorialResponse] | None = None,
 ) -> RecetasSugeridasResponse:
     """Sugiere hasta 3 recetas a partir de la despensa del hogar, priorizando los
     alimentos a punto de caducar. IA pasiva: solo sugiere, nunca modifica datos."""
@@ -515,6 +541,7 @@ async def generate_recipe_suggestions(
         f"Inventario disponible en la despensa: {inventario}\n"
         f"Alimentos que caducan pronto (priorízalos): {nombres_caducan or 'ninguno'}\n"
         f"{_bloque_perfil(perfil)}"
+        f"{_bloque_historial(historial)}"
     )
 
     cache_key = _hash_key("recetas", prompt_usuario)

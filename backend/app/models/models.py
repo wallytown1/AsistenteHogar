@@ -112,6 +112,9 @@ class Hogar(Base):
         cascade="all, delete-orphan",
         uselist=False,
     )
+    historial_recetas: Mapped[list["RecetaHistorial"]] = relationship(
+        "RecetaHistorial", back_populates="hogar", cascade="all, delete-orphan"
+    )
 
 
 class Usuario(Base):
@@ -310,3 +313,34 @@ class PerfilHogar(Base):
 
     # Relaciones
     hogar: Mapped["Hogar"] = relationship("Hogar", back_populates="perfil")
+
+
+class RecetaHistorial(Base):
+    """Registro de comportamiento del hogar respecto a recetas sugeridas.
+    'cocinada' = señal positiva; 'rechazada' = señal negativa.
+    El historial se inyecta en el prompt de Gemini para que las sugerencias
+    aprendan del comportamiento real del hogar."""
+
+    __tablename__ = "recetas_historial"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID_TYPE, primary_key=True, default=uuid.uuid4
+    )
+    hogar_id: Mapped[uuid.UUID] = mapped_column(
+        UUID_TYPE,
+        ForeignKey("hogares.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    nombre_receta: Mapped[str] = mapped_column(String(200), nullable=False)
+    accion: Mapped[str] = mapped_column(
+        String(20), nullable=False
+    )  # 'cocinada' | 'rechazada'
+    cocinada_en: Mapped[datetime] = mapped_column(
+        TZDateTime, nullable=False, server_default=utcnow()
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        TZDateTime, nullable=False, server_default=utcnow()
+    )
+
+    hogar: Mapped["Hogar"] = relationship("Hogar", back_populates="historial_recetas")

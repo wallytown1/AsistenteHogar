@@ -4,6 +4,7 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException, Path, status
 
 from app.api.deps import (
+    get_historial_service,
     get_hogar_id,
     get_onboarding_service,
     get_pantry_service,
@@ -30,6 +31,7 @@ from app.schemas.schemas import (
     TicketOcrRequest,
     TicketOcrResponse,
 )
+from app.services.historial import RecetaHistorialService
 from app.services.llm import (
     generate_meal_plan,
     generate_recipe_suggestions,
@@ -61,14 +63,16 @@ async def get_recetas_sugeridas(
     hogar_id: uuid.UUID = Depends(get_hogar_id),
     pantry_service: PantryService = Depends(get_pantry_service),
     onboarding_service: OnboardingService = Depends(get_onboarding_service),
+    historial_service: RecetaHistorialService = Depends(get_historial_service),
 ) -> RecetasSugeridasResponse:
     """Sugiere recetas con IA a partir del inventario real de la despensa del Hogar,
     priorizando los alimentos próximos a caducar y personalizando según el perfil del
-    hogar (gustos, nº comensales). IA pasiva: solo sugiere."""
+    hogar (gustos, nº comensales) e historial de comportamiento. IA pasiva: solo sugiere."""
     metrics = await pantry_service.get_stock_metrics(hogar_id)
     perfil = await onboarding_service.get_perfil(hogar_id)
+    historial = await historial_service.get_historial(hogar_id)
     return await generate_recipe_suggestions(
-        metrics.items, metrics.alertas_caducidad, perfil
+        metrics.items, metrics.alertas_caducidad, perfil, historial
     )
 
 
@@ -103,14 +107,18 @@ async def get_sugerencias(
     hogar_id: uuid.UUID = Depends(get_hogar_id),
     pantry_service: PantryService = Depends(get_pantry_service),
     onboarding_service: OnboardingService = Depends(get_onboarding_service),
+    historial_service: RecetaHistorialService = Depends(get_historial_service),
 ) -> SugerenciasResponse:
     """Devuelve recetas sugeridas y plan de comidas en una sola llamada (asyncio.gather),
-    personalizadas según el perfil del hogar. Reutiliza las cachés individuales de cada
-    función LLM."""
+    personalizadas según el perfil del hogar e historial de comportamiento. Reutiliza
+    las cachés individuales de cada función LLM."""
     metrics = await pantry_service.get_stock_metrics(hogar_id)
     perfil = await onboarding_service.get_perfil(hogar_id)
+    historial = await historial_service.get_historial(hogar_id)
     recetas_res, plan_res = await asyncio.gather(
-        generate_recipe_suggestions(metrics.items, metrics.alertas_caducidad, perfil),
+        generate_recipe_suggestions(
+            metrics.items, metrics.alertas_caducidad, perfil, historial
+        ),
         generate_meal_plan(metrics.items, metrics.alertas_caducidad, perfil),
     )
     return SugerenciasResponse(recetas=recetas_res, plan_comidas=plan_res)

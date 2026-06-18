@@ -600,6 +600,34 @@ class SugerenciasResponse(BaseSchema):
     plan_comidas: PlanComidasResponse
 
 
+# --- HISTORIAL DE RECETAS (APRENDIZAJE DE COMPORTAMIENTO) ---
+
+_ACCIONES_VALIDAS = {"cocinada", "rechazada"}
+
+
+class RecetaHistorialCreate(BaseSchema):
+    nombre_receta: str = Field(
+        ..., min_length=1, max_length=200, description="Nombre de la receta"
+    )
+    accion: str = Field(..., description="Acción realizada: 'cocinada' o 'rechazada'")
+
+    @field_validator("accion")
+    @classmethod
+    def validar_accion(cls, v: str) -> str:
+        if v not in _ACCIONES_VALIDAS:
+            raise ValueError("La acción debe ser 'cocinada' o 'rechazada'")
+        return v
+
+
+class RecetaHistorialResponse(BaseSchema):
+    id: UUID
+    hogar_id: UUID
+    nombre_receta: str
+    accion: str
+    cocinada_en: datetime
+    created_at: datetime
+
+
 # --- OCR DE TICKETS DE COMPRA (IA) ---
 
 

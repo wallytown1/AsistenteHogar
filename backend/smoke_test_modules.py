@@ -603,6 +603,96 @@ with TestClient(app) as client:
         r.json().get("id") != perfil1_id,
     )
 
+    # ================== HISTORIAL DE RECETAS (aprendizaje de comportamiento) ==================
+    print("\n--- Historial de Recetas ---")
+
+    # GET historial vacío -> lista vacía
+    r = client.get("/api/v1/pantry/recetas/historial", headers=h1)
+    check(
+        "GET /pantry/recetas/historial vacío devuelve []",
+        r.status_code == 200 and r.json() == [],
+        f"(status={r.status_code}, body={r.json()})",
+    )
+
+    # POST 'cocinada'
+    r = client.post(
+        "/api/v1/pantry/recetas/historial",
+        headers=h1,
+        json={"nombre_receta": "Tortilla de patatas", "accion": "cocinada"},
+    )
+    check(
+        "POST historial 'cocinada' devuelve 201",
+        r.status_code == 201,
+        f"(status={r.status_code})",
+    )
+    hist1 = r.json()
+    check("Historial guarda nombre_receta", hist1.get("nombre_receta") == "Tortilla de patatas")
+    check("Historial guarda accion", hist1.get("accion") == "cocinada")
+    check("Historial incluye hogar_id", "hogar_id" in hist1)
+
+    # POST 'rechazada'
+    r = client.post(
+        "/api/v1/pantry/recetas/historial",
+        headers=h1,
+        json={"nombre_receta": "Pasta con curry", "accion": "rechazada"},
+    )
+    check(
+        "POST historial 'rechazada' devuelve 201",
+        r.status_code == 201,
+        f"(status={r.status_code})",
+    )
+
+    # GET historial ahora tiene 2 entradas
+    r = client.get("/api/v1/pantry/recetas/historial", headers=h1)
+    check(
+        "GET historial tras 2 acciones devuelve 2 entradas",
+        r.status_code == 200 and len(r.json()) == 2,
+        f"(status={r.status_code}, len={len(r.json())})",
+    )
+
+    # Validación: accion inválida -> 422
+    r = client.post(
+        "/api/v1/pantry/recetas/historial",
+        headers=h1,
+        json={"nombre_receta": "Algo", "accion": "me_gusta_mucho"},
+    )
+    check(
+        "Historial rechaza acción inválida (422)",
+        r.status_code == 422,
+        f"(status={r.status_code})",
+    )
+
+    # extra='forbid': campo extra -> 422
+    r = client.post(
+        "/api/v1/pantry/recetas/historial",
+        headers=h1,
+        json={"nombre_receta": "Algo", "accion": "cocinada", "valoracion": 5},
+    )
+    check(
+        "Historial rechaza campos extra (422)",
+        r.status_code == 422,
+        f"(status={r.status_code})",
+    )
+
+    # Auth: sin token -> 401
+    r = client.post(
+        "/api/v1/pantry/recetas/historial",
+        json={"nombre_receta": "Algo", "accion": "cocinada"},
+    )
+    check(
+        "POST historial sin token devuelve 401",
+        r.status_code == 401,
+        f"(status={r.status_code})",
+    )
+
+    # Aislamiento: hogar2 tiene su propio historial (vacío)
+    r = client.get("/api/v1/pantry/recetas/historial", headers=h2)
+    check(
+        "Aislamiento: hogar2 no ve el historial de hogar1",
+        r.status_code == 200 and r.json() == [],
+        f"(status={r.status_code}, body={r.json()})",
+    )
+
 print()
 if fallos:
     print(f"RESULTADO: {len(fallos)} fallos -> {fallos}")

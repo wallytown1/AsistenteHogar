@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { View, Modal, ScrollView, Alert, Switch, Pressable, ActivityIndicator } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { usePantry, getDiasParaCaducar } from '../hooks/usePantry';
+import { useRecetaHistorial } from '../hooks/useRecetaHistorial';
 import { useExpiryNotifications } from '../hooks/useExpiryNotifications';
 import {
   AlimentoItem,
@@ -93,6 +94,7 @@ export default function PantryScreen() {
   const [recetas, setRecetas] = useState<RecetaSugerida[]>([]);
   const [recetasMensaje, setRecetasMensaje] = useState<string | null>(null);
   const [recetasGeneradasPorIA, setRecetasGeneradasPorIA] = useState(false);
+  const { registrarAccion, isLoading: isHistorialLoading } = useRecetaHistorial();
 
   // --- Modo del modal: manual o IA ---
   const [modoModal, setModoModal] = useState<'manual' | 'ia'>('manual');
@@ -839,39 +841,74 @@ export default function PantryScreen() {
               <View
                 key={`${receta.titulo}-${idx}`}
                 style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
                   paddingVertical: spacing.sm,
                   borderTopWidth: idx === 0 ? 0 : 1,
                   borderTopColor: colors.border,
                 }}
               >
-                <View style={{ flex: 1, paddingRight: spacing.md }}>
-                  <AppText variant="captionStrong" numberOfLines={1}>
-                    {receta.titulo}
-                  </AppText>
-                  <AppText
-                    variant="micro"
-                    color={colors.inkMuted}
-                    numberOfLines={1}
-                    style={{ marginTop: 1 }}
-                  >
-                    {receta.tiempo_min} min · {receta.ingredientes_usados.slice(0, 3).join(', ')}
-                  </AppText>
+                {/* Fila título + Ver */}
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                  }}
+                >
+                  <View style={{ flex: 1, paddingRight: spacing.md }}>
+                    <AppText variant="captionStrong" numberOfLines={1}>
+                      {receta.titulo}
+                    </AppText>
+                    <AppText
+                      variant="micro"
+                      color={colors.inkMuted}
+                      numberOfLines={1}
+                      style={{ marginTop: 1 }}
+                    >
+                      {receta.tiempo_min} min · {receta.ingredientes_usados.slice(0, 3).join(', ')}
+                    </AppText>
+                  </View>
+                  <Button
+                    label="Ver"
+                    size="sm"
+                    variant="ghost"
+                    fullWidth={false}
+                    onPress={() =>
+                      Alert.alert(
+                        receta.titulo,
+                        `Ingredientes: ${receta.ingredientes_usados.join(', ')}\n\nPasos:\n${receta.pasos.map((p, i) => `${i + 1}. ${p}`).join('\n')}`
+                      )
+                    }
+                  />
                 </View>
-                <Button
-                  label="Ver"
-                  size="sm"
-                  variant="ghost"
-                  fullWidth={false}
-                  onPress={() =>
-                    Alert.alert(
-                      receta.titulo,
-                      `Ingredientes: ${receta.ingredientes_usados.join(', ')}\n\nPasos:\n${receta.pasos.map((p, i) => `${i + 1}. ${p}`).join('\n')}`
-                    )
-                  }
-                />
+                {/* Botones de feedback (aprendizaje de comportamiento) */}
+                <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm }}>
+                  <Button
+                    label="Cocinada"
+                    icon="checkmark-circle-outline"
+                    size="sm"
+                    variant="secondary"
+                    fullWidth={false}
+                    loading={isHistorialLoading(receta.titulo, 'cocinada')}
+                    onPress={async () => {
+                      haptics.success();
+                      const ok = await registrarAccion(receta.titulo, 'cocinada');
+                      if (ok) fetchSugerencias();
+                    }}
+                  />
+                  <Button
+                    label="No me gusta"
+                    icon="close-circle-outline"
+                    size="sm"
+                    variant="ghost"
+                    fullWidth={false}
+                    loading={isHistorialLoading(receta.titulo, 'rechazada')}
+                    onPress={async () => {
+                      haptics.light();
+                      const ok = await registrarAccion(receta.titulo, 'rechazada');
+                      if (ok) fetchSugerencias();
+                    }}
+                  />
+                </View>
               </View>
             ))}
         </Card>

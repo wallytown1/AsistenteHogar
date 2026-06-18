@@ -9,6 +9,7 @@ from app.core.security import decode_access_token
 from app.database import get_async_session
 from app.models.models import Usuario
 from app.repositories.calendar import CalendarRepository
+from app.repositories.historial import RecetaHistorialRepository
 from app.repositories.pantry import PantryRepository
 from app.repositories.perfil import PerfilHogarRepository
 from app.repositories.task import TaskRepository
@@ -16,6 +17,7 @@ from app.repositories.user import UserRepository
 from app.services.auth import AuthService
 from app.services.calendar import CalendarService
 from app.services.dashboard import DashboardService
+from app.services.historial import RecetaHistorialService
 from app.services.onboarding import OnboardingService
 from app.services.pantry import PantryService
 
@@ -138,3 +140,10 @@ async def get_onboarding_service(
 ) -> OnboardingService:
     """Provee una instancia de OnboardingService inyectando su repositorio asíncrono."""
     return OnboardingService(PerfilHogarRepository(session))
+
+
+async def get_historial_service(
+    session: AsyncSession = Depends(get_async_session),
+) -> RecetaHistorialService:
+    """Provee una instancia de RecetaHistorialService inyectando su repositorio asíncrono."""
+    return RecetaHistorialService(RecetaHistorialRepository(session))
