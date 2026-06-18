@@ -6,6 +6,36 @@ Formato: `[FECHA] [ÁREA] [TIPO] Descripción`
 
 ---
 
+## [2026-06-18] — Fase 2: Panel admin — prompts dinámicos, recetario maestro, admin JWT
+
+### Backend (verificado: 26/26 smoke_test_admin + 5 suites existentes en verde)
+- **ADD** Migración Alembic `e1f3a5c70d84` — tablas globales (sin `hogar_id`): `admin_users`, `prompt_templates`, `recetario_maestro`. Dialect-aware (SQLite dev / PostgreSQL prod).
+- **ADD** Modelos ORM `AdminUser`, `PromptTemplate`, `RecetaMaestra` en `models.py`.
+- **ADD** `AdminUserRepository`, `PromptTemplateRepository`, `RecetaMaestraRepository` en `repositories/`.
+- **ADD** `AdminAuthService` (`services/admin_auth.py`) — bcrypt + JWT firmado con `ADMIN_JWT_SECRET_KEY` (secreto separado del JWT de familias). Payload incluye `role: "admin"`; tokens cruzados devuelven 401.
+- **ADD** `PromptConfigService` (`services/prompt_config.py`) — lee `system_instruction` de BD con caché TTL 5 min; siempre añade `_FILOSOFIA_MEDITERRANEA` al final (no-removible server-side).
+- **ADD** Routers `admin_auth.py`, `admin_prompts.py`, `admin_recetario.py` bajo `/api/v1/admin/*`.
+  - `POST /admin/auth/bootstrap` — crea el primer admin (501 si no hay token env; 409 si ya existe).
+  - `POST /admin/auth/login` — devuelve `AdminTokenResponse`.
+  - `GET/PATCH /admin/prompts` + `GET/PATCH /admin/prompts/{clave}` — CRUD de templates con invalidación de caché.
+  - `GET/POST /admin/recetario` + `GET/PATCH/DELETE /admin/recetario/{id}` — CRUD recetario maestro (hard delete).
+- **MOD** `core/config.py` — añadidos `ADMIN_JWT_SECRET_KEY`, `ADMIN_JWT_EXPIRE_MINUTES` (480), `ADMIN_BOOTSTRAP_TOKEN`.
+- **MOD** `services/llm.py` — `generate_recipe_suggestions` y `generate_meal_plan` aceptan `prompt_config: PromptConfigService | None`; usa `TYPE_CHECKING` para evitar importación circular.
+- **MOD** `api/routers/pantry.py` — los 3 endpoints de recetas/plan/sugerencias inyectan `PromptConfigService` y lo pasan a las funciones LLM.
+- **ADD** `backend/.env.example` — documentadas las 3 nuevas variables de entorno.
+- **ADD** `smoke_test_admin.py` — 26 checks: bootstrap, login, aislamiento JWT cruzado, CRUD prompts, guardia `_FILOSOFIA_MEDITERRANEA`, CRUD recetario.
+
+### admin-web (Next.js 14, 0 errores TypeScript, 7 rutas compiladas)
+- **ADD** `admin-web/` — panel de administración en Next.js 14 App Router + TypeScript + Tailwind CSS.
+  - `login/page.tsx` — formulario de login admin → `POST /admin/auth/login`.
+  - `prompts/page.tsx` — lista de templates con editor inline (textarea + badge de versión + checkbox activo). Nota: "La filosofía mediterránea se añade automáticamente".
+  - `recetario/page.tsx` — tabla de recetas maestras + modal "Nueva receta".
+  - `recetario/[id]/page.tsx` — formulario de edición con TagInput para ingredientes/pasos.
+  - `lib/api.ts` — helpers tipados con Bearer auth; `lib/auth.ts` — gestión de token en localStorage.
+  - `components/AdminNav.tsx`, `PromptEditor.tsx`, `RecetaForm.tsx`.
+
+---
+
 ## [2026-06-18] — Pivote 2: App exclusivamente de comida, stock y recetas
 
 ### Decisión de producto

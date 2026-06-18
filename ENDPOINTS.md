@@ -201,6 +201,106 @@ el `extra='forbid'` rechaza esos campos si llegan por error.
 
 ---
 
+---
+
+## Panel de Administración (Fase 2)
+
+> Rutas exclusivas del super-admin. Usan un JWT firmado con **`ADMIN_JWT_SECRET_KEY`**, secreto
+> independiente del JWT de familias. Los tokens de familia NO sirven aquí (→ 401) y viceversa.
+> Autenticación: Bearer JWT admin en cabecera `Authorization: Bearer <admin_token>`.
+
+### Bootstrap y Login
+
+#### `POST /api/v1/admin/auth/bootstrap`
+Crea el **primer** usuario administrador. Solo funciona si `ADMIN_BOOTSTRAP_TOKEN` está definido en
+el servidor y no existe todavía ningún admin.
+
+**Body** (`AdminBootstrapRequest`):
+```json
+{
+  "email": "admin@ejemplo.com",
+  "password": "min_8_caracteres",
+  "nombre": "Admin",
+  "bootstrap_token": "<ADMIN_BOOTSTRAP_TOKEN del servidor>"
+}
+```
+**200** → `AdminTokenResponse` (token + info admin) · **401** token incorrecto · **409** ya existe un admin · **501** variable de entorno no configurada.
+
+#### `POST /api/v1/admin/auth/login`
+Inicia sesión con las credenciales del admin.
+
+**Body** (`AdminLoginRequest`): `{ "email": "...", "password": "..." }`
+**200** → `AdminTokenResponse` · **401** credenciales incorrectas · **503** `ADMIN_JWT_SECRET_KEY` no configurada.
+
+---
+
+### Prompts dinámicos 🔑
+
+> La `system_instruction` editada por el admin **nunca** puede suprimir `_FILOSOFIA_MEDITERRANEA`;
+> el servidor la añade siempre al final (guard no-removible en `PromptConfigService`).
+> Los cambios activos se aplican en ≤ 5 minutos (caché TTL).
+
+#### `GET /api/v1/admin/prompts` 🔑
+Lista todos los templates de prompt guardados en BD.
+**200** → `list[PromptTemplateResponse]`.
+
+#### `GET /api/v1/admin/prompts/{clave}` 🔑
+Devuelve el template identificado por su clave (p.ej. `"recetas"`, `"plan_comidas"`).
+**200** → `PromptTemplateResponse` · **404** clave inexistente.
+
+#### `PATCH /api/v1/admin/prompts/{clave}` 🔑
+Upsert (crea o actualiza) un template. Incrementa `version` en cada PATCH e invalida la caché.
+
+**Body** (`PromptTemplateUpdate`, al menos un campo requerido):
+```json
+{
+  "system_instruction": "Eres el chef asistente...",  // mín. 10 caracteres
+  "activo": true
+}
+```
+**200** → `PromptTemplateResponse` actualizado · **400** cuerpo vacío · **401** sin token admin.
+
+**Claves usadas por el sistema:** `recetas`, `plan_comidas`.
+
+---
+
+### Recetario Maestro 🔑
+
+> Catálogo global de recetas de referencia (sin `hogar_id`). Hard delete (no hay datos personales).
+
+#### `GET /api/v1/admin/recetario` 🔑
+Lista recetas maestras. Parámetro opcional: `activa_only=true`.
+**200** → `list[RecetaMaestraResponse]`.
+
+#### `POST /api/v1/admin/recetario` 🔑
+Crea una nueva receta maestra.
+
+**Body** (`RecetaMaestraCreate`):
+```json
+{
+  "nombre": "Paella valenciana",       // 2-200, único
+  "ingredientes": ["arroz", "pollo"],  // lista no vacía
+  "pasos": ["Sofreír...", "Añadir..."],// lista no vacía
+  "categoria": "Arroces",              // 2-50
+  "temporada": "verano",               // opcional
+  "aprovechamiento": false
+}
+```
+**201** → `RecetaMaestraResponse` · **422** validación.
+
+#### `GET /api/v1/admin/recetario/{receta_id}` 🔑
+**200** → `RecetaMaestraResponse` · **404** no encontrada.
+
+#### `PATCH /api/v1/admin/recetario/{receta_id}` 🔑
+Actualización parcial (`RecetaMaestraUpdate`, todos los campos opcionales).
+**200** → `RecetaMaestraResponse` actualizado · **400** cuerpo vacío · **404** no encontrada.
+
+#### `DELETE /api/v1/admin/recetario/{receta_id}` 🔑
+Elimina la receta de forma definitiva (hard delete — sin datos personales).
+**200** → `{ "success": true }` · **404** no encontrada.
+
+---
+
 ## Salud (sin prefijo, sin auth)
 
 - `GET /health` → `{ "status": "ok", ... }`
@@ -208,4 +308,5 @@ el `extra='forbid'` rechaza esos campos si llegan por error.
 
 ---
 
-🔒 = requiere `Authorization: Bearer <token>`.
+🔒 = requiere `Authorization: Bearer <token>` (JWT de familia).
+🔑 = requiere `Authorization: Bearer <admin_token>` (JWT de admin, secreto independiente).

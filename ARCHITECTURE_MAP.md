@@ -79,8 +79,9 @@ erDiagram
 ```
 
 Tablas vivas hoy: `hogares`, `usuarios`, `inventario_alimentos`, `perfil_hogar`,
-`recetas_historial`, `registros_borrado`. Eliminadas en el Pivote 2:
-`eventos_calendario`, `tareas_hogar` (migración `d3e5f7b91a26`).
+`recetas_historial`, `registros_borrado`, `admin_users`, `prompt_templates`,
+`recetario_maestro` (las tres últimas globales, sin `hogar_id`, añadidas en Fase 2 — migración `e1f3a5c70d84`).
+Eliminadas en el Pivote 2: `eventos_calendario`, `tareas_hogar` (migración `d3e5f7b91a26`).
 
 ## Flujos clave
 
@@ -118,7 +119,7 @@ sequenceDiagram
 ## Estado por fases
 
 - **Fase 1 (hecha):** demolición Eventos+Tareas, app 100% comida, docs + este mapa.
-- **Fase 2:** `recetario_maestro` + `prompt_templates` dinámicos desde BD con caché TTL + panel admin Next.js (super-admin global).
+- **Fase 2 (hecha):** `recetario_maestro` + `prompt_templates` dinámicos desde BD con caché TTL + panel admin Next.js (`admin-web/`). Commit `92609b5`.
 - **Fase 3:** perfiles doble capa (`perfil_hogar` logística + `perfil_individual` paladar/salud). Datos de salud con consentimiento explícito (RGPD art. 9).
-- **Fase 4:** context caching de Gemini (recetario maestro) + function calling (ajuste de perfil al rechazar ingredientes).
+- **Fase 4:** context caching de Gemini (recetario maestro inyectado en prompts) + function calling (ajuste de perfil al rechazar ingredientes).
 - **Fase 5:** RevenueCat 3 tiers + flujos A/B/C completos.
