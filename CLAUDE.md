@@ -50,6 +50,9 @@ uvicorn app.main:app --reload
 alembic upgrade head
 alembic revision --autogenerate -m "description"
 
+# Seed del recetario maestro (idempotente — safe re-ejecutar)
+python seed_recetario.py        # inserta 15 recetas mediterráneas base en recetario_maestro
+
 # Smoke tests (each uses its own separate temp SQLite DB)
 python smoke_test_auth.py       # auth + multi-tenant isolation (12 checks)
 python smoke_test_modules.py    # pantry CRUD + AI endpoints (recetas, audio, foto-nevera, plan), onboarding, historial, isolation

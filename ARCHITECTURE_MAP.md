@@ -29,6 +29,7 @@ graph TB
         RPerfil["/onboarding (perfil hogar)"]
         RPerfilInd["/perfiles (perfiles individuales) [Fase 3] ✅"]
         RHist["/pantry/recetas/historial"]
+        RLista["/lista-compra (CRUD lista compra) ✅"]
         PromptSvc["PromptConfigService (caché TTL) [Fase 2]"]
         LLM["services/llm.py (_call_gemini)"]
         Premium["premium.py (gate premium)"]
@@ -44,6 +45,7 @@ graph TB
         Tprompt["prompt_templates (GLOBAL) [Fase 2]"]
         Tadmin["admin_users (GLOBAL) [Fase 2]"]
         Tborr["registros_borrado (RGPD)"]
+        Tlista["lista_compra (por hogar) ✅"]
     end
 
     Gemini["☁️ Gemini 2.5 Flash<br/>structured output · vision · context caching [Fase 4]"]
@@ -63,6 +65,7 @@ graph TB
     RPerfilInd --> Tperfi
     RPantry --> Tstock
     RHist --> Thist
+    RLista --> Tlista
     RDash --> Tstock
 ```
 
@@ -82,8 +85,9 @@ erDiagram
 
 Tablas vivas hoy: `hogares`, `usuarios`, `inventario_alimentos`, `perfil_hogar`,
 `perfiles_individuales` (migración `a5b3c1d9e7f2`, Fase 3 — máx. 10 por hogar, soft delete),
-`recetas_historial`, `registros_borrado`, `admin_users`, `prompt_templates`,
-`recetario_maestro` (las tres últimas globales, sin `hogar_id`, añadidas en Fase 2 — migración `e1f3a5c70d84`).
+`recetas_historial`, `lista_compra` (migración `c6d8f0a1b2e3`), `registros_borrado`,
+`admin_users`, `prompt_templates`, `recetario_maestro` (las tres últimas globales, sin
+`hogar_id`, añadidas en Fase 2 — migración `e1f3a5c70d84`).
 Eliminadas en el Pivote 2: `eventos_calendario`, `tareas_hogar` (migración `d3e5f7b91a26`).
 
 ## Flujos clave
@@ -124,5 +128,5 @@ sequenceDiagram
 - **Fase 1 (hecha):** demolición Eventos+Tareas, app 100% comida, docs + este mapa.
 - **Fase 2 (hecha):** `recetario_maestro` + `prompt_templates` dinámicos desde BD con caché TTL + panel admin Next.js (`admin-web/`). Commit `92609b5`.
 - **Fase 3 (hecha):** `perfiles_individuales` — preferencias culinarias por miembro del hogar (solo datos gastronómicos, no alergias médicas — RGPD art. 9). CRUD completo + límite 10/hogar + aislamiento multi-tenant + inyección en prompts LLM. Commit `8107fe5`.
-- **Fase 4:** context caching de Gemini (recetario maestro inyectado en prompts) + function calling (ajuste de perfil al rechazar ingredientes).
+- **Fase 4 (hecha):** `_bloque_recetario` en `llm.py` inyecta hasta 15 recetas del `recetario_maestro` en los prompts. `seed_recetario.py` carga 15 recetas mediterráneas base (idempotente). `POST /pantry/recetas/rechazar-ingrediente` añade ingrediente a `excluir_ingredientes` del perfil individual. Lista de la compra: tabla `lista_compra` + 5 endpoints bajo `/lista-compra` + `ShoppingListScreen`.
 - **Fase 5:** RevenueCat 3 tiers + flujos A/B/C completos.

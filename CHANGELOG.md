@@ -6,6 +6,32 @@ Formato: `[FECHA] [ÁREA] [TIPO] Descripción`
 
 ---
 
+## [2026-06-19] — Auditoría UI + FlatList PantryScreen + seed recetario
+
+### Frontend (ts:check 0 errores · ESLint + Prettier OK)
+
+**Auditoría de accesibilidad y touch targets (mobile-app-design skill)**
+- **FIX** `src/theme/tokens.ts` — `micro` fontSize 10 → 11pt (mínimo WCAG; 10pt era demasiado pequeño).
+- **FIX** `screens/ShoppingListScreen.tsx` — variante inválida `h1` → `title`; checkbox `TouchableOpacity` 44×44pt con `accessibilityRole="checkbox"` + `accessibilityState`; trash `hitSlop` 8 → 13pt (18+26=44pt); `clearBtn` paddingVertical 4 → 12pt.
+- **FIX** `screens/PantryScreen.tsx` — steppers ± `hitSlop` 6 → 9pt (26+18=44pt); añadidos `accessibilityLabel` en ambos botones.
+- **FIX** `screens/SettingsScreen.tsx` — textos obsoletos post-Pivote 2 corregidos ("tareas y calendario" → "historial de recetas"); edit/delete Pressable `hitSlop` 8 → 14pt (16+28=44pt).
+- **FIX** `screens/OnboardingScreen.tsx` — copy de los 3 slides actualizado a app 100% comida (eliminadas referencias a eventos/tareas); page dots `hitSlop` 8 → 19pt (6+38=44pt); `accessibilityLabel` en cada dot.
+- **FIX** `screens/OnboardingProfileScreen.tsx` — "Ahora no" `hitSlop` 8 → 12pt + `paddingVertical: spacing.sm` (≥44pt); añadido `accessibilityLabel="Saltar configuración del perfil"`.
+
+**FlatList virtualization en PantryScreen**
+- **MOD** `screens/PantryScreen.tsx` — reemplazado `<Screen>+ScrollView+map()` con `FlatList` como root scrollable. `PantryItemCard` extraído como `React.memo` fuera del componente para que FlatList pueda saltarse re-renders de items no cambiados. `ListHeaderComponent` (título, métricas, filtros, acciones lote), `ListEmptyComponent`, `ListFooterComponent` (recetas IA + plan semanal). `refreshControl` directo en FlatList. Safe area manual vía `useSafeAreaInsets`. `useCallback` para hooks movidos antes de early-returns (rules of hooks). `Screen` ya no se importa en este archivo.
+
+### Backend
+
+**Smoke test lista de la compra**
+- **ADD** `smoke_test_lista_compra.py` — 27 checks: CRUD básico (14), borrado masivo de comprados (5), aislamiento multi-tenant (4), validación de schema (7), sin autenticación (5). 27/27 en verde.
+- **MOD** `CLAUDE.md` — añadido `python smoke_test_lista_compra.py` a la sección Commands y Verification.
+
+**Seed del recetario maestro**
+- **ADD** `seed_recetario.py` — script idempotente que puebla `recetario_maestro` con 15 recetas mediterráneas españolas tradicionales: Paella valenciana, Gazpacho andaluz, Cocido madrileño, Tortilla española, Lentejas con chorizo, Pisto manchego, Pollo al ajillo, Fabada asturiana, Salmorejo cordobés, Berenjenas rellenas, Sopa de ajo castellana, Arroz con leche, Judías verdes con patatas, Bacalao al pil-pil, Menestra de verduras. 9 marcadas como `aprovechamiento=True`. Activa `_bloque_recetario` en los prompts de Gemini. Ejecutar contra Railway con `DATABASE_URL` de producción para activar en prod.
+
+---
+
 ## [2026-06-19] — Lista de la compra
 
 ### Backend (smoke tests sin regresiones)

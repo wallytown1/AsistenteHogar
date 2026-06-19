@@ -1,5 +1,27 @@
 # ESTADO ACTUAL — AsistenteHogar (2026-06-19)
 
+## ✅ Sesión 2026-06-19 (2ª parte) — Auditoría UI + FlatList + seed recetario
+
+### FlatList virtualization — PantryScreen
+- **MOD** `screens/PantryScreen.tsx`: reemplazado `ScrollView` + `.map()` por `FlatList` con `PantryItemCard` como `React.memo`. Off-screen items no montan → rendimiento constante con despensas grandes. `useCallback` para `renderItem` y `toggleSelectProduct` (movidos antes de early returns para cumplir Rules of Hooks).
+- Eliminado el componente `Screen` (era un `ScrollView`) como raíz; `FlatList` es ahora el scrollable raíz con `useSafeAreaInsets` manual. `ListHeaderComponent`, `ListEmptyComponent`, `ListFooterComponent` estructuran el contenido.
+
+### Seed del recetario maestro
+- **ADD** `backend/seed_recetario.py`: 15 recetas mediterráneas españolas idempotentes en `recetario_maestro` (paella, gazpacho, cocido, tortilla, lentejas, bacalao al pil-pil, fabada, salmorejo…). 9/15 con `aprovechamiento=True`. Activa `_bloque_recetario` en prompts de Gemini en producción.
+
+### Auditoría UI (mobile-app-design — touch targets, tipografía, copy)
+- **FIX** `theme/tokens.ts`: variante `micro` 10→11pt (mínimo Apple HIG).
+- **FIX** `screens/ShoppingListScreen.tsx`: variante `h1`→`title` + touch targets ≥44pt + `accessibilityLabel`.
+- **FIX** `screens/PantryScreen.tsx`: steppers `hitSlop` 6→9pt.
+- **FIX** `screens/SettingsScreen.tsx`: copy post-Pivote2 (referencias a Eventos/Tareas eliminadas) + `hitSlop` 8→14pt.
+- **FIX** `screens/OnboardingScreen.tsx`: copy actualizado post-Pivote2 + `hitSlop` 8→19pt.
+- **FIX** `screens/OnboardingProfileScreen.tsx`: «Ahora no» 36→44pt + `accessibilityLabel`.
+
+### Tests
+- **ADD** `backend/smoke_test_lista_compra.py`: 27/27 checks — CRUD lista de la compra + borrado masivo + aislamiento multi-tenant.
+
+---
+
 ## ✅ Sesión 2026-06-19 — Fase 3 + mejoras de producto
 
 ### Fase 3 — Perfiles individuales de miembros del hogar (smoke_test_perfiles 20/20)
@@ -422,7 +444,8 @@ python smoke_test_modules.py     # must pass
 python smoke_test_dashboard.py   # must pass
 python smoke_test_validation.py  # must pass
 python smoke_test_legal.py       # must pass
-python smoke_test_perfiles.py    # 20/20
+python smoke_test_perfiles.py        # 20/20
+python smoke_test_lista_compra.py    # 27/27
 
 # Frontend
 cd frontend
