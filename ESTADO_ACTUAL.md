@@ -504,8 +504,35 @@ npm run ts:check  # Debe retornar 0 errores
 |-------|-----------|----------------------|
 | ~~**Editar perfil del hogar desde Ajustes**~~ | ✅ Done | — |
 | ~~**`HistorialScreen`**~~ | ✅ Done | — |
-| **`SECURITY.md`** — revisión de seguridad (F-QA2 Bloque 5) | Media | doc nuevo: multi-tenant, JWT, LLM data flow, GDPR |
-| **seed en Railway** — activar recetario en producción | Mínima | `python seed_recetario.py` con `DATABASE_URL` de Railway |
+| ~~**`SECURITY.md`** — F-QA2 Bloque 5~~ | ✅ Done | — |
+| ~~**seed en Railway**~~ | ✅ Done — 15/15 recetas en prod | — |
+
+---
+
+## 🎯 Qué queda por hacer (roadmap completo)
+
+### Bloqueado por assets / cuentas externas
+
+| Tarea | Bloqueante | Detalle |
+|-------|-----------|---------|
+| **Arte real** (icono, splash) | Diseñador / Midjourney | Placeholders 1×1 en `frontend/assets/`. Necesario antes de EAS Build. Icono 1024×1024 PNG. |
+| **`eas init`** → `projectId` | Cuenta EAS (gratis) | `npx eas-cli init` dentro de `frontend/`. Actualiza `app.json`. |
+| **EAS Build development** | `eas init` previo | `eas build --profile development`. Build dev-client para simulador. |
+| **EAS Build production** | Arte real + `eas init` | `eas build --profile production`. Build firmado para stores. |
+| **App Store Connect** | Apple Developer ($99/año) | `eas submit --platform ios` + metadata, capturas, revisión Apple. |
+| **Google Play** | Google Play Developer ($25 único) | `eas submit --platform android` + ficha Play Store. |
+| **`REVENUECAT_SECRET_KEY`** en Railway | Cuenta RevenueCat + productos configurados | Sin esto el gate premium está desactivado (endpoints abiertos). |
+| **Gemini billing** | Tarjeta Google Cloud | Cambiar API key al tier con billing activo antes de usuarios reales (RGPD art. 28). |
+
+### Pendiente técnico (no bloqueado)
+
+| Tarea | Dificultad | Detalle |
+|-------|-----------|---------|
+| **Fase 5 completa** — RevenueCat 3 tiers + flujos A/B/C | Alta | Requiere `REVENUECAT_SECRET_KEY` + productos creados en RC dashboard. Actualmente solo frontend Paywall. |
+| **OWASP ZAP** (F-QA2 Bloque 6) | Baja | Una pasada contra Railway. Deferred post-lanzamiento. |
+| **Intolerancias/alergias** (RGPD art. 9) | Alta | Pospuesto. Requiere base legal explícita (consentimiento art. 9.2.a) + UX de consentimiento real. |
+| **Context caching Gemini** | Media | Útil cuando `recetario_maestro` crezca (>32K tokens). Sin impacto mientras el catálogo sea pequeño. |
+| **JTI + blocklist JWT** (R1 SECURITY.md) | Media | Añadir en Fase 5. Actualmente tokens de 30 días sin revocación (mitigado por hard-delete que invalida el `sub`). |
 
 ---
 

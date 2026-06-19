@@ -6,6 +6,32 @@ Formato: `[FECHA] [ÁREA] [TIPO] Descripción`
 
 ---
 
+## [2026-06-20] — HistorialScreen + edición perfil hogar + SECURITY.md + seed Railway
+
+### Frontend (ts:check 0 errores · ESLint + Prettier OK)
+
+**HistorialScreen**
+- **MOD** `hooks/useRecetaHistorial.ts` — extendido con `fetchHistorial()` (GET `/pantry/recetas/historial`), estado `historial: RecetaHistorial[]` y `loadingHistorial: boolean`. `registrarAccion`/`isLoading` sin cambios (compatibilidad hacia atrás con `RecipeDetailScreen`).
+- **ADD** `screens/HistorialScreen.tsx` — FlatList cronológico de recetas cocinadas/rechazadas. Punto de color (verde/gris), badge de acción (Cocinada/Rechazada), fecha formateada. `LoadingView` en primera carga; `EmptyState` si no hay entradas; pull-to-refresh.
+- **MOD** `navigation/AppNavigator.tsx` — ruta `Historial` en `RootStackParamList` + `Stack.Screen` con `slide_from_right`. Import de `HistorialScreen`.
+- **MOD** `screens/DashboardScreen.tsx` — tarjeta Pressable «Historial de recetas» (mismo patrón visual que «Plan de la semana»). `NavProp` extendido con `Historial`.
+
+**Edición perfil del hogar desde Ajustes**
+- **MOD** `screens/SettingsScreen.tsx` — nueva tarjeta «Perfil del hogar» (entre Cuenta y Sesión). Carga `GET /onboarding` al montar; muestra nº comensales + gustos culinarios actuales. Botón «Editar» abre modal bottom-sheet con chip-picker de comensales (1–6) y campo de texto para gustos (coma-separados). Guarda con `POST /onboarding` (upsert).
+
+### Documentación y seguridad
+
+**SECURITY.md actualizado (F-QA2 Bloque 5 — addendum post Fase 3)**
+- **MOD** `SECURITY.md` — §5.3: documenta que `_bloque_perfiles_individuales()` envía apodos de miembros a Gemini (pseudónimos, no nombres legales). §8: tabla explícita de 6 tablas en el alcance RGPD (`perfiles_individuales`, `lista_compra` incluidas). §9 R9: riesgo aceptado registrado para apodos en LLM.
+
+### Producción
+
+**Seed del recetario maestro en Railway**
+- Ejecutado `seed_recetario.py` contra Railway Postgres (proxy público `kodama.proxy.rlwy.net:59017`). 15 recetas insertadas, 0 ya existían. `_bloque_recetario` activo en producción desde esta sesión.
+- Problema resuelto en el camino: `asyncpg` tenía binario roto en el venv Windows → reinstalado con `pip install --force-reinstall asyncpg`.
+
+---
+
 ## [2026-06-19] — PlanComidaScreen + Auditoría UI + FlatList PantryScreen + seed recetario
 
 ### Frontend (ts:check 0 errores · ESLint + Prettier OK)
