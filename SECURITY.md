@@ -1,6 +1,7 @@
 # SECURITY.md — Asistente del Hogar IA
 
 Documento de seguridad derivado de la revisión del código fuente (F-QA2 Bloque 5, 2026-06-18).
+Actualizado 2026-06-20: Fase 3 (perfiles individuales), lista de la compra, HistorialScreen.
 Cubre modelo de autenticación, aislamiento multi-tenant, LLM, RGPD y riesgos aceptados.
 
 ---
@@ -121,6 +122,13 @@ por el admin. No hay ningún path de código que permita llegar a Gemini sin est
 
 - El briefing del dashboard solo recibe datos de despensa (nombres de alimentos, fechas de
   caducidad, métricas) — ningún nombre de persona desde el Pivote 2.
+- **Fase 3 — perfiles individuales:** `_bloque_perfiles_individuales()` en `llm.py` inyecta en
+  los prompts de `/recetas` y `/plan-comidas` los apodos de los miembros del hogar
+  (`nombre`/apodo, `preferencias_dieta`, `excluir_ingredientes`). Los apodos son pseudónimos
+  elegidos por el usuario ("Mamá", "El peque") — no son nombres legales almacenados. El usuario
+  acepta este envío implícitamente al crear el perfil (UI muestra que influyen en las recetas IA).
+  No se aplica `AnonimizadorLLM` sobre apodos porque no hay forma de revertirlos con garantía.
+  Ver R9 en §9.
 - `AnonimizadorLLM` en `services/privacy.py` está disponible para futuros flujos (chat) que
   puedan incluir nombres propios: sustituye `nombre` → `Familiar_N` antes del envío y revierte
   después. La clave de caché se calcula sobre el prompt ya anonimizado.
@@ -175,6 +183,17 @@ Los docs interactivos (`/docs`, `/redoc`, `/openapi.json`) están deshabilitados
 | Auditoría de borrado | tabla `registros_borrado` | Datos agregados, sin información personal |
 | Timestamps | `TIMESTAMPTZ` (UTC) | Todas las tablas |
 
+**Tablas en el alcance de purga/eliminación** (todas con soft delete + cascada en DELETE /auth/cuenta):
+
+| Tabla | Datos personales | Notas |
+|-------|-----------------|-------|
+| `inventario_alimentos` | No | Alimentos del hogar |
+| `recetas_historial` | No (nombres de recetas) | Purga + cascade |
+| `perfiles_individuales` | Pseudónimos (apodos) | Purga + cascade; apodos pueden identificar indirectamente |
+| `lista_compra` | No | Artículos de compra |
+| `perfil_hogar` | No | Gustos culinarios, nº comensales |
+| `registros_borrado` | No | Solo conteos agregados |
+
 Solo existen dos paths de hard delete autorizados (RGPD art. 17). Ningún otro código puede emitir
 `DELETE` físicos.
 
@@ -192,6 +211,7 @@ Solo existen dos paths de hard delete autorizados (RGPD art. 17). Ningún otro c
 | R6 | Token admin en `localStorage` (admin-web) | XSS en Next.js expondría el token; el panel no es público | Baja — migrar a `httpOnly cookie` si se despliega públicamente |
 | R7 | Prompt injection en texto libre (`/interpretar`, `/audio`) | `responseSchema` + temperatura 0 + impacto limitado al propio hogar | Baja — inherente al flujo NL |
 | R8 | OWASP ZAP pendiente (Bloque 6) | Schemathesis cubre fuzzing de contrato; ZAP añadiría análisis dinámico | Baja — post-lanzamiento |
+| R9 | Apodos de miembros del hogar viajan a Gemini sin anonimizar (Fase 3) | Apodos son pseudónimos; el usuario los crea sabiendo que mejoran las sugerencias IA; `extra='forbid'` impide campos extra. Si se añaden nombres legales en el futuro, aplicar `AnonimizadorLLM` | Baja — inherente al flujo de personalización |
 
 ---
 
