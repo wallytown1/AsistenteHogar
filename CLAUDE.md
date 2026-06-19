@@ -62,6 +62,7 @@ python smoke_test_legal.py      # GDPR purge, account deletion, LLM anonymizatio
 python smoke_test_admin.py      # admin bootstrap, login, prompts CRUD, recetario CRUD
 python smoke_test_perfiles.py       # perfiles individuales CRUD + isolation + limit (10/hogar)
 python smoke_test_lista_compra.py   # lista de la compra CRUD + borrado masivo + isolation (27 checks)
+python smoke_test_rechazar_ingrediente.py  # rechazar-ingrediente: schema, multi-tenant, auth (16 checks)
 
 # Manual GDPR purge pass (also runs automatically every 24h from the app lifespan)
 python -m app.jobs.purge
@@ -116,6 +117,13 @@ npm run ts:check
 
 Bootstrap the first admin user via `POST /api/v1/admin/auth/bootstrap` (requires `ADMIN_BOOTSTRAP_TOKEN` set in backend `.env`). After that, log in via `POST /api/v1/admin/auth/login` — the resulting token is separate from family JWTs and only works on `/admin/*` routes.
 
+### CI/CD (GitHub Actions)
+
+`.github/workflows/ci.yml` runs on every push/PR to `main` — 3 parallel jobs:
+- **backend**: Ruff + Mypy + all smoke tests + Schemathesis (25 examples/endpoint, ASGI mode, any 5xx fails).
+- **frontend**: TypeScript check + ESLint.
+- **security**: `pip-audit` + `npm audit` + `gitleaks` (allowlist in `.gitleaks.toml`).
+
 ### Quality shield (runs automatically on every commit via husky)
 
 ```bash
@@ -147,6 +155,7 @@ python smoke_test_legal.py       # 26/26 must pass
 python smoke_test_admin.py       # must pass
 python smoke_test_perfiles.py        # must pass
 python smoke_test_lista_compra.py    # 27/27 must pass
+python smoke_test_rechazar_ingrediente.py  # 16/16 must pass
 
 # Frontend
 cd frontend && npm run ts:check           # 0 errors
@@ -213,8 +222,15 @@ All schemas extend `BaseSchema` which enforces `extra='forbid'` globally. The pa
 - **Auth**: Zustand store at `src/state/authStore.ts` — holds JWT token, user, and hogar. Persists to `expo-secure-store` (encrypted). On app boot, `hydrate()` restores the session before rendering.
 - **Purchases**: `src/state/purchasesStore.ts` — Zustand store for RevenueCat premium entitlement state.
 - **Pantry settings**: `src/state/pantrySettingsStore.ts` — persisted store for configurable expiry threshold (3/6/10/14 days).
-- **API calls**: `src/api/api.ts` — adds `Authorization: Bearer <token>` to every request automatically.
-- **Feature hooks**: `src/hooks/use{Dashboard,Pantry,ListaCompra}.ts` — fetch data and expose loading/error state to screens.
+- **API calls**: `src/api/api.ts` — adds `Authorization: Bearer <token>` to every request automatically. Exports `TIMEOUT = { DEFAULT: 15_000, AI: 45_000, OCR: 60_000, OCR_FULL: 90_000 }` used by all hooks and screens.
+- **Feature hooks**: `src/hooks/use{Dashboard,Pantry,ListaCompra}.ts` — fetch data and expose loading/error state to screens. `src/hooks/useRecetaHistorial.ts` — historial de recetas cocinadas/rechazadas + `registrarAccion`.
+
+### Frontend screens
+
+Stack navigation (`AppNavigator.tsx`) with bottom tabs (Dashboard, Despensa, Compra, Ajustes) plus these Stack screens:
+- `RecipeDetailScreen` — pasos numerados + ingredientes con checkmark + botones «Marcar cocinada»/«No me gusta».
+- `PlanComidaScreen` — plan semanal 7 días (comida/cena) con `AIDisclaimerBanner` + botón regenerar.
+- `HistorialScreen` — FlatList del historial de recetas con badges cocinada/rechazada + pull-to-refresh.
 
 ### Frontend design system
 
@@ -327,6 +343,14 @@ Trigger automático en cualquiera de estos casos:
 - Añadir comentario a una issue o PR → `mcp__github__add_issue_comment`
 
 **No usar** para operaciones git locales (commit, push, branch) — esas siguen con Bash.
+
+### Higgsfield — generación de arte de la app
+Instalado en scope user (`~/.claude.json`). Usar para generar icono, splash y adaptive-icon cuando se solicite arte.
+
+Archivos destino:
+- `frontend/assets/icon.png` (1024×1024) — icono principal
+- `frontend/assets/splash.png` (1284×2778) — splash iOS
+- `frontend/assets/adaptive-icon.png` (1024×1024, sin fondo) — Android adaptive
 
 ### Gmail y Google Calendar
 Disponibles pero no relevantes para trabajo de desarrollo en este proyecto. No usar salvo instrucción explícita del usuario.
