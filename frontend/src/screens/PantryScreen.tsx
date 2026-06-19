@@ -1,5 +1,16 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { View, Modal, ScrollView, Alert, Switch, Pressable, ActivityIndicator } from 'react-native';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import {
+  View,
+  Modal,
+  ScrollView,
+  Alert,
+  Switch,
+  Pressable,
+  ActivityIndicator,
+  FlatList,
+  RefreshControl,
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { usePantry, getDiasParaCaducar } from '../hooks/usePantry';
 import { useRecetaHistorial } from '../hooks/useRecetaHistorial';
@@ -18,7 +29,6 @@ import { apiRequest, TIMEOUT } from '../api/api';
 import AIDisclaimerBanner from '../components/AIDisclaimerBanner';
 import { colors, radius, spacing } from '../theme/tokens';
 import {
-  Screen,
   Card,
   StatCard,
   Chip,
@@ -53,6 +63,229 @@ function getItemStatus(item: AlimentoItem, umbral: number): { text: string; colo
   return { text: 'Stock correcto', color: colors.success };
 }
 
+// ---------------------------------------------------------------------------
+// PantryItemCard — memoized so FlatList skips re-renders for unchanged items
+// ---------------------------------------------------------------------------
+type PantryItemCardProps = {
+  item: AlimentoItem;
+  diasUmbral: number;
+  isSelected: boolean;
+  onToggleSelect: () => void;
+  onUpdateQuantity: (id: string, qty: number) => void;
+  onDelete: (id: string) => void;
+};
+
+const PantryItemCard = React.memo(function PantryItemCard({
+  item,
+  diasUmbral,
+  isSelected,
+  onToggleSelect,
+  onUpdateQuantity,
+  onDelete,
+}: PantryItemCardProps) {
+  const status = getItemStatus(item, diasUmbral);
+
+  return (
+    <Card padding={spacing.lg} style={{ marginBottom: spacing.md }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+        {/* Checkbox de lote */}
+        <Pressable
+          onPress={onToggleSelect}
+          hitSlop={8}
+          accessibilityLabel={`Seleccionar ${item.nombre}`}
+          style={{
+            width: 22,
+            height: 22,
+            borderRadius: 7,
+            marginRight: spacing.md,
+            alignItems: 'center',
+            justifyContent: 'center',
+            borderWidth: isSelected ? 0 : 2,
+            borderColor: colors.borderStrong,
+            backgroundColor: isSelected ? colors.pantry : colors.cardAlt,
+          }}
+        >
+          {isSelected ? <Icon name="checkmark" size={14} color={colors.white} /> : null}
+        </Pressable>
+
+        {/* Icono categoría */}
+        <View
+          style={{
+            width: 46,
+            height: 46,
+            borderRadius: radius.md,
+            backgroundColor: colors.pantrySoft,
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginRight: spacing.md,
+          }}
+        >
+          <FoodIcon name={getCategoriaIcon(item.categoria)} size={24} color={colors.pantry} />
+        </View>
+
+        {/* Detalles */}
+        <View style={{ flex: 1, marginRight: spacing.sm }}>
+          <AppText variant="captionStrong" numberOfLines={1}>
+            {item.nombre}
+          </AppText>
+          <AppText variant="micro" color={colors.inkMuted} style={{ marginTop: 1 }}>
+            {item.cantidad} {item.unidad} · {item.categoria}
+          </AppText>
+          <AppText variant="micro" color={colors.inkFaint} style={{ marginTop: 1 }}>
+            Caduca: {item.fecha_caducidad || 'Indefinido'}
+          </AppText>
+        </View>
+
+        {/* Eliminar */}
+        <IconButton
+          name="trash-outline"
+          size={16}
+          color={colors.danger}
+          bg={colors.dangerSoft}
+          diameter={32}
+          accessibilityLabel={`Eliminar ${item.nombre}`}
+          onPress={() => {
+            Alert.alert(
+              'Confirmar eliminación',
+              `¿Deseas eliminar "${item.nombre}" del inventario?`,
+              [
+                { text: 'No', style: 'cancel' },
+                { text: 'Sí', style: 'destructive', onPress: () => onDelete(item.id) },
+              ]
+            );
+          }}
+        />
+      </View>
+
+      {/* Fila inferior: estado + stepper */}
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          marginTop: spacing.md,
+        }}
+      >
+        <View style={{ flex: 1, marginRight: spacing.md }}>
+          <View
+            style={{
+              height: 5,
+              backgroundColor: colors.track,
+              borderRadius: radius.pill,
+              overflow: 'hidden',
+            }}
+          >
+            <View
+              style={{
+                height: '100%',
+                width: `${Math.min(100, Math.round((item.cantidad / 5) * 100))}%`,
+                backgroundColor: status.color,
+                borderRadius: radius.pill,
+              }}
+            />
+          </View>
+          <AppText variant="micro" color={status.color} style={{ marginTop: 4, fontWeight: '700' }}>
+            {status.text}
+          </AppText>
+        </View>
+
+        {/* Stepper */}
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            backgroundColor: colors.cardAlt,
+            borderWidth: 1,
+            borderColor: colors.border,
+            borderRadius: radius.pill,
+            paddingHorizontal: 4,
+            paddingVertical: 3,
+            gap: spacing.sm,
+          }}
+        >
+          <Pressable
+            onPress={() => {
+              const nuevaCant = item.cantidad - 1;
+              if (nuevaCant <= 0) {
+                Alert.alert(
+                  'Cantidad inválida',
+                  'La cantidad debe ser mayor que 0. Usa el botón de eliminar si deseas borrar el producto.'
+                );
+                return;
+              }
+              Alert.alert(
+                'Confirmar decremento',
+                `¿Deseas disminuir la cantidad de "${item.nombre}" a ${nuevaCant} ${item.unidad}?`,
+                [
+                  { text: 'Cancelar', style: 'cancel' },
+                  {
+                    text: 'Confirmar',
+                    onPress: () => {
+                      haptics.light();
+                      onUpdateQuantity(item.id, nuevaCant);
+                    },
+                  },
+                ]
+              );
+            }}
+            hitSlop={9}
+            accessibilityLabel={`Reducir cantidad de ${item.nombre}`}
+            style={{
+              width: 26,
+              height: 26,
+              borderRadius: radius.pill,
+              backgroundColor: colors.card,
+              borderWidth: 1,
+              borderColor: colors.borderStrong,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Icon name="remove" size={16} color={colors.ink} />
+          </Pressable>
+          <AppText variant="captionStrong" style={{ minWidth: 18, textAlign: 'center' }}>
+            {item.cantidad}
+          </AppText>
+          <Pressable
+            onPress={() => {
+              const nuevaCant = item.cantidad + 1;
+              Alert.alert(
+                'Confirmar incremento',
+                `¿Deseas aumentar la cantidad de "${item.nombre}" a ${nuevaCant} ${item.unidad}?`,
+                [
+                  { text: 'Cancelar', style: 'cancel' },
+                  {
+                    text: 'Confirmar',
+                    onPress: () => {
+                      haptics.light();
+                      onUpdateQuantity(item.id, nuevaCant);
+                    },
+                  },
+                ]
+              );
+            }}
+            hitSlop={9}
+            accessibilityLabel={`Aumentar cantidad de ${item.nombre}`}
+            style={{
+              width: 26,
+              height: 26,
+              borderRadius: radius.pill,
+              backgroundColor: colors.pantry,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Icon name="add" size={16} color={colors.white} />
+          </Pressable>
+        </View>
+      </View>
+    </Card>
+  );
+});
+
+// ---------------------------------------------------------------------------
+// PantryScreen
+// ---------------------------------------------------------------------------
 export default function PantryScreen() {
   const {
     items,
@@ -67,8 +300,8 @@ export default function PantryScreen() {
     escanearTicketOcr,
     refetch,
   } = usePantry();
-  // Programa notificaciones locales para alimentos próximos a caducar (≤3 días).
   useExpiryNotifications(items);
+  const insets = useSafeAreaInsets();
   const [modalVisible, setModalVisible] = useState(false);
 
   const isPremium = usePurchasesStore((s) => s.isPremium);
@@ -99,28 +332,22 @@ export default function PantryScreen() {
   const [recetasGeneradasPorIA, setRecetasGeneradasPorIA] = useState(false);
   const { registrarAccion, isLoading: isHistorialLoading } = useRecetaHistorial();
 
-  // --- Modo del modal: manual o IA ---
   const [modoModal, setModoModal] = useState<'manual' | 'ia'>('manual');
 
-  // --- Interpretar despensa en lenguaje natural ---
   const [textoIA, setTextoIA] = useState('');
   const [propuestasIA, setPropuestasIA] = useState<AlimentoInterpretado[]>([]);
   const [interpretandoIA, setInterpretandoIA] = useState(false);
   const [mensajeIA, setMensajeIA] = useState<string | null>(null);
 
-  // --- Sugerir metadatos de alimento (categoría + caducidad estimada) ---
   const [sugirendoMetadata, setSugirendoMetadata] = useState(false);
 
-  // --- Plan de comidas semanal ---
   const [planDias, setPlanDias] = useState<DiaPlanComidas[]>([]);
   const [planMensaje, setPlanMensaje] = useState<string | null>(null);
   const [planGeneradoPorIA, setPlanGeneradoPorIA] = useState(false);
 
-  // Estado de carga unificado para recetas + plan (se cargan juntos desde /pantry/sugerencias)
   const [sugerenciasLoading, setSugerenciasLoading] = useState(false);
   const autoFetchedRef = useRef(false);
 
-  // --- Modal de entrada por voz (F-PIVOT #3) ---
   const [audioModalVisible, setAudioModalVisible] = useState(false);
   const [textoAudio, setTextoAudio] = useState('');
   const [propuestasAudio, setPropuestasAudio] = useState<AlimentoInterpretado[]>([]);
@@ -178,13 +405,11 @@ export default function PantryScreen() {
     }
   };
 
-  // --- OCR en lote (flujo directo desde FAB de cámara) ---
   const [ocrScanning, setOcrScanning] = useState(false);
   const [ocrReviewVisible, setOcrReviewVisible] = useState(false);
   const [ocrReviewItems, setOcrReviewItems] = useState<OcrItem[]>([]);
   const [ocrAdding, setOcrAdding] = useState(false);
 
-  // --- Foto de nevera ---
   const [fotoScanning, setFotoScanning] = useState(false);
   const [fotoReviewVisible, setFotoReviewVisible] = useState(false);
   const [fotoReviewItems, setFotoReviewItems] = useState<OcrItem[]>([]);
@@ -485,25 +710,41 @@ export default function PantryScreen() {
     }
   };
 
-  // Precarga en background cuando los items están listos y el usuario es premium
   useEffect(() => {
     if (items.length > 0 && isPremium && !autoFetchedRef.current) {
       autoFetchedRef.current = true;
       fetchSugerencias();
     }
-    // fetchSugerencias es estable dentro del render; autoFetchedRef garantiza ejecución única
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [items.length, isPremium]);
 
-  // Loader completo solo en carga inicial; en refrescos se usa el spinner nativo.
+  const toggleSelectProduct = useCallback(
+    (id: string) => {
+      haptics.selection();
+      setSelectedItems((prev) =>
+        prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
+      );
+    },
+    [] // setSelectedItems is stable
+  );
+
+  const renderItem = useCallback(
+    ({ item }: { item: AlimentoItem }) => (
+      <PantryItemCard
+        item={item}
+        diasUmbral={diasUmbral}
+        isSelected={selectedItems.includes(item.id)}
+        onToggleSelect={() => toggleSelectProduct(item.id)}
+        onUpdateQuantity={updateQuantity}
+        onDelete={deleteItem}
+      />
+    ),
+    [diasUmbral, selectedItems, toggleSelectProduct, updateQuantity, deleteItem]
+  );
+
   if (isLoading && items.length === 0)
     return <LoadingView message="Cargando inventario de la despensa..." />;
   if (error && items.length === 0) return <ErrorView message={error} onRetry={refetch} />;
-
-  const toggleSelectProduct = (id: string) => {
-    haptics.selection();
-    setSelectedItems((prev) => (prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]));
-  };
 
   const handleAdd = () => {
     if (!nombre.trim()) {
@@ -519,7 +760,6 @@ export default function PantryScreen() {
       return;
     }
 
-    // IA Pasiva - Confirmar adición manual del usuario
     Alert.alert(
       'Confirmar adición',
       `¿Deseas agregar ${qty} ${unidad} de "${nombre}" al inventario?`,
@@ -614,571 +854,389 @@ export default function PantryScreen() {
     return true;
   });
 
-  return (
-    <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <Screen bottomExtra={72} refreshing={isLoading} onRefresh={refetch}>
-        <AppText variant="display" style={{ marginBottom: spacing.lg }}>
-          Despensa
-        </AppText>
+  const listHeader = (
+    <View>
+      <AppText variant="display" style={{ marginBottom: spacing.lg }}>
+        Despensa
+      </AppText>
 
-        {/* Métricas */}
-        <View style={{ flexDirection: 'row', gap: spacing.md, marginBottom: spacing.lg }}>
-          <StatCard
-            label="Stock total"
-            value={`${porcentajeStock}%`}
-            icon="cube-outline"
-            accent={colors.pantry}
-            accentSoft={colors.pantrySoft}
-            progress={porcentajeStock}
-            footnote={`${itemsDisponibles} items disponibles`}
+      {/* Métricas */}
+      <View style={{ flexDirection: 'row', gap: spacing.md, marginBottom: spacing.lg }}>
+        <StatCard
+          label="Stock total"
+          value={`${porcentajeStock}%`}
+          icon="cube-outline"
+          accent={colors.pantry}
+          accentSoft={colors.pantrySoft}
+          progress={porcentajeStock}
+          footnote={`${itemsDisponibles} items disponibles`}
+        />
+        <StatCard
+          label="A caducar"
+          value={String(alertasCaducidad.length)}
+          icon="alert-circle-outline"
+          accent={colors.warning}
+          accentSoft={colors.warningSoft}
+          footnote="Notificaciones activas"
+        />
+      </View>
+
+      {/* Recomendaciones de compra */}
+      {itemsBajoStock.length > 0 ? (
+        <Card
+          style={{ marginBottom: spacing.lg }}
+          tint={colors.warningSoft}
+          borderColor={colors.border}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+            <Icon name="cart-outline" size={16} color={colors.warning} />
+            <AppText variant="label" color={colors.warning}>
+              Recomendaciones de compra
+            </AppText>
+          </View>
+          <AppText variant="captionStrong" color={colors.brandDark}>
+            {itemsBajoStock.map((i) => i.nombre).join(', ')}
+          </AppText>
+        </Card>
+      ) : null}
+
+      {/* Filtros */}
+      <Card style={{ marginBottom: spacing.lg }}>
+        <AppText variant="captionStrong" style={{ marginBottom: spacing.md }}>
+          Filtros
+        </AppText>
+        <Field
+          placeholder="Categoría (ej. Lácteos)"
+          value={filtroCategoria}
+          onChangeText={setFiltroCategoria}
+          containerStyle={{ marginBottom: spacing.md }}
+        />
+        <View
+          style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}
+        >
+          <AppText variant="caption" color={colors.inkMuted}>
+            Solo mostrar bajo stock
+          </AppText>
+          <Switch
+            value={soloBajoStock}
+            onValueChange={(v) => {
+              haptics.selection();
+              setSoloBajoStock(v);
+            }}
+            trackColor={{ false: colors.track, true: colors.pantry }}
+            thumbColor={colors.white}
+            ios_backgroundColor={colors.track}
           />
-          <StatCard
-            label="A caducar"
-            value={String(alertasCaducidad.length)}
-            icon="alert-circle-outline"
-            accent={colors.warning}
-            accentSoft={colors.warningSoft}
-            footnote="Notificaciones activas"
+        </View>
+      </Card>
+
+      {/* Acciones por lote */}
+      <View style={{ marginBottom: spacing.lg }}>
+        <AppText variant="label" color={colors.inkFaint} style={{ marginBottom: spacing.sm }}>
+          Acciones por lote{selectedItems.length > 0 ? ` (${selectedItems.length})` : ''}
+        </AppText>
+        <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+          <View style={{ flex: 1 }}>
+            <Button
+              label="Marcar usado"
+              icon="checkmark-done-outline"
+              variant="secondary"
+              size="sm"
+              onPress={() => handleBatchAction('usar')}
+            />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Button
+              label="Agregar más"
+              icon="add"
+              variant="secondary"
+              size="sm"
+              onPress={() => handleBatchAction('agregar')}
+            />
+          </View>
+        </View>
+      </View>
+    </View>
+  );
+
+  const listEmptyComponent = (
+    <Card style={{ marginBottom: spacing.lg }}>
+      <EmptyState
+        icon="basket-outline"
+        accent={colors.pantry}
+        accentSoft={colors.pantrySoft}
+        title="Sin productos"
+        subtitle="Pulsa + para añadir el primer producto a tu despensa."
+      />
+    </Card>
+  );
+
+  const listFooter = (
+    <View>
+      {/* Recetas sugeridas por IA */}
+      <Card>
+        <View
+          style={{
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: spacing.md,
+          }}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
+            <Icon name="sparkles" size={16} color={colors.brand} />
+            <AppText variant="h2">Recetas sugeridas</AppText>
+          </View>
+          <Button
+            label={
+              sugerenciasLoading
+                ? 'Cargando...'
+                : recetas.length > 0
+                  ? 'Actualizar'
+                  : 'Sugerir con IA'
+            }
+            size="sm"
+            variant="secondary"
+            loading={sugerenciasLoading}
+            onPress={() => fetchSugerencias(true)}
+            fullWidth={false}
           />
         </View>
 
-        {/* Recomendaciones de compra */}
-        {itemsBajoStock.length > 0 ? (
-          <Card
-            style={{ marginBottom: spacing.lg }}
-            tint={colors.warningSoft}
-            borderColor={colors.border}
-          >
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-              <Icon name="cart-outline" size={16} color={colors.warning} />
-              <AppText variant="label" color={colors.warning}>
-                Recomendaciones de compra
-              </AppText>
-            </View>
-            <AppText variant="captionStrong" color={colors.brandDark}>
-              {itemsBajoStock.map((i) => i.nombre).join(', ')}
+        {sugerenciasLoading ? (
+          <View style={{ alignItems: 'center', paddingVertical: spacing.lg }}>
+            <ActivityIndicator size="small" color={colors.brand} />
+            <AppText variant="micro" color={colors.inkMuted} style={{ marginTop: spacing.sm }}>
+              El chef IA está revisando tu despensa...
             </AppText>
-          </Card>
+          </View>
         ) : null}
 
-        {/* Filtros */}
-        <Card style={{ marginBottom: spacing.lg }}>
-          <AppText variant="captionStrong" style={{ marginBottom: spacing.md }}>
-            Filtros
-          </AppText>
-          <Field
-            placeholder="Categoría (ej. Lácteos)"
-            value={filtroCategoria}
-            onChangeText={setFiltroCategoria}
-            containerStyle={{ marginBottom: spacing.md }}
-          />
-          <View
-            style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}
+        {!sugerenciasLoading && recetasMensaje ? (
+          <AppText
+            variant="caption"
+            color={colors.inkMuted}
+            center
+            style={{ paddingVertical: spacing.md }}
           >
-            <AppText variant="caption" color={colors.inkMuted}>
-              Solo mostrar bajo stock
-            </AppText>
-            <Switch
-              value={soloBajoStock}
-              onValueChange={(v) => {
-                haptics.selection();
-                setSoloBajoStock(v);
-              }}
-              trackColor={{ false: colors.track, true: colors.pantry }}
-              thumbColor={colors.white}
-              ios_backgroundColor={colors.track}
-            />
-          </View>
-        </Card>
-
-        {/* Acciones por lote */}
-        <View style={{ marginBottom: spacing.lg }}>
-          <AppText variant="label" color={colors.inkFaint} style={{ marginBottom: spacing.sm }}>
-            Acciones por lote{selectedItems.length > 0 ? ` (${selectedItems.length})` : ''}
+            {recetasMensaje}
           </AppText>
-          <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-            <View style={{ flex: 1 }}>
-              <Button
-                label="Marcar usado"
-                icon="checkmark-done-outline"
-                variant="secondary"
-                size="sm"
-                onPress={() => handleBatchAction('usar')}
-              />
+        ) : null}
+
+        {!sugerenciasLoading && recetas.length === 0 && !recetasMensaje ? (
+          <AppText
+            variant="caption"
+            color={colors.inkFaint}
+            center
+            style={{ paddingVertical: spacing.md, lineHeight: 18 }}
+          >
+            Pulsa «Sugerir con IA» para recibir recetas que aprovechen tu despensa, priorizando lo
+            que caduca pronto.
+          </AppText>
+        ) : null}
+
+        {!sugerenciasLoading && recetas.length > 0 && recetasGeneradasPorIA ? (
+          <AIDisclaimerBanner texto="Estas recetas han sido generadas por IA y pueden contener imprecisiones." />
+        ) : null}
+
+        {!sugerenciasLoading &&
+          recetas.map((receta, idx) => (
+            <View
+              key={`${receta.titulo}-${idx}`}
+              style={{
+                paddingVertical: spacing.sm,
+                borderTopWidth: idx === 0 ? 0 : 1,
+                borderTopColor: colors.border,
+              }}
+            >
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                }}
+              >
+                <View style={{ flex: 1, paddingRight: spacing.md }}>
+                  <AppText variant="captionStrong" numberOfLines={1}>
+                    {receta.titulo}
+                  </AppText>
+                  <AppText
+                    variant="micro"
+                    color={colors.inkMuted}
+                    numberOfLines={1}
+                    style={{ marginTop: 1 }}
+                  >
+                    {receta.tiempo_min} min · {receta.ingredientes_usados.slice(0, 3).join(', ')}
+                  </AppText>
+                </View>
+                <Button
+                  label="Ver receta"
+                  size="sm"
+                  variant="ghost"
+                  fullWidth={false}
+                  onPress={() => navigation.navigate('RecetaDetalle', { receta })}
+                />
+              </View>
+              <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm }}>
+                <Button
+                  label="Cocinada"
+                  icon="checkmark-circle-outline"
+                  size="sm"
+                  variant="secondary"
+                  fullWidth={false}
+                  loading={isHistorialLoading(receta.titulo, 'cocinada')}
+                  onPress={async () => {
+                    haptics.success();
+                    const ok = await registrarAccion(receta.titulo, 'cocinada');
+                    if (ok) fetchSugerencias();
+                  }}
+                />
+                <Button
+                  label="No me gusta"
+                  icon="close-circle-outline"
+                  size="sm"
+                  variant="ghost"
+                  fullWidth={false}
+                  loading={isHistorialLoading(receta.titulo, 'rechazada')}
+                  onPress={async () => {
+                    haptics.light();
+                    const ok = await registrarAccion(receta.titulo, 'rechazada');
+                    if (ok) fetchSugerencias();
+                  }}
+                />
+              </View>
             </View>
-            <View style={{ flex: 1 }}>
-              <Button
-                label="Agregar más"
-                icon="add"
-                variant="secondary"
-                size="sm"
-                onPress={() => handleBatchAction('agregar')}
-              />
-            </View>
+          ))}
+      </Card>
+
+      {/* Plan de comidas semanal (IA) */}
+      <Card style={{ marginTop: spacing.lg }}>
+        <View
+          style={{
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: spacing.md,
+          }}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
+            <Icon name="restaurant-outline" size={16} color={colors.brand} />
+            <AppText variant="h2">Plan semanal</AppText>
           </View>
+          <Button
+            label={
+              sugerenciasLoading
+                ? 'Cargando...'
+                : planDias.length > 0
+                  ? 'Actualizar'
+                  : 'Generar con IA'
+            }
+            size="sm"
+            variant="secondary"
+            loading={sugerenciasLoading}
+            onPress={() => fetchSugerencias(true)}
+            fullWidth={false}
+          />
         </View>
 
-        {/* Listado */}
-        {itemsFiltrados.length === 0 ? (
-          <Card style={{ marginBottom: spacing.lg }}>
-            <EmptyState
-              icon="basket-outline"
-              accent={colors.pantry}
-              accentSoft={colors.pantrySoft}
-              title="Sin productos"
-              subtitle="Pulsa + para añadir el primer producto a tu despensa."
-            />
-          </Card>
-        ) : (
-          itemsFiltrados.map((item) => {
-            const status = getItemStatus(item, diasUmbral);
-            const isSelected = selectedItems.includes(item.id);
-            return (
-              <Card key={item.id} padding={spacing.lg} style={{ marginBottom: spacing.md }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  {/* Checkbox de lote */}
-                  <Pressable
-                    onPress={() => toggleSelectProduct(item.id)}
-                    hitSlop={8}
-                    accessibilityLabel={`Seleccionar ${item.nombre}`}
-                    style={{
-                      width: 22,
-                      height: 22,
-                      borderRadius: 7,
-                      marginRight: spacing.md,
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      borderWidth: isSelected ? 0 : 2,
-                      borderColor: colors.borderStrong,
-                      backgroundColor: isSelected ? colors.pantry : colors.cardAlt,
-                    }}
-                  >
-                    {isSelected ? <Icon name="checkmark" size={14} color={colors.white} /> : null}
-                  </Pressable>
-
-                  {/* Icono categoría */}
-                  <View
-                    style={{
-                      width: 46,
-                      height: 46,
-                      borderRadius: radius.md,
-                      backgroundColor: colors.pantrySoft,
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      marginRight: spacing.md,
-                    }}
-                  >
-                    <FoodIcon
-                      name={getCategoriaIcon(item.categoria)}
-                      size={24}
-                      color={colors.pantry}
-                    />
-                  </View>
-
-                  {/* Detalles */}
-                  <View style={{ flex: 1, marginRight: spacing.sm }}>
-                    <AppText variant="captionStrong" numberOfLines={1}>
-                      {item.nombre}
-                    </AppText>
-                    <AppText variant="micro" color={colors.inkMuted} style={{ marginTop: 1 }}>
-                      {item.cantidad} {item.unidad} · {item.categoria}
-                    </AppText>
-                    <AppText variant="micro" color={colors.inkFaint} style={{ marginTop: 1 }}>
-                      Caduca: {item.fecha_caducidad || 'Indefinido'}
-                    </AppText>
-                  </View>
-
-                  {/* Eliminar */}
-                  <IconButton
-                    name="trash-outline"
-                    size={16}
-                    color={colors.danger}
-                    bg={colors.dangerSoft}
-                    diameter={32}
-                    accessibilityLabel={`Eliminar ${item.nombre}`}
-                    onPress={() => {
-                      Alert.alert(
-                        'Confirmar eliminación',
-                        `¿Deseas eliminar "${item.nombre}" del inventario?`,
-                        [
-                          { text: 'No', style: 'cancel' },
-                          { text: 'Sí', style: 'destructive', onPress: () => deleteItem(item.id) },
-                        ]
-                      );
-                    }}
-                  />
-                </View>
-
-                {/* Fila inferior: estado + stepper */}
-                <View
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    marginTop: spacing.md,
-                  }}
-                >
-                  <View style={{ flex: 1, marginRight: spacing.md }}>
-                    <View
-                      style={{
-                        height: 5,
-                        backgroundColor: colors.track,
-                        borderRadius: radius.pill,
-                        overflow: 'hidden',
-                      }}
-                    >
-                      <View
-                        style={{
-                          height: '100%',
-                          width: `${Math.min(100, Math.round((item.cantidad / 5) * 100))}%`,
-                          backgroundColor: status.color,
-                          borderRadius: radius.pill,
-                        }}
-                      />
-                    </View>
-                    <AppText
-                      variant="micro"
-                      color={status.color}
-                      style={{ marginTop: 4, fontWeight: '700' }}
-                    >
-                      {status.text}
-                    </AppText>
-                  </View>
-
-                  {/* Stepper */}
-                  <View
-                    style={{
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      backgroundColor: colors.cardAlt,
-                      borderWidth: 1,
-                      borderColor: colors.border,
-                      borderRadius: radius.pill,
-                      paddingHorizontal: 4,
-                      paddingVertical: 3,
-                      gap: spacing.sm,
-                    }}
-                  >
-                    <Pressable
-                      onPress={() => {
-                        const nuevaCant = item.cantidad - 1;
-                        if (nuevaCant <= 0) {
-                          Alert.alert(
-                            'Cantidad inválida',
-                            'La cantidad debe ser mayor que 0. Usa el botón de eliminar si deseas borrar el producto.'
-                          );
-                          return;
-                        }
-                        Alert.alert(
-                          'Confirmar decremento',
-                          `¿Deseas disminuir la cantidad de "${item.nombre}" a ${nuevaCant} ${item.unidad}?`,
-                          [
-                            { text: 'Cancelar', style: 'cancel' },
-                            {
-                              text: 'Confirmar',
-                              onPress: () => {
-                                haptics.light();
-                                updateQuantity(item.id, nuevaCant);
-                              },
-                            },
-                          ]
-                        );
-                      }}
-                      hitSlop={9}
-                      accessibilityLabel={`Reducir cantidad de ${item.nombre}`}
-                      style={{
-                        width: 26,
-                        height: 26,
-                        borderRadius: radius.pill,
-                        backgroundColor: colors.card,
-                        borderWidth: 1,
-                        borderColor: colors.borderStrong,
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                      }}
-                    >
-                      <Icon name="remove" size={16} color={colors.ink} />
-                    </Pressable>
-                    <AppText variant="captionStrong" style={{ minWidth: 18, textAlign: 'center' }}>
-                      {item.cantidad}
-                    </AppText>
-                    <Pressable
-                      onPress={() => {
-                        const nuevaCant = item.cantidad + 1;
-                        Alert.alert(
-                          'Confirmar incremento',
-                          `¿Deseas aumentar la cantidad de "${item.nombre}" a ${nuevaCant} ${item.unidad}?`,
-                          [
-                            { text: 'Cancelar', style: 'cancel' },
-                            {
-                              text: 'Confirmar',
-                              onPress: () => {
-                                haptics.light();
-                                updateQuantity(item.id, nuevaCant);
-                              },
-                            },
-                          ]
-                        );
-                      }}
-                      hitSlop={9}
-                      accessibilityLabel={`Aumentar cantidad de ${item.nombre}`}
-                      style={{
-                        width: 26,
-                        height: 26,
-                        borderRadius: radius.pill,
-                        backgroundColor: colors.pantry,
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                      }}
-                    >
-                      <Icon name="add" size={16} color={colors.white} />
-                    </Pressable>
-                  </View>
-                </View>
-              </Card>
-            );
-          })
-        )}
-
-        {/* Recetas sugeridas por IA */}
-        <Card>
-          <View
-            style={{
-              flexDirection: 'row',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              marginBottom: spacing.md,
-            }}
-          >
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
-              <Icon name="sparkles" size={16} color={colors.brand} />
-              <AppText variant="h2">Recetas sugeridas</AppText>
-            </View>
-            <Button
-              label={
-                sugerenciasLoading
-                  ? 'Cargando...'
-                  : recetas.length > 0
-                    ? 'Actualizar'
-                    : 'Sugerir con IA'
-              }
-              size="sm"
-              variant="secondary"
-              loading={sugerenciasLoading}
-              onPress={() => fetchSugerencias(true)}
-              fullWidth={false}
-            />
+        {sugerenciasLoading ? (
+          <View style={{ alignItems: 'center', paddingVertical: spacing.lg }}>
+            <ActivityIndicator size="small" color={colors.brand} />
+            <AppText variant="micro" color={colors.inkMuted} style={{ marginTop: spacing.sm }}>
+              Planificando tu semana...
+            </AppText>
           </View>
+        ) : null}
 
-          {sugerenciasLoading ? (
-            <View style={{ alignItems: 'center', paddingVertical: spacing.lg }}>
-              <ActivityIndicator size="small" color={colors.brand} />
-              <AppText variant="micro" color={colors.inkMuted} style={{ marginTop: spacing.sm }}>
-                El chef IA está revisando tu despensa...
+        {!sugerenciasLoading && planMensaje ? (
+          <AppText
+            variant="caption"
+            color={colors.inkMuted}
+            center
+            style={{ paddingVertical: spacing.md }}
+          >
+            {planMensaje}
+          </AppText>
+        ) : null}
+
+        {!sugerenciasLoading && planDias.length === 0 && !planMensaje ? (
+          <AppText
+            variant="caption"
+            color={colors.inkFaint}
+            center
+            style={{ paddingVertical: spacing.md, lineHeight: 18 }}
+          >
+            Pulsa «Generar con IA» para crear un plan semanal aprovechando tu despensa.
+          </AppText>
+        ) : null}
+
+        {!sugerenciasLoading && planDias.length > 0 && planGeneradoPorIA ? (
+          <AIDisclaimerBanner texto="Este plan ha sido generado por IA y puede contener imprecisiones." />
+        ) : null}
+
+        {!sugerenciasLoading &&
+          planDias.map((dia, idx) => (
+            <View
+              key={`${dia.dia}-${idx}`}
+              style={{
+                paddingVertical: spacing.sm,
+                borderTopWidth: idx === 0 ? 0 : 1,
+                borderTopColor: colors.border,
+              }}
+            >
+              <AppText variant="captionStrong" color={colors.brand} style={{ marginBottom: 2 }}>
+                {dia.dia}
               </AppText>
-            </View>
-          ) : null}
-
-          {!sugerenciasLoading && recetasMensaje ? (
-            <AppText
-              variant="caption"
-              color={colors.inkMuted}
-              center
-              style={{ paddingVertical: spacing.md }}
-            >
-              {recetasMensaje}
-            </AppText>
-          ) : null}
-
-          {!sugerenciasLoading && recetas.length === 0 && !recetasMensaje ? (
-            <AppText
-              variant="caption"
-              color={colors.inkFaint}
-              center
-              style={{ paddingVertical: spacing.md, lineHeight: 18 }}
-            >
-              Pulsa «Sugerir con IA» para recibir recetas que aprovechen tu despensa, priorizando lo
-              que caduca pronto.
-            </AppText>
-          ) : null}
-
-          {/* Transparencia IA (EU AI Act): solo cuando las recetas provienen del modelo */}
-          {!sugerenciasLoading && recetas.length > 0 && recetasGeneradasPorIA ? (
-            <AIDisclaimerBanner texto="Estas recetas han sido generadas por IA y pueden contener imprecisiones." />
-          ) : null}
-
-          {!sugerenciasLoading &&
-            recetas.map((receta, idx) => (
-              <View
-                key={`${receta.titulo}-${idx}`}
-                style={{
-                  paddingVertical: spacing.sm,
-                  borderTopWidth: idx === 0 ? 0 : 1,
-                  borderTopColor: colors.border,
-                }}
-              >
-                {/* Fila título + Ver */}
-                <View
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                  }}
-                >
-                  <View style={{ flex: 1, paddingRight: spacing.md }}>
-                    <AppText variant="captionStrong" numberOfLines={1}>
-                      {receta.titulo}
-                    </AppText>
-                    <AppText
-                      variant="micro"
-                      color={colors.inkMuted}
-                      numberOfLines={1}
-                      style={{ marginTop: 1 }}
-                    >
-                      {receta.tiempo_min} min · {receta.ingredientes_usados.slice(0, 3).join(', ')}
-                    </AppText>
-                  </View>
-                  <Button
-                    label="Ver receta"
-                    size="sm"
-                    variant="ghost"
-                    fullWidth={false}
-                    onPress={() => navigation.navigate('RecetaDetalle', { receta })}
-                  />
+              <View style={{ flexDirection: 'row', gap: spacing.lg }}>
+                <View style={{ flex: 1 }}>
+                  <AppText variant="micro" color={colors.inkFaint}>
+                    Comida
+                  </AppText>
+                  <AppText variant="caption" color={colors.ink}>
+                    {dia.comida}
+                  </AppText>
                 </View>
-                {/* Botones de feedback (aprendizaje de comportamiento) */}
-                <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm }}>
-                  <Button
-                    label="Cocinada"
-                    icon="checkmark-circle-outline"
-                    size="sm"
-                    variant="secondary"
-                    fullWidth={false}
-                    loading={isHistorialLoading(receta.titulo, 'cocinada')}
-                    onPress={async () => {
-                      haptics.success();
-                      const ok = await registrarAccion(receta.titulo, 'cocinada');
-                      if (ok) fetchSugerencias();
-                    }}
-                  />
-                  <Button
-                    label="No me gusta"
-                    icon="close-circle-outline"
-                    size="sm"
-                    variant="ghost"
-                    fullWidth={false}
-                    loading={isHistorialLoading(receta.titulo, 'rechazada')}
-                    onPress={async () => {
-                      haptics.light();
-                      const ok = await registrarAccion(receta.titulo, 'rechazada');
-                      if (ok) fetchSugerencias();
-                    }}
-                  />
+                <View style={{ flex: 1 }}>
+                  <AppText variant="micro" color={colors.inkFaint}>
+                    Cena
+                  </AppText>
+                  <AppText variant="caption" color={colors.ink}>
+                    {dia.cena}
+                  </AppText>
                 </View>
               </View>
-            ))}
-        </Card>
-
-        {/* Plan de comidas semanal (IA) */}
-        <Card style={{ marginTop: spacing.lg }}>
-          <View
-            style={{
-              flexDirection: 'row',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              marginBottom: spacing.md,
-            }}
-          >
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
-              <Icon name="restaurant-outline" size={16} color={colors.brand} />
-              <AppText variant="h2">Plan semanal</AppText>
             </View>
-            <Button
-              label={
-                sugerenciasLoading
-                  ? 'Cargando...'
-                  : planDias.length > 0
-                    ? 'Actualizar'
-                    : 'Generar con IA'
-              }
-              size="sm"
-              variant="secondary"
-              loading={sugerenciasLoading}
-              onPress={() => fetchSugerencias(true)}
-              fullWidth={false}
-            />
-          </View>
+          ))}
+      </Card>
 
-          {sugerenciasLoading ? (
-            <View style={{ alignItems: 'center', paddingVertical: spacing.lg }}>
-              <ActivityIndicator size="small" color={colors.brand} />
-              <AppText variant="micro" color={colors.inkMuted} style={{ marginTop: spacing.sm }}>
-                Planificando tu semana...
-              </AppText>
-            </View>
-          ) : null}
+      <View style={{ height: spacing.xxxl }} />
+    </View>
+  );
 
-          {!sugerenciasLoading && planMensaje ? (
-            <AppText
-              variant="caption"
-              color={colors.inkMuted}
-              center
-              style={{ paddingVertical: spacing.md }}
-            >
-              {planMensaje}
-            </AppText>
-          ) : null}
-
-          {!sugerenciasLoading && planDias.length === 0 && !planMensaje ? (
-            <AppText
-              variant="caption"
-              color={colors.inkFaint}
-              center
-              style={{ paddingVertical: spacing.md, lineHeight: 18 }}
-            >
-              Pulsa «Generar con IA» para crear un plan semanal aprovechando tu despensa.
-            </AppText>
-          ) : null}
-
-          {!sugerenciasLoading && planDias.length > 0 && planGeneradoPorIA ? (
-            <AIDisclaimerBanner texto="Este plan ha sido generado por IA y puede contener imprecisiones." />
-          ) : null}
-
-          {!sugerenciasLoading &&
-            planDias.map((dia, idx) => (
-              <View
-                key={`${dia.dia}-${idx}`}
-                style={{
-                  paddingVertical: spacing.sm,
-                  borderTopWidth: idx === 0 ? 0 : 1,
-                  borderTopColor: colors.border,
-                }}
-              >
-                <AppText variant="captionStrong" color={colors.brand} style={{ marginBottom: 2 }}>
-                  {dia.dia}
-                </AppText>
-                <View style={{ flexDirection: 'row', gap: spacing.lg }}>
-                  <View style={{ flex: 1 }}>
-                    <AppText variant="micro" color={colors.inkFaint}>
-                      Comida
-                    </AppText>
-                    <AppText variant="caption" color={colors.ink}>
-                      {dia.comida}
-                    </AppText>
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <AppText variant="micro" color={colors.inkFaint}>
-                      Cena
-                    </AppText>
-                    <AppText variant="caption" color={colors.ink}>
-                      {dia.cena}
-                    </AppText>
-                  </View>
-                </View>
-              </View>
-            ))}
-        </Card>
-      </Screen>
+  return (
+    <View style={{ flex: 1, backgroundColor: colors.bg }}>
+      <FlatList
+        data={itemsFiltrados}
+        keyExtractor={(item) => item.id}
+        renderItem={renderItem}
+        ListHeaderComponent={listHeader}
+        ListEmptyComponent={listEmptyComponent}
+        ListFooterComponent={listFooter}
+        contentContainerStyle={{
+          paddingTop: insets.top + spacing.sm,
+          paddingHorizontal: spacing.xl,
+          paddingBottom: spacing.xxxl + 72,
+        }}
+        refreshControl={
+          <RefreshControl
+            refreshing={isLoading}
+            onRefresh={refetch}
+            tintColor={colors.brand}
+            colors={[colors.brand]}
+          />
+        }
+        showsVerticalScrollIndicator={false}
+      />
 
       {/* FAB principal: añadir producto manualmente */}
       <Fab
@@ -1195,7 +1253,7 @@ export default function PantryScreen() {
         onPress={handleEscanearTicketFab}
         accessibilityLabel="Escanear ticket de compra"
       />
-      {/* FAB terciario: entrada por voz (apilado encima del de OCR) */}
+      {/* FAB terciario: entrada por voz */}
       <Fab
         icon="mic-outline"
         color={colors.calendar}
@@ -1233,7 +1291,6 @@ export default function PantryScreen() {
               maxHeight: '88%',
             }}
           >
-            {/* Handle */}
             <View style={{ alignItems: 'center', marginBottom: spacing.md }}>
               <View
                 style={{
@@ -1245,7 +1302,6 @@ export default function PantryScreen() {
               />
             </View>
 
-            {/* Cabecera */}
             <View
               style={{
                 flexDirection: 'row',
@@ -1264,7 +1320,6 @@ export default function PantryScreen() {
             <AIDisclaimerBanner texto="La IA interpretará tu dictado y propondrá los productos. Confirma cada uno antes de añadirlo." />
 
             <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-              {/* Campo de texto con autoFocus para mostrar teclado con micrófono */}
               <Field
                 placeholder='Ej: "compré seis huevos, leche y dos pimientos rojos"'
                 value={textoAudio}
@@ -1681,7 +1736,6 @@ export default function PantryScreen() {
               Añadir producto
             </AppText>
 
-            {/* Tabs: Manual / Con IA (el ticket va por el FAB de cámara) */}
             <View style={{ flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.lg }}>
               <Chip
                 label="Manual"
