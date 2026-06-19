@@ -24,6 +24,7 @@ from app.api.routers import (
     historial,
     onboarding,
     pantry,
+    perfiles,
 )
 from app.core.config import IS_PRODUCTION
 from app.core.logging_config import setup_logging
@@ -208,6 +209,7 @@ app.include_router(historial.router, prefix="/api/v1")
 app.include_router(admin_auth.router, prefix="/api/v1")
 app.include_router(admin_prompts.router, prefix="/api/v1")
 app.include_router(admin_recetario.router, prefix="/api/v1")
+app.include_router(perfiles.router, prefix="/api/v1")
 
 
 @app.get("/health", tags=["Health"])

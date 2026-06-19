@@ -201,6 +201,43 @@ el `extra='forbid'` rechaza esos campos si llegan por error.
 
 ---
 
+## Perfiles individuales de miembros del hogar (Fase 3)
+
+> Preferencias culinarias por persona dentro del hogar. Las recetas y el plan de comidas las tienen en
+> cuenta automáticamente. **No almacenar datos de salud** (alergias/intolerancias médicas son
+> datos especiales RGPD art. 9 y se rechazan por `extra='forbid'`).
+> Límite: 10 perfiles por hogar. Soft delete. `hogar_id` siempre del JWT.
+
+### `GET /api/v1/perfiles` 🔒
+Lista los perfiles activos del hogar ordenados por fecha de creación.
+**200** → `list[PerfilIndividualResponse]` (vacío si no hay perfiles).
+
+### `POST /api/v1/perfiles` 🔒
+Crea un nuevo perfil individual.
+
+**Body** (`PerfilIndividualCreate`):
+```json
+{
+  "nombre": "Mamá",                        // 1-100 caracteres, requerido
+  "preferencias_dieta": ["vegetariana"],   // lista de strings, max 100 chars/item
+  "excluir_ingredientes": ["cilantro"]     // lista de strings, max 100 chars/item
+}
+```
+**201** → `PerfilIndividualResponse` · **422** nombre vacío / item >100 chars / campo extra / límite 10 alcanzado.
+
+### `GET /api/v1/perfiles/{perfil_id}` 🔒
+**200** → `PerfilIndividualResponse` · **404** inexistente o de otro hogar · **422** ID no-UUID.
+
+### `PATCH /api/v1/perfiles/{perfil_id}` 🔒
+Actualización parcial (todos los campos opcionales).
+
+**Body** (`PerfilIndividualUpdate`): mismos campos que `Create`, todos opcionales.
+**200** → `PerfilIndividualResponse` · **404** inexistente o ajeno · **422** validación.
+
+### `DELETE /api/v1/perfiles/{perfil_id}` 🔒
+Borrado lógico (`is_deleted = true`). Las preferencias dejan de influir en las recetas.
+**204** sin cuerpo · **404** inexistente o ajeno.
+
 ---
 
 ## Panel de Administración (Fase 2)

@@ -420,6 +420,60 @@ class TicketOcrResponse(BaseSchema):
     )
 
 
+# --- PERFILES INDIVIDUALES (Fase 3) ---
+
+
+class PerfilIndividualCreate(BaseSchema):
+    """Perfil culinario de un miembro del hogar. Solo preferencias gastronómicas.
+    NO usar para alergias o intolerancias médicas (datos de salud RGPD art. 9)."""
+
+    nombre: str = Field(
+        ..., min_length=1, max_length=100, description="Apodo del miembro del hogar"
+    )
+    preferencias_dieta: list[str] = Field(
+        default_factory=list,
+        description="Preferencias de dieta (ej: vegetariano, sin gluten preferido)",
+    )
+    excluir_ingredientes: list[str] = Field(
+        default_factory=list,
+        description="Ingredientes que este miembro prefiere evitar (preferencia culinaria)",
+    )
+
+    @field_validator("preferencias_dieta", "excluir_ingredientes")
+    @classmethod
+    def limpiar_lista(cls, v: list[str]) -> list[str]:
+        limpios = [x.strip() for x in v if x.strip()]
+        if any(len(x) > 100 for x in limpios):
+            raise ValueError("Cada entrada no puede superar los 100 caracteres")
+        return limpios
+
+
+class PerfilIndividualUpdate(BaseSchema):
+    nombre: str | None = Field(None, min_length=1, max_length=100)
+    preferencias_dieta: list[str] | None = None
+    excluir_ingredientes: list[str] | None = None
+
+    @field_validator("preferencias_dieta", "excluir_ingredientes")
+    @classmethod
+    def limpiar_lista(cls, v: list[str] | None) -> list[str] | None:
+        if v is None:
+            return v
+        limpios = [x.strip() for x in v if x.strip()]
+        if any(len(x) > 100 for x in limpios):
+            raise ValueError("Cada entrada no puede superar los 100 caracteres")
+        return limpios
+
+
+class PerfilIndividualResponse(BaseSchema):
+    id: UUID
+    hogar_id: UUID
+    nombre: str
+    preferencias_dieta: list[str]
+    excluir_ingredientes: list[str]
+    created_at: datetime
+    updated_at: datetime
+
+
 # --- ADMIN AUTH ---
 
 

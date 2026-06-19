@@ -8,6 +8,7 @@ from app.api.deps import (
     get_hogar_id,
     get_onboarding_service,
     get_pantry_service,
+    get_perfiles_repo,
     get_prompt_config_service,
     requiere_premium,
 )
@@ -19,6 +20,7 @@ from app.core.rate_limit import (
     plan_comidas_rate_limiter,
     recetas_rate_limiter,
 )
+from app.repositories.perfiles_individual import PerfilIndividualRepository
 from app.schemas.schemas import (
     FotoNeveraRequest,
     FotoNeveraResponse,
@@ -28,6 +30,7 @@ from app.schemas.schemas import (
     InventarioAlimentoResponse,
     InventarioAlimentoUpdate,
     PantryStockMetrics,
+    PerfilIndividualResponse,
     PlanComidasResponse,
     RecetasSugeridasResponse,
     SugerenciaMetadataResponse,
@@ -73,15 +76,23 @@ async def get_recetas_sugeridas(
     onboarding_service: OnboardingService = Depends(get_onboarding_service),
     historial_service: RecetaHistorialService = Depends(get_historial_service),
     prompt_config: PromptConfigService = Depends(get_prompt_config_service),
+    perfiles_repo: PerfilIndividualRepository = Depends(get_perfiles_repo),
 ) -> RecetasSugeridasResponse:
     """Sugiere recetas con IA a partir del inventario real de la despensa del Hogar,
     priorizando los alimentos próximos a caducar y personalizando según el perfil del
-    hogar (gustos, nº comensales) e historial de comportamiento. IA pasiva: solo sugiere."""
+    hogar, perfiles individuales e historial de comportamiento. IA pasiva: solo sugiere."""
     metrics = await pantry_service.get_stock_metrics(hogar_id)
     perfil = await onboarding_service.get_perfil(hogar_id)
     historial = await historial_service.get_historial(hogar_id)
+    _perfiles = await perfiles_repo.list_by_hogar(hogar_id)
+    perfiles = [PerfilIndividualResponse.model_validate(p) for p in _perfiles] or None
     return await generate_recipe_suggestions(
-        metrics.items, metrics.alertas_caducidad, perfil, historial, prompt_config
+        metrics.items,
+        metrics.alertas_caducidad,
+        perfil,
+        historial,
+        prompt_config,
+        perfiles_individuales=perfiles,
     )
 
 
@@ -95,14 +106,21 @@ async def get_plan_comidas(
     pantry_service: PantryService = Depends(get_pantry_service),
     onboarding_service: OnboardingService = Depends(get_onboarding_service),
     prompt_config: PromptConfigService = Depends(get_prompt_config_service),
+    perfiles_repo: PerfilIndividualRepository = Depends(get_perfiles_repo),
 ) -> PlanComidasResponse:
     """Genera un plan de comidas semanal con IA a partir de la despensa real,
-    priorizando lo que caduca pronto y personalizando según el perfil del hogar.
+    priorizando lo que caduca pronto y personalizando según perfiles del hogar.
     IA pasiva: solo sugiere."""
     metrics = await pantry_service.get_stock_metrics(hogar_id)
     perfil = await onboarding_service.get_perfil(hogar_id)
+    _perfiles = await perfiles_repo.list_by_hogar(hogar_id)
+    perfiles = [PerfilIndividualResponse.model_validate(p) for p in _perfiles] or None
     return await generate_meal_plan(
-        metrics.items, metrics.alertas_caducidad, perfil, prompt_config
+        metrics.items,
+        metrics.alertas_caducidad,
+        perfil,
+        prompt_config,
+        perfiles_individuales=perfiles,
     )
 
 
@@ -121,19 +139,30 @@ async def get_sugerencias(
     onboarding_service: OnboardingService = Depends(get_onboarding_service),
     historial_service: RecetaHistorialService = Depends(get_historial_service),
     prompt_config: PromptConfigService = Depends(get_prompt_config_service),
+    perfiles_repo: PerfilIndividualRepository = Depends(get_perfiles_repo),
 ) -> SugerenciasResponse:
     """Devuelve recetas sugeridas y plan de comidas en una sola llamada (asyncio.gather),
-    personalizadas según el perfil del hogar e historial de comportamiento. Reutiliza
-    las cachés individuales de cada función LLM."""
+    personalizadas según el perfil del hogar, perfiles individuales e historial."""
     metrics = await pantry_service.get_stock_metrics(hogar_id)
     perfil = await onboarding_service.get_perfil(hogar_id)
     historial = await historial_service.get_historial(hogar_id)
+    _perfiles = await perfiles_repo.list_by_hogar(hogar_id)
+    perfiles = [PerfilIndividualResponse.model_validate(p) for p in _perfiles] or None
     recetas_res, plan_res = await asyncio.gather(
         generate_recipe_suggestions(
-            metrics.items, metrics.alertas_caducidad, perfil, historial, prompt_config
+            metrics.items,
+            metrics.alertas_caducidad,
+            perfil,
+            historial,
+            prompt_config,
+            perfiles_individuales=perfiles,
         ),
         generate_meal_plan(
-            metrics.items, metrics.alertas_caducidad, perfil, prompt_config
+            metrics.items,
+            metrics.alertas_caducidad,
+            perfil,
+            prompt_config,
+            perfiles_individuales=perfiles,
         ),
     )
     return SugerenciasResponse(recetas=recetas_res, plan_comidas=plan_res)

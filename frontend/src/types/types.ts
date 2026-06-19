@@ -106,6 +106,16 @@ export interface PlanComidasResponse {
   mensaje: string | null;
 }
 
+export interface PerfilIndividual {
+  id: string;
+  hogar_id: string;
+  nombre: string;
+  preferencias_dieta: string[];
+  excluir_ingredientes: string[];
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Usuario {
   id: string;
   hogar_id: string;

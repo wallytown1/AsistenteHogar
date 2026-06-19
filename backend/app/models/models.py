@@ -109,6 +109,9 @@ class Hogar(Base):
     historial_recetas: Mapped[list["RecetaHistorial"]] = relationship(
         "RecetaHistorial", back_populates="hogar", cascade="all, delete-orphan"
     )
+    perfiles_individuales: Mapped[list["PerfilIndividual"]] = relationship(
+        "PerfilIndividual", back_populates="hogar", cascade="all, delete-orphan"
+    )
 
 
 class Usuario(Base):
@@ -267,6 +270,45 @@ class RecetaHistorial(Base):
     )
 
     hogar: Mapped["Hogar"] = relationship("Hogar", back_populates="historial_recetas")
+
+
+class PerfilIndividual(Base):
+    """Perfil culinario de un miembro del hogar (apodo + preferencias de dieta +
+    ingredientes a evitar). Solo preferencias gastronómicas — NO se almacenan alergias
+    ni intolerancias médicas (datos de salud RGPD art. 9). Máximo 10 por hogar."""
+
+    __tablename__ = "perfiles_individuales"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID_TYPE, primary_key=True, default=uuid.uuid4
+    )
+    hogar_id: Mapped[uuid.UUID] = mapped_column(
+        UUID_TYPE,
+        ForeignKey("hogares.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    nombre: Mapped[str] = mapped_column(String(100), nullable=False)
+    preferencias_dieta: Mapped[list[str]] = mapped_column(
+        JSON, nullable=False, default=list
+    )
+    excluir_ingredientes: Mapped[list[str]] = mapped_column(
+        JSON, nullable=False, default=list
+    )
+    is_deleted: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    created_at: Mapped[datetime] = mapped_column(
+        TZDateTime, nullable=False, server_default=utcnow()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        TZDateTime,
+        nullable=False,
+        server_default=utcnow(),
+        onupdate=lambda: datetime.now(UTC),
+    )
+
+    hogar: Mapped["Hogar"] = relationship(
+        "Hogar", back_populates="perfiles_individuales"
+    )
 
 
 class AdminUser(Base):

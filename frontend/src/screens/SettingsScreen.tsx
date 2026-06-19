@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
-import { View } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Modal, Alert, Pressable } from 'react-native';
 import { useAuthStore } from '../state/authStore';
 import { usePantrySettingsStore, OPCIONES_UMBRAL } from '../state/pantrySettingsStore';
+import { PerfilIndividual } from '../types/types';
+import { apiRequest } from '../api/api';
 import { colors, radius, spacing } from '../theme/tokens';
 import { Screen, Card, Button, Field, AppText, Icon, Chip } from '../components/ui';
 import { haptics } from '../lib/haptics';
@@ -23,6 +25,111 @@ export default function SettingsScreen() {
 
   const diasUmbral = usePantrySettingsStore((s) => s.diasUmbral);
   const setDiasUmbral = usePantrySettingsStore((s) => s.setDiasUmbral);
+
+  // --- Perfiles individuales ---
+  const [perfiles, setPerfiles] = useState<PerfilIndividual[]>([]);
+  const [perfilModalVisible, setPerfilModalVisible] = useState(false);
+  const [editandoPerfil, setEditandoPerfil] = useState<PerfilIndividual | null>(null);
+  const [perfilNombre, setPerfilNombre] = useState('');
+  const [perfilDieta, setPerfilDieta] = useState('');
+  const [perfilExcluir, setPerfilExcluir] = useState('');
+  const [savingPerfil, setSavingPerfil] = useState(false);
+
+  const cargarPerfiles = useCallback(async () => {
+    try {
+      const lista = await apiRequest<PerfilIndividual[]>('/perfiles');
+      setPerfiles(lista);
+    } catch {
+      // silencioso — no bloqueamos la pantalla por esto
+    }
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const lista = await apiRequest<PerfilIndividual[]>('/perfiles');
+        if (!cancelled) setPerfiles(lista);
+      } catch {
+        // silencioso
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const abrirNuevoPerfil = () => {
+    setEditandoPerfil(null);
+    setPerfilNombre('');
+    setPerfilDieta('');
+    setPerfilExcluir('');
+    setPerfilModalVisible(true);
+  };
+
+  const abrirEditarPerfil = (p: PerfilIndividual) => {
+    setEditandoPerfil(p);
+    setPerfilNombre(p.nombre);
+    setPerfilDieta(p.preferencias_dieta.join(', '));
+    setPerfilExcluir(p.excluir_ingredientes.join(', '));
+    setPerfilModalVisible(true);
+  };
+
+  const parseLista = (texto: string) =>
+    texto
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+
+  const guardarPerfil = async () => {
+    if (!perfilNombre.trim()) {
+      Alert.alert('Campo requerido', 'El nombre del miembro es obligatorio.');
+      return;
+    }
+    setSavingPerfil(true);
+    try {
+      const body = {
+        nombre: perfilNombre.trim(),
+        preferencias_dieta: parseLista(perfilDieta),
+        excluir_ingredientes: parseLista(perfilExcluir),
+      };
+      if (editandoPerfil) {
+        await apiRequest(`/perfiles/${editandoPerfil.id}`, { method: 'PATCH', json: body });
+      } else {
+        await apiRequest('/perfiles', { method: 'POST', json: body });
+      }
+      haptics.success();
+      setPerfilModalVisible(false);
+      cargarPerfiles();
+    } catch (err: any) {
+      Alert.alert('Error', err.message || 'No se pudo guardar el perfil.');
+    } finally {
+      setSavingPerfil(false);
+    }
+  };
+
+  const eliminarPerfil = (p: PerfilIndividual) => {
+    Alert.alert(
+      'Eliminar miembro',
+      `¿Eliminar el perfil de "${p.nombre}"? Sus preferencias ya no influirán en las recetas.`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Eliminar',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await apiRequest(`/perfiles/${p.id}`, { method: 'DELETE' });
+              haptics.light();
+              cargarPerfiles();
+            } catch (err: any) {
+              Alert.alert('Error', err.message || 'No se pudo eliminar.');
+            }
+          },
+        },
+      ]
+    );
+  };
 
   const [confirmando, setConfirmando] = useState(false);
   const [password, setPassword] = useState('');
@@ -150,6 +257,164 @@ export default function SettingsScreen() {
           ))}
         </View>
       </Card>
+
+      {/* Tarjeta: Miembros del hogar */}
+      <Card style={{ marginBottom: spacing.lg }}>
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            marginBottom: spacing.md,
+          }}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <Icon name="people-outline" size={18} color={colors.brand} />
+            <AppText variant="h2">Miembros del hogar</AppText>
+          </View>
+          <Button
+            label="Añadir"
+            icon="add"
+            size="sm"
+            variant="secondary"
+            fullWidth={false}
+            onPress={abrirNuevoPerfil}
+          />
+        </View>
+        <AppText variant="caption" color={colors.inkMuted} style={{ marginBottom: spacing.md }}>
+          Las preferencias culinarias de cada miembro influyen en las recetas sugeridas por IA.
+        </AppText>
+        {perfiles.length === 0 ? (
+          <AppText variant="caption" color={colors.inkFaint} center>
+            Sin miembros configurados.
+          </AppText>
+        ) : (
+          perfiles.map((p, i) => (
+            <View
+              key={p.id}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                paddingVertical: spacing.sm,
+                borderTopWidth: i === 0 ? 0 : 1,
+                borderTopColor: colors.border,
+              }}
+            >
+              <View
+                style={{
+                  width: 34,
+                  height: 34,
+                  borderRadius: radius.pill,
+                  backgroundColor: colors.brandSoft,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginRight: spacing.md,
+                }}
+              >
+                <Icon name="person-outline" size={17} color={colors.brand} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <AppText variant="captionStrong">{p.nombre}</AppText>
+                {p.preferencias_dieta.length > 0 && (
+                  <AppText variant="micro" color={colors.inkMuted}>
+                    {p.preferencias_dieta.join(', ')}
+                  </AppText>
+                )}
+                {p.excluir_ingredientes.length > 0 && (
+                  <AppText variant="micro" color={colors.inkFaint}>
+                    Evita: {p.excluir_ingredientes.join(', ')}
+                  </AppText>
+                )}
+              </View>
+              <Pressable
+                onPress={() => abrirEditarPerfil(p)}
+                hitSlop={8}
+                style={{ marginRight: spacing.sm }}
+                accessibilityLabel={`Editar ${p.nombre}`}
+              >
+                <Icon name="pencil-outline" size={16} color={colors.inkMuted} />
+              </Pressable>
+              <Pressable
+                onPress={() => eliminarPerfil(p)}
+                hitSlop={8}
+                accessibilityLabel={`Eliminar ${p.nombre}`}
+              >
+                <Icon name="trash-outline" size={16} color={colors.danger} />
+              </Pressable>
+            </View>
+          ))
+        )}
+      </Card>
+
+      {/* Modal: añadir / editar miembro */}
+      <Modal
+        visible={perfilModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setPerfilModalVisible(false)}
+      >
+        <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: colors.overlay }}>
+          <View
+            style={{
+              backgroundColor: colors.card,
+              borderTopLeftRadius: radius.xxl,
+              borderTopRightRadius: radius.xxl,
+              padding: spacing.xl,
+              paddingBottom: spacing.xxxl,
+            }}
+          >
+            <View style={{ alignItems: 'center', marginBottom: spacing.md }}>
+              <View
+                style={{
+                  width: 40,
+                  height: 4,
+                  borderRadius: 2,
+                  backgroundColor: colors.borderStrong,
+                }}
+              />
+            </View>
+            <AppText variant="h2" style={{ marginBottom: spacing.lg }}>
+              {editandoPerfil ? 'Editar miembro' : 'Nuevo miembro'}
+            </AppText>
+            <Field
+              label="Nombre o apodo *"
+              placeholder="Ej: Mamá, El peque, Abuelo..."
+              value={perfilNombre}
+              onChangeText={setPerfilNombre}
+              containerStyle={{ marginBottom: spacing.md }}
+            />
+            <Field
+              label="Preferencias de dieta"
+              placeholder="Ej: vegetariana, sin gluten preferido"
+              value={perfilDieta}
+              onChangeText={setPerfilDieta}
+              containerStyle={{ marginBottom: spacing.md }}
+            />
+            <AppText
+              variant="micro"
+              color={colors.inkFaint}
+              style={{ marginBottom: spacing.md, marginTop: -spacing.sm }}
+            >
+              Separa con comas. Solo preferencias culinarias — no uses este campo para alergias
+              medicas.
+            </AppText>
+            <Field
+              label="Ingredientes a evitar"
+              placeholder="Ej: cilantro, picante, cebolla"
+              value={perfilExcluir}
+              onChangeText={setPerfilExcluir}
+              containerStyle={{ marginBottom: spacing.lg }}
+            />
+            <Button
+              label={savingPerfil ? 'Guardando...' : 'Guardar'}
+              loading={savingPerfil}
+              onPress={guardarPerfil}
+              style={{ marginBottom: spacing.sm }}
+            />
+            <Button label="Cancelar" variant="ghost" onPress={() => setPerfilModalVisible(false)} />
+          </View>
+        </View>
+      </Modal>
 
       {/* Tarjeta: Zona de peligro */}
       <Card borderColor={colors.dangerSoft} tint={colors.card}>

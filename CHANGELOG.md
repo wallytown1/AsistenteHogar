@@ -6,6 +6,27 @@ Formato: `[FECHA] [ÁREA] [TIPO] Descripción`
 
 ---
 
+## [2026-06-19] — Fase 3: Perfiles individuales de miembros del hogar
+
+### Backend (smoke_test_perfiles.py: 20/20 · suites existentes sin regresiones)
+- **ADD** Migración Alembic `a5b3c1d9e7f2` — tabla `perfiles_individuales` (id, hogar_id FK→hogares CASCADE, nombre str 100, preferencias_dieta JSON, excluir_ingredientes JSON, is_deleted bool, created_at, updated_at). Dialect-aware. Index en hogar_id.
+- **ADD** `models/models.py` — modelo `PerfilIndividual` + relación `Hogar.perfiles_individuales` (cascade `all, delete-orphan`).
+- **ADD** `schemas/schemas.py` — `PerfilIndividualCreate` / `PerfilIndividualUpdate` / `PerfilIndividualResponse`. Validator `limpiar_lista`: strip, dedupe, max 100 chars/item. `extra='forbid'`.
+- **ADD** `repositories/perfiles_individual.py` — `PerfilIndividualRepository` con `list_by_hogar`, `get_by_id`, `create` (límite 10 por hogar → `ReglaNegocioError`), `update`, `delete` (soft). Aislamiento multi-tenant en todas las queries.
+- **ADD** `api/routers/perfiles.py` — 5 endpoints bajo `/perfiles` protegidos con `get_current_user` + `get_hogar_id`.
+- **MOD** `api/deps.py` — añadida `get_perfiles_repo`.
+- **MOD** `services/llm.py` — helper `_bloque_perfiles_individuales(perfiles)` incluido en el prompt de `generate_recipe_suggestions` y `generate_meal_plan`.
+- **MOD** `api/routers/pantry.py` — `GET /pantry/recetas`, `/plan-comidas`, `/sugerencias` consultan perfiles individuales del hogar y los inyectan al LLM.
+- **MOD** `main.py` — registrado `perfiles.router`.
+- **ADD** `smoke_test_perfiles.py` — 20 checks: CRUD básico (12), límite 10 (2), aislamiento multi-tenant (3), validación esquema (3), sin autenticación (2). 20/20 OK.
+- **RGPD art. 9:** solo se almacenan preferencias culinarias (no alergias/intolerancias médicas).
+
+### Frontend (ts:check 0 errores)
+- **MOD** `types/types.ts` — interfaz `PerfilIndividual`.
+- **MOD** `screens/SettingsScreen.tsx` — tarjeta «Miembros del hogar» con lista de perfiles + botones editar/eliminar + modal de añadir/editar (nombre, preferencias de dieta, ingredientes a evitar, separados por comas). Nota explícita: "Solo preferencias culinarias — no uses este campo para alergias medicas."
+
+---
+
 ## [2026-06-19] — admin-web: panel Next.js para prompts y recetario maestro
 
 ### admin-web (Next.js 14, App Router, TypeScript, Tailwind — build 0 errores)

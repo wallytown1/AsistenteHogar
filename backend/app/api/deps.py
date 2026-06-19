@@ -13,6 +13,7 @@ from app.repositories.admin_user import AdminUserRepository
 from app.repositories.historial import RecetaHistorialRepository
 from app.repositories.pantry import PantryRepository
 from app.repositories.perfil import PerfilHogarRepository
+from app.repositories.perfiles_individual import PerfilIndividualRepository
 from app.repositories.prompt_template import PromptTemplateRepository
 from app.repositories.user import UserRepository
 from app.services.admin_auth import AdminAuthService
@@ -131,6 +132,13 @@ async def get_historial_service(
 ) -> RecetaHistorialService:
     """Provee una instancia de RecetaHistorialService inyectando su repositorio asíncrono."""
     return RecetaHistorialService(RecetaHistorialRepository(session))
+
+
+async def get_perfiles_repo(
+    session: AsyncSession = Depends(get_async_session),
+) -> PerfilIndividualRepository:
+    """Provee el repositorio de perfiles individuales."""
+    return PerfilIndividualRepository(session)
 
 
 # --- ADMIN ---
