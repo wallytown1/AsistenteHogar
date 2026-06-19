@@ -1,4 +1,39 @@
-# ESTADO ACTUAL — AsistenteHogar (2026-06-19)
+# ESTADO ACTUAL — AsistenteHogar (2026-06-20)
+
+## 🚀 PRÓXIMA SESIÓN — EMPIEZA AQUÍ
+
+### Paso 1 — Arte de la app (Higgsfield MCP)
+
+**Higgsfield MCP instalado** (`~/.claude.json`, scope user) pero requiere **reiniciar Claude Code** para activarse. Una vez reiniciado:
+
+```
+# Pedir a Claude que genere con Higgsfield:
+Genera el icono de la app "Asistente del Hogar IA": estilo mediterráneo español,
+olla de barro con vapor, paleta tierra cálida (#8B5E3C marrón arcilla, #FAF7F2 fondo lino),
+minimalista, sobre fondo cuadrado, formato 1024×1024 PNG.
+```
+
+Guardar el resultado en:
+- `frontend/assets/icon.png` (1024×1024) — icono principal
+- `frontend/assets/splash.png` (1284×2778, logo centrado, fondo #FAF7F2) — splash iOS
+- `frontend/assets/adaptive-icon.png` (1024×1024, solo el símbolo sin fondo) — Android adaptive
+
+### Paso 2 — EAS init (tras tener el arte)
+
+```bash
+cd frontend
+npx eas-cli init          # genera projectId → actualiza app.json automáticamente
+eas build --profile development   # build dev-client para probar en dispositivo
+```
+
+### Paso 3 — RevenueCat (en paralelo o después)
+
+Configurar en el dashboard de RevenueCat:
+1. Crear app iOS + Android
+2. Definir productos (mensual, anual, vitalicio)
+3. Copiar `REVENUECAT_SECRET_KEY` → Railway → redeploy automático activa el gate premium
+
+---
 
 ## ✅ Sesión 2026-06-19 (2ª parte) — Auditoría UI + FlatList + seed recetario
 
