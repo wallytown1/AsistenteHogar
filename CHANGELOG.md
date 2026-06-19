@@ -6,6 +6,19 @@ Formato: `[FECHA] [ÁREA] [TIPO] Descripción`
 
 ---
 
+## [2026-06-19] (sesión noche) — smoke test rechazar-ingrediente + CI completo + CLAUDE.md
+
+### Tests
+- **ADD** `backend/smoke_test_rechazar_ingrediente.py` — 16/16 checks: happy path fallback sin Gemini (respuesta 200, esquema completo), aislamiento multi-tenant (perfil ajeno en ambas direcciones + UUID inexistente → 404), validación de esquema (nombre vacío, ingredientes vacíos, solo espacios, campo extra, sin perfil_id → 422), sin autenticación (401). Primer test del endpoint de Fase 4b.
+
+### CI/CD
+- **MOD** `.github/workflows/ci.yml` — añadidos `smoke_test_admin`, `smoke_test_perfiles`, `smoke_test_lista_compra` y `smoke_test_rechazar_ingrediente` al job `backend`. El CI ahora cubre los 9 smoke tests completos (antes solo 5).
+
+### Documentación
+- **MOD** `CLAUDE.md` — añadidas secciones: Higgsfield MCP (assets de la app), CI/CD (jobs del workflow), Frontend screens (PlanComidaScreen, HistorialScreen, RecipeDetailScreen), TIMEOUT constants en `api.ts`, `useRecetaHistorial.ts` hook, `smoke_test_rechazar_ingrediente.py` en Commands y Verification.
+
+---
+
 ## [2026-06-20] — HistorialScreen + edición perfil hogar + SECURITY.md + seed Railway
 
 ### Frontend (ts:check 0 errores · ESLint + Prettier OK)

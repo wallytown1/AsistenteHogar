@@ -2,6 +2,9 @@
 
 ## 🚀 PRÓXIMA SESIÓN — EMPIEZA AQUÍ
 
+### Antes de empezar — reiniciar Claude Code
+Higgsfield MCP instalado en `~/.claude.json` (scope user) pero requiere reinicio para activarse.
+
 ### Paso 1 — Arte de la app (Higgsfield MCP)
 
 **Higgsfield MCP instalado** (`~/.claude.json`, scope user) pero requiere **reiniciar Claude Code** para activarse. Una vez reiniciado:
@@ -516,6 +519,19 @@ npm run ts:check  # Debe retornar 0 errores
 - `CHANGELOG.md` — historial de todas las fases
 - `01_CONTEXTO_Y_ARQUITECTURA_APP.md` — schema BD, contrato API original, arquitectura
 - `ESTADO_ACTUAL.md` — este archivo
+
+---
+
+## ✅ Sesión 2026-06-19 (noche) — smoke test rechazar-ingrediente + CI completo
+
+### smoke_test_rechazar_ingrediente.py — 16/16
+- **ADD** `backend/smoke_test_rechazar_ingrediente.py`: primer test del endpoint de Fase 4b (`POST /pantry/recetas/rechazar-ingrediente`). 4 bloques: happy path fallback sin Gemini, aislamiento multi-tenant (perfil ajeno + inverso + UUID inexistente → 404), validación de esquema (422), sin token (401).
+
+### CI completo
+- **MOD** `.github/workflows/ci.yml`: los 4 smoke tests que faltaban (`smoke_test_admin`, `smoke_test_perfiles`, `smoke_test_lista_compra`, `smoke_test_rechazar_ingrediente`) añadidos al job `backend`. El workflow ahora corre los 9 tests completos en cada push.
+
+### CLAUDE.md actualizado (`/init`)
+- Higgsfield MCP, CI/CD, nuevas pantallas frontend (PlanComidaScreen, HistorialScreen, RecipeDetailScreen), TIMEOUT constants, useRecetaHistorial hook.
 
 ---
 
