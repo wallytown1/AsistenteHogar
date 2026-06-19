@@ -48,13 +48,17 @@ jobs:
       - name: Escudo de calidad (pre-commit — ruff + mypy)
         run: pre-commit run --all-files --show-diff-on-failure
 
-      - name: Smoke tests (122 checks)
+      - name: Smoke tests
         run: |
           python smoke_test_auth.py
           python smoke_test_modules.py
           python smoke_test_dashboard.py
           python smoke_test_validation.py
           python smoke_test_legal.py
+          python smoke_test_admin.py
+          python smoke_test_perfiles.py
+          python smoke_test_lista_compra.py
+          python smoke_test_rechazar_ingrediente.py
 
       # Schemathesis: fuzzing del esquema OpenAPI contra la app ASGI en memoria.
       # No se levanta servidor real; schemathesis inyecta requests directamente.
