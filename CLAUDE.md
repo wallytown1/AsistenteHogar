@@ -227,21 +227,26 @@ Generate a `JWT_SECRET_KEY`: `python -c "import secrets; print(secrets.token_hex
 
 ## Next planned phases
 
-**F-PIVOT — Recetas mediterráneas (en curso, rama `feat/pivote-recetas-mediterraneas`):**
+**F-PIVOT — Recetas mediterráneas (completado):**
 - ✅ Filosofía mediterránea española en los prompts (`_FILOSOFIA_MEDITERRANEA` en `llm.py`).
 - ✅ Tabla `perfil_hogar` (migración `a1c3e5f70b92`) + `GET`/`POST /api/v1/onboarding` (gustos +
   nº comensales; intolerancias/alergias pospuestas por RGPD art. 9).
 - ✅ `POST /api/v1/pantry/audio` — entrada por voz, Gemini interpreta, devuelve propuesta.
 - ✅ `POST /api/v1/pantry/foto-nevera` — Gemini Vision detecta ingredientes, propuesta con confirmación (premium).
 - ✅ **Pivote 2** — eliminados Eventos y Tareas; app 100% comida. Ver `ARCHITECTURE_MAP.md`.
-- ⏳ Integrar el perfil del hogar en los prompts de recetas (`generate_recipe_suggestions` /
-  `generate_meal_plan`) — siguiente paso (F-PIVOT #6).
-- ⏳ Historial de recetas cocinadas (tabla `recetas_historial`) para mejorar sugerencias futuras.
+- ✅ Perfil del hogar integrado en prompts de recetas (F-PIVOT #6): helper `_bloque_perfil` en `llm.py`.
+- ✅ Historial de recetas cocinadas (tabla `recetas_historial`, migración `c2d4f6a80e04`) — mejora sugerencias.
 
-**F6 — EAS Build** (tras F-PIVOT): production build con EAS, iconos/splash reales, plugin
-`expo-notifications` + permisos de micrófono y cámara en `app.json`, App Store Connect + Google Play.
+**Fases de producto completadas:**
+- ✅ **Fase 2** — `prompt_templates` + `recetario_maestro` dinámicos + panel admin Next.js (`admin-web/`).
+- ✅ **Fase 3** — `perfiles_individuales`: preferencias culinarias por miembro (máx. 10/hogar, solo datos gastronómicos). CRUD completo + inyección en prompts LLM. Migración `a5b3c1d9e7f2`.
 
-**Completed phases (summary)**: F0–F5, F-IA, F-IA-2, F-UI, F-LEGAL, F-AUDIT, F4 (Freemium/RevenueCat), F-AUDIT2 (server-side premium gate + Railway deploy), F-OCR, F-AGENDA, F-PIVOT #1–5 (audio NL, foto nevera, Pivote 2 demolición). See `CHANGELOG.md` for details.
+**Próximas fases:**
+- ⏳ **Fase 4** — Inyección del `recetario_maestro` en prompts vía Gemini context caching + function calling (ajuste de perfil al rechazar ingredientes).
+- ⏳ **Fase 5** — RevenueCat 3 tiers + flujos A/B/C completos. Bloqueada: requiere `REVENUECAT_SECRET_KEY`.
+- ⏳ **F6 — EAS Build**: production build con EAS, iconos/splash reales, plugin `expo-notifications` + permisos de micrófono y cámara en `app.json`, App Store Connect + Google Play.
+
+**Completed phases (summary)**: F0–F5, F-IA, F-IA-2, F-UI, F-LEGAL, F-AUDIT, F4 (Freemium/RevenueCat), F-AUDIT2 (server-side premium gate + Railway deploy), F-OCR, F-AGENDA, F-PIVOT #1–6, Pivote 2, Fase 2, Fase 3. See `CHANGELOG.md` for details.
 
 ## graphify
 

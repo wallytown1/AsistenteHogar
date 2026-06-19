@@ -1,4 +1,30 @@
-# ESTADO ACTUAL — AsistenteHogar (2026-06-18)
+# ESTADO ACTUAL — AsistenteHogar (2026-06-19)
+
+## ✅ Sesión 2026-06-19 — Fase 3 + mejoras de producto
+
+### Fase 3 — Perfiles individuales de miembros del hogar (smoke_test_perfiles 20/20)
+- **ADD** Migración `a5b3c1d9e7f2`: tabla `perfiles_individuales` con soft delete, FK hogar CASCADE, JSON arrays para preferencias culinarias. Máx. 10 perfiles/hogar.
+- **ADD** `PerfilIndividualRepository` con aislamiento multi-tenant en todas las queries.
+- **ADD** Router `/api/v1/perfiles`: GET list, POST (201), GET by id, PATCH, DELETE (204).
+- **MOD** `services/llm.py`: helper `_bloque_perfiles_individuales()` inyectado en `generate_recipe_suggestions` y `generate_meal_plan`.
+- **MOD** `api/routers/pantry.py`: `/recetas`, `/plan-comidas`, `/sugerencias` consultan y pasan perfiles al LLM.
+- **MOD** `screens/SettingsScreen.tsx`: tarjeta «Miembros del hogar» con lista + modal añadir/editar. Nota explícita: «no usar para alergias médicas» (RGPD art. 9).
+- **RGPD art. 9:** solo se almacenan preferencias culinarias (no alergias/intolerancias médicas).
+
+### Mejora #7 — Umbral de caducidad configurable
+- `state/pantrySettingsStore.ts`: Zustand store persistido en SecureStore. Opciones 3/6/10/14 días.
+- `lib/caducidad.ts`: `getSemaforoCaducidad(dias, umbral)` acepta umbral configurable.
+- `screens/SettingsScreen.tsx`: tarjeta «Despensa» con Chip picker.
+
+### Admin-web (Next.js) — documentación y .gitignore añadidos.
+
+### RecipeDetailScreen (2026-06-18)
+- `screens/RecipeDetailScreen.tsx`: pasos numerados, ingredientes con checkmark, footer «Marcar como cocinada» / «No me gusta».
+
+### Foto de nevera UI (2026-06-18)
+- FAB `camera-outline` en `PantryScreen` + overlay de escaneo + modal de revisión en lote con `AIDisclaimerBanner`.
+
+---
 
 ## 🎯 Pivote 2 (2026-06-18) — App exclusivamente de comida, stock y recetas
 
@@ -360,11 +386,14 @@ IDOR) y se actualizó al diseño real (tenant del JWT) + la arquitectura de comp
 - Inventario real con stock, categoría, caducidad
 - **Recetas sugeridas por IA** (mediterráneas españolas, priorizan lo que caduca)
 - **Plan de comidas semanal** (comida + cena, 7 días) por IA
+- **Perfiles individuales**: preferencias culinarias por miembro del hogar influyen en las recetas
+- **Pantalla de detalle de receta** con pasos numerados e ingredientes con checkmark
 - OCR de ticket de compra con Gemini Vision (revisión en lote con checkboxes)
 - Añadir por lenguaje natural ("compré 6 huevos y leche que caduca el viernes")
 - Añadir por audio NL (FAB micrófono, dictado nativo)
-- Foto de nevera: Gemini Vision detecta ingredientes (backend listo)
+- Foto de nevera: Gemini Vision detecta ingredientes (FAB cámara + modal revisión)
 - Historial de recetas cocinadas/rechazadas → mejora las sugerencias futuras
+- Umbral de caducidad configurable (3/6/10/14 días) en Ajustes
 - Filtros por categoría y stock bajo
 - Alertas de caducidad (notificaciones locales ≤3 días)
 
@@ -393,6 +422,7 @@ python smoke_test_modules.py     # must pass
 python smoke_test_dashboard.py   # must pass
 python smoke_test_validation.py  # must pass
 python smoke_test_legal.py       # must pass
+python smoke_test_perfiles.py    # 20/20
 
 # Frontend
 cd frontend
@@ -407,9 +437,10 @@ npm run ts:check  # Debe retornar 0 errores
 - `backend/.env` — JWT_SECRET_KEY, GEMINI_API_KEY, DATABASE_URL, ENVIRONMENT
 - `backend/app/main.py` — punto de entrada FastAPI
 - `backend/app/services/llm.py` — Gemini (briefing, recetas, audio, foto-nevera, interpretar)
-- `backend/app/api/routers/` — endpoints: auth, dashboard, pantry, onboarding, historial
+- `backend/app/api/routers/` — endpoints: auth, dashboard, pantry, onboarding, historial, perfiles
+- `backend/app/repositories/perfiles_individual.py` — CRUD perfiles con límite 10/hogar
 - `backend/alembic/versions/` — migraciones SQL
-- `backend/smoke_test_*.py` — suite de pruebas de humo
+- `backend/smoke_test_*.py` — suite de pruebas de humo (incluye smoke_test_perfiles.py 20/20)
 
 ### Frontend
 - `frontend/src/screens/` — DashboardScreen, PantryScreen, SettingsScreen (UI principal)
@@ -431,8 +462,6 @@ npm run ts:check  # Debe retornar 0 errores
 |----------|-----------|--------|----------|
 | `GEMINI_API_KEY` personal (datos de prueba) | panel Railway | Medio: cambiar a clave con billing antes de datos reales (RGPD) | Ver [`PRODUCCION_CHECKLIST.md`](PRODUCCION_CHECKLIST.md) §1 |
 | `REVENUECAT_SECRET_KEY` sin definir | panel Railway | Medio: gate premium desactivado en prod | Ver `PRODUCCION_CHECKLIST.md` §2 |
-| Foto de nevera: UI no integrada | `PantryScreen` / Home redesign | Bajo-medio: backend listo, falta botón de cámara en UI | F-PIVOT #4 UI |
-| `RecipeDetailScreen` no implementada | frontend/src/screens/ | Bajo: recetas solo muestran título+descripción | `MEJORAS_PENDIENTES.md` #8 |
 | Migración `drop_eventos_tareas` pendiente en Railway | panel Railway / Alembic | Bajo (tablas vacías, no rompe nada) | `alembic upgrade head` en próximo deploy |
 
 Ver [[technical_debt]] en memoria para detalles.

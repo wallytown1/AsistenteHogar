@@ -26,7 +26,8 @@ graph TB
         RAdmin["/admin/* (super-admin, JWT admin) [Fase 2]"]
         RPantry["/pantry/* (stock, recetas, foto, ticket, voz)"]
         RDash["/dashboard (briefing despensa)"]
-        RPerfil["/onboarding (+ perfil individual [Fase 3])"]
+        RPerfil["/onboarding (perfil hogar)"]
+        RPerfilInd["/perfiles (perfiles individuales) [Fase 3] ✅"]
         RHist["/pantry/recetas/historial"]
         PromptSvc["PromptConfigService (caché TTL) [Fase 2]"]
         LLM["services/llm.py (_call_gemini)"]
@@ -58,7 +59,8 @@ graph TB
     LLM -->|recetario en context cache| Gemini
     RPantry --> Premium
     Premium -->|valida entitlement| RC
-    RPerfil --> Tperfh & Tperfi
+    RPerfil --> Tperfh
+    RPerfilInd --> Tperfi
     RPantry --> Tstock
     RHist --> Thist
     RDash --> Tstock
@@ -71,7 +73,7 @@ erDiagram
     HOGARES ||--o{ USUARIOS : tiene
     HOGARES ||--o{ INVENTARIO_ALIMENTOS : posee
     HOGARES ||--|| PERFIL_HOGAR : "logística (1:1)"
-    USUARIOS ||--|| PERFIL_INDIVIDUAL : "paladar/salud (1:1) [Fase 3]"
+    HOGARES ||--o{ PERFIL_INDIVIDUAL : "paladar culinario (0..10) [Fase 3] ✅"
     HOGARES ||--o{ RECETAS_HISTORIAL : registra
     RECETARIO_MAESTRO }o--o{ RECETAS_HISTORIAL : "referencia (global) [Fase 2]"
     PROMPT_TEMPLATES }o..o{ HOGARES : "global, sin hogar_id [Fase 2]"
@@ -79,6 +81,7 @@ erDiagram
 ```
 
 Tablas vivas hoy: `hogares`, `usuarios`, `inventario_alimentos`, `perfil_hogar`,
+`perfiles_individuales` (migración `a5b3c1d9e7f2`, Fase 3 — máx. 10 por hogar, soft delete),
 `recetas_historial`, `registros_borrado`, `admin_users`, `prompt_templates`,
 `recetario_maestro` (las tres últimas globales, sin `hogar_id`, añadidas en Fase 2 — migración `e1f3a5c70d84`).
 Eliminadas en el Pivote 2: `eventos_calendario`, `tareas_hogar` (migración `d3e5f7b91a26`).
@@ -120,6 +123,6 @@ sequenceDiagram
 
 - **Fase 1 (hecha):** demolición Eventos+Tareas, app 100% comida, docs + este mapa.
 - **Fase 2 (hecha):** `recetario_maestro` + `prompt_templates` dinámicos desde BD con caché TTL + panel admin Next.js (`admin-web/`). Commit `92609b5`.
-- **Fase 3:** perfiles doble capa (`perfil_hogar` logística + `perfil_individual` paladar/salud). Datos de salud con consentimiento explícito (RGPD art. 9).
+- **Fase 3 (hecha):** `perfiles_individuales` — preferencias culinarias por miembro del hogar (solo datos gastronómicos, no alergias médicas — RGPD art. 9). CRUD completo + límite 10/hogar + aislamiento multi-tenant + inyección en prompts LLM. Commit `8107fe5`.
 - **Fase 4:** context caching de Gemini (recetario maestro inyectado en prompts) + function calling (ajuste de perfil al rechazar ingredientes).
 - **Fase 5:** RevenueCat 3 tiers + flujos A/B/C completos.

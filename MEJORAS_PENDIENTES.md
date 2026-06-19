@@ -53,17 +53,16 @@ prompts de `generate_recipe_suggestions` y `generate_meal_plan`. El bloque entra
 distintas). Los 3 endpoints (`/pantry/recetas`, `/plan-comidas`, `/sugerencias`) obtienen el
 perfil vía `OnboardingService` y lo pasan. (Sin intolerancias/alergias: datos de salud pospuestos.)
 
-### #7 — Umbral de caducidad configurable por hogar
-`PantryService.get_stock_metrics()` usa 6 días fijo. Algunos hogares prefieren 3 (compra
-frecuente) o 14 (congelador). Requiere campo en `perfil_hogar` (depende de #2) o tabla
-`HogarSettings`.
-**Esfuerzo:** Bajo una vez existe `perfil_hogar`.
+### #7 — Umbral de caducidad configurable por hogar ✅ COMPLETADO (2026-06-19)
+`state/pantrySettingsStore.ts` — Zustand store con `diasUmbral` (default 6 días), persistido
+en `expo-secure-store`. Opciones: 3/6/10/14 días (Chip picker en SettingsScreen «Despensa»).
+`lib/caducidad.ts` — `getSemaforoCaducidad(dias, umbral)` acepta umbral configurable; borde
+«urgente» (≤3 días) siempre fijo. Ver `CHANGELOG.md`.
 
-### #8 — Pantalla de receta detallada
-Hoy las recetas son solo un título + descripción en `PantryScreen`. Crear
-`RecipeDetailScreen` con pasos numerados, lista de ingredientes con cantidades,
-tiempo estimado y botón "Marcar como cocinada" (depende de #5).
-**Esfuerzo:** Medio (nueva pantalla + navegación).
+### #8 — Pantalla de receta detallada ✅ COMPLETADO (2026-06-18)
+`screens/RecipeDetailScreen.tsx` — pasos numerados, lista de ingredientes con checkmark,
+badges de tiempo e ingredientes, footer fijo con «Marcar como cocinada» / «No me gusta».
+Navega con `slide_from_right` desde la tarjeta de receta en `PantryScreen`. Ver `CHANGELOG.md`.
 
 ---
 
@@ -74,3 +73,4 @@ tiempo estimado y botón "Marcar como cocinada" (depende de #5).
   **completadas** — ver `CHANGELOG.md` PR #5.
 - El bloque F-QA2 (Schemathesis, CI) está **completado** — ver `CHANGELOG.md` 2026-06-16.
 - Rama activa para F-PIVOT: `feat/pivote-recetas-mediterraneas`.
+- **Fase 3** (perfiles individuales de miembros del hogar) **completada** — 2026-06-19. Ver `CHANGELOG.md`.
