@@ -6,6 +6,22 @@ Formato: `[FECHA] [ÁREA] [TIPO] Descripción`
 
 ---
 
+## [2026-06-19] — admin-web: panel Next.js para prompts y recetario maestro
+
+### admin-web (Next.js 14, App Router, TypeScript, Tailwind — build 0 errores)
+- **ADD** `app/login/page.tsx` — formulario de login con `POST /admin/auth/login`, token en localStorage.
+- **ADD** `app/prompts/page.tsx` — lista todos los templates de prompt; `PromptEditor` permite editar `system_instruction` + toggle activo con badge de versión. Nota: la filosofía mediterránea se añade automáticamente server-side (no editable).
+- **ADD** `app/recetario/page.tsx` — tabla de recetas maestras con filtro activa/inactiva y botón «Nueva receta» que abre `RecetaForm` en modal.
+- **ADD** `app/recetario/[id]/page.tsx` — formulario de edición de receta con DELETE.
+- **ADD** `components/AdminNav.tsx` — barra lateral: Prompts | Recetario | Logout.
+- **ADD** `components/PromptEditor.tsx` — textarea + Guardar + badge de versión + toggle activo.
+- **ADD** `components/RecetaForm.tsx` — campos nombre / ingredientes (tags) / pasos / categoría / temporada / aprovechamiento.
+- **ADD** `lib/api.ts` — `adminApi` tipado: login, CRUD prompts, CRUD recetario.
+- **ADD** `lib/auth.ts` — `getToken` / `setToken` / `clearToken` sobre localStorage.
+- **ADD** `.gitignore` — excluye `node_modules/`, `.next/`, `.env.local`.
+
+---
+
 ## [2026-06-19] — Mejora #7: umbral de caducidad configurable por hogar
 
 ### Frontend (ts:check 0 errores)
