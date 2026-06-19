@@ -6,6 +6,15 @@ Formato: `[FECHA] [ÁREA] [TIPO] Descripción`
 
 ---
 
+## [2026-06-19] — Notificaciones locales de caducidad
+
+### Frontend
+- **ADD** `src/lib/notifications.ts` — servicio de notificaciones locales: `requestNotificationPermissions()` (crea canal Android + pide permisos al SO), `programarAlertasCaducidad(alertas)` (cancela las anteriores y programa hasta 2 notificaciones para el día siguiente a las 9:00 — una para urgentes ≤3 días y otra para próximos ≤umbral). Sin red ni credenciales. Devuelve en silencio si el permiso no fue concedido.
+- **MOD** `src/hooks/usePantry.ts` — llama a `programarAlertasCaducidad` tras cada fetch de despensa. Fire-and-forget (`.catch(() => {})`): no bloquea la UI si falla.
+- **MOD** `App.tsx` — llama a `requestNotificationPermissions()` al montar (una sola vez). El usuario ve el diálogo del sistema en el primer arranque.
+
+---
+
 ## [2026-06-19] — F6: EAS Build — configuración de producción
 
 ### Frontend
