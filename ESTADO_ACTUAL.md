@@ -484,12 +484,26 @@ npm run ts:check  # Debe retornar 0 errores
 
 ---
 
+## ✅ Sesión 2026-06-20 — HistorialScreen + edición perfil del hogar
+
+### Tarea 1 — Editar perfil del hogar desde Ajustes
+- **MOD** `screens/SettingsScreen.tsx`: nueva tarjeta «Perfil del hogar» (entre Cuenta y Sesión) que carga `GET /onboarding` al montar y muestra nº comensales + gustos culinarios actuales. Botón «Editar» abre un modal bottom-sheet con chip-picker de comensales (1–6) y campo de texto para gustos (coma-separados). Guarda con `POST /onboarding` (upsert).
+- **MOD** `types/types.ts` (import): `PerfilHogar` añadido a los imports de SettingsScreen.
+
+### Tarea 2 — HistorialScreen
+- **MOD** `hooks/useRecetaHistorial.ts`: extendido con `fetchHistorial()` (GET `/pantry/recetas/historial`), estado `historial: RecetaHistorial[]` y `loadingHistorial: boolean`. `registrarAccion` e `isLoading` sin cambios.
+- **ADD** `screens/HistorialScreen.tsx`: FlatList con filas (punto de color + nombre + badge cocinada/rechazada + fecha). Pull-to-refresh. `LoadingView` mientras carga la primera vez. `EmptyState` cuando no hay entradas.
+- **MOD** `navigation/AppNavigator.tsx`: ruta `Historial` en `RootStackParamList` + `Stack.Screen` con `slide_from_right`.
+- **MOD** `screens/DashboardScreen.tsx`: tarjeta Pressable «Historial de recetas» (igual patrón que PlanComidas) → navega a `Historial`. `NavProp` extendido para incluir ambas rutas.
+
+---
+
 ## 🎯 Próximos pasos (sesión 2026-06-19 → siguiente)
 
 | Tarea | Dificultad | Archivos a crear/tocar |
 |-------|-----------|----------------------|
-| **Editar perfil del hogar desde Ajustes** — gustos y nº comensales no son editables después del onboarding | Baja | `SettingsScreen.tsx` (modal o nav), `useOnboarding.ts` (ya tiene `savePerfil`) |
-| **`HistorialScreen`** — lista de recetas cocinadas/rechazadas | Baja | `screens/HistorialScreen.tsx`, `hooks/useRecetaHistorial.ts` (ya existe), `AppNavigator.tsx` |
+| ~~**Editar perfil del hogar desde Ajustes**~~ | ✅ Done | — |
+| ~~**`HistorialScreen`**~~ | ✅ Done | — |
 | **`SECURITY.md`** — revisión de seguridad (F-QA2 Bloque 5) | Media | doc nuevo: multi-tenant, JWT, LLM data flow, GDPR |
 | **seed en Railway** — activar recetario en producción | Mínima | `python seed_recetario.py` con `DATABASE_URL` de Railway |
 

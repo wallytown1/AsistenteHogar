@@ -11,7 +11,7 @@ import { colors, radius, spacing } from '../theme/tokens';
 import { Screen, Card, IconButton, Badge, AppText, Icon, FoodIcon, Button } from '../components/ui';
 import { getCategoriaIcon } from '../lib/categoria';
 
-type NavProp = NativeStackNavigationProp<{ PlanComidas: undefined }>;
+type NavProp = NativeStackNavigationProp<{ PlanComidas: undefined; Historial: undefined }>;
 
 function formatFechaCorta(iso?: string): string {
   const d = iso ? new Date(iso) : new Date();
@@ -276,6 +276,47 @@ export default function DashboardScreen() {
             <AppText variant="captionStrong">Plan de la semana</AppText>
             <AppText variant="micro" color={colors.inkFaint}>
               Menú diario de aprovechamiento
+            </AppText>
+          </View>
+        </View>
+        <Icon name="chevron-forward" size={18} color={colors.inkFaint} />
+      </Pressable>
+
+      {/* Acceso al historial de recetas */}
+      <Pressable
+        onPress={() => navigation.navigate('Historial')}
+        accessibilityLabel="Ver historial de recetas"
+        style={({ pressed }) => ({
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          backgroundColor: colors.card,
+          borderWidth: 1,
+          borderColor: colors.border,
+          borderRadius: radius.lg,
+          paddingHorizontal: spacing.xl,
+          paddingVertical: spacing.lg,
+          marginTop: spacing.md,
+          opacity: pressed ? 0.7 : 1,
+        })}
+      >
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
+          <View
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: radius.md,
+              backgroundColor: colors.pantrySoft,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Icon name="book-outline" size={18} color={colors.pantry} />
+          </View>
+          <View>
+            <AppText variant="captionStrong">Historial de recetas</AppText>
+            <AppText variant="micro" color={colors.inkFaint}>
+              Cocinadas y rechazadas
             </AppText>
           </View>
         </View>

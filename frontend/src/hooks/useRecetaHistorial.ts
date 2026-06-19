@@ -1,9 +1,11 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { apiRequest } from '../api/api';
 import { RecetaHistorial } from '../types/types';
 
 export function useRecetaHistorial() {
   const [loadingReceta, setLoadingReceta] = useState<string | null>(null);
+  const [historial, setHistorial] = useState<RecetaHistorial[]>([]);
+  const [loadingHistorial, setLoadingHistorial] = useState(false);
 
   const registrarAccion = async (
     nombre_receta: string,
@@ -25,5 +27,17 @@ export function useRecetaHistorial() {
   const isLoading = (nombre_receta: string, accion: 'cocinada' | 'rechazada') =>
     loadingReceta === `${nombre_receta}:${accion}`;
 
-  return { registrarAccion, isLoading };
+  const fetchHistorial = useCallback(async () => {
+    setLoadingHistorial(true);
+    try {
+      const data = await apiRequest<RecetaHistorial[]>('/pantry/recetas/historial');
+      setHistorial(data);
+    } catch {
+      // silencioso — pantalla muestra EmptyState
+    } finally {
+      setLoadingHistorial(false);
+    }
+  }, []);
+
+  return { registrarAccion, isLoading, historial, loadingHistorial, fetchHistorial };
 }

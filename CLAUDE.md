@@ -211,17 +211,19 @@ All schemas extend `BaseSchema` which enforces `extra='forbid'` globally. The pa
 ### Frontend state
 
 - **Auth**: Zustand store at `src/state/authStore.ts` — holds JWT token, user, and hogar. Persists to `expo-secure-store` (encrypted). On app boot, `hydrate()` restores the session before rendering.
+- **Purchases**: `src/state/purchasesStore.ts` — Zustand store for RevenueCat premium entitlement state.
+- **Pantry settings**: `src/state/pantrySettingsStore.ts` — persisted store for configurable expiry threshold (3/6/10/14 days).
 - **API calls**: `src/api/api.ts` — adds `Authorization: Bearer <token>` to every request automatically.
-- **Feature hooks**: `src/hooks/use{Dashboard,Pantry}.ts` — fetch data and expose loading/error state to screens.
+- **Feature hooks**: `src/hooks/use{Dashboard,Pantry,ListaCompra}.ts` — fetch data and expose loading/error state to screens.
 
 ### Frontend design system
 
 > Rediseño visual completo para un look nativo iOS/Android.
 
 - **Tokens**: `src/theme/tokens.ts` — única fuente de color, tipografía, espaciado, radios y sombras. Marca índigo `#6366F1`; acento de despensa verde. No hardcodear valores en componentes/pantallas.
-- **Componentes UI**: `src/components/ui/` (barrel en `index.ts`): `Screen` (safe-area + pull-to-refresh), `Card`, `Button`, `IconButton`, `Chip`, `StatCard`, `SectionHeader`, `Fab`, `Badge`, `EmptyState`, `Field`, `AppText`, `Icon`/`FoodIcon`, `LoadingView`/`ErrorView`.
+- **Componentes UI**: `src/components/ui/` (barrel en `index.ts`): `Screen` (safe-area + pull-to-refresh), `Card`, `Button`, `IconButton`, `Chip`, `StatCard`, `SectionHeader`, `Fab`, `Badge`, `EmptyState`, `Field`, `AppText`, `Icon`/`FoodIcon`. `LoadingView`/`ErrorView` se co-exportan desde `Feedback.tsx` (un solo fichero).
 - **Iconos**: vectoriales vía `@expo/vector-icons` (Ionicons + MaterialCommunityIcons para comida). Sin emoji en la UI.
-- **Haptics**: `src/lib/haptics.ts` — wrapper seguro sobre `expo-haptics` (no-op en web).
+- **Lib utilities**: `src/lib/haptics.ts` (no-op en web), `src/lib/notifications.ts` (caducidad local), `src/lib/caducidad.ts` (`getSemaforoCaducidad(dias, umbral)` — semáforo configurable), `src/lib/categoria.ts` (`getCategoriaIcon()` — icono por categoría de alimento).
 - **Importante**: la UI ya **no usa NativeWind `className`**; todo es StyleSheet + tokens. NativeWind y Tailwind se **desinstalaron por completo** (deps + `global.css` + `tailwind.config.js` + `nativewind-env.d.ts` + cableado en `babel.config.js`/`metro.config.js`). No reintroducir `className` en pantallas.
 
 ### AI write policy (Pivote 2 — revised)

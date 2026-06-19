@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { View, Modal, Alert, Pressable } from 'react-native';
 import { useAuthStore } from '../state/authStore';
 import { usePantrySettingsStore, OPCIONES_UMBRAL } from '../state/pantrySettingsStore';
-import { PerfilIndividual } from '../types/types';
+import { PerfilIndividual, PerfilHogar } from '../types/types';
 import { apiRequest } from '../api/api';
 import { colors, radius, spacing } from '../theme/tokens';
 import { Screen, Card, Button, Field, AppText, Icon, Chip } from '../components/ui';
@@ -25,6 +25,55 @@ export default function SettingsScreen() {
 
   const diasUmbral = usePantrySettingsStore((s) => s.diasUmbral);
   const setDiasUmbral = usePantrySettingsStore((s) => s.setDiasUmbral);
+
+  // --- Perfil del hogar ---
+  const [perfilHogar, setPerfilHogar] = useState<PerfilHogar | null>(null);
+  const [perfilHogarModalVisible, setPerfilHogarModalVisible] = useState(false);
+  const [editGustos, setEditGustos] = useState('');
+  const [editComensales, setEditComensales] = useState(2);
+  const [savingPerfilHogar, setSavingPerfilHogar] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const p = await apiRequest<PerfilHogar>('/onboarding');
+        if (!cancelled) setPerfilHogar(p);
+      } catch {
+        // 404 = sin perfil aún, se muestra "Sin configurar"
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const abrirEditarPerfilHogar = () => {
+    setEditGustos(perfilHogar?.gustos_culinarios.join(', ') ?? '');
+    setEditComensales(perfilHogar?.num_comensales ?? 2);
+    setPerfilHogarModalVisible(true);
+  };
+
+  const guardarPerfilHogar = async () => {
+    setSavingPerfilHogar(true);
+    try {
+      const gustos = editGustos
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean);
+      const p = await apiRequest<PerfilHogar>('/onboarding', {
+        method: 'POST',
+        json: { gustos_culinarios: gustos, num_comensales: editComensales },
+      });
+      haptics.success();
+      setPerfilHogar(p);
+      setPerfilHogarModalVisible(false);
+    } catch (err: any) {
+      Alert.alert('Error', err.message || 'No se pudo guardar el perfil.');
+    } finally {
+      setSavingPerfilHogar(false);
+    }
+  };
 
   // --- Perfiles individuales ---
   const [perfiles, setPerfiles] = useState<PerfilIndividual[]>([]);
@@ -210,6 +259,139 @@ export default function SettingsScreen() {
           </View>
         ))}
       </Card>
+
+      {/* Tarjeta: Perfil del hogar */}
+      <Card style={{ marginBottom: spacing.lg }}>
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            marginBottom: spacing.md,
+          }}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <Icon name="restaurant-outline" size={18} color={colors.brand} />
+            <AppText variant="h2">Perfil del hogar</AppText>
+          </View>
+          <Button
+            label="Editar"
+            icon="pencil-outline"
+            size="sm"
+            variant="secondary"
+            fullWidth={false}
+            onPress={abrirEditarPerfilHogar}
+          />
+        </View>
+        {perfilHogar ? (
+          <>
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: spacing.sm,
+                marginBottom: spacing.sm,
+              }}
+            >
+              <Icon name="people-outline" size={15} color={colors.inkMuted} />
+              <AppText variant="caption" color={colors.inkMuted}>
+                {perfilHogar.num_comensales} comensal{perfilHogar.num_comensales !== 1 ? 'es' : ''}
+              </AppText>
+            </View>
+            {perfilHogar.gustos_culinarios.length > 0 ? (
+              <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm }}>
+                <Icon name="heart-outline" size={15} color={colors.inkMuted} />
+                <AppText variant="caption" color={colors.inkMuted} style={{ flex: 1 }}>
+                  {perfilHogar.gustos_culinarios.join(', ')}
+                </AppText>
+              </View>
+            ) : (
+              <AppText variant="caption" color={colors.inkFaint}>
+                Sin preferencias culinarias.
+              </AppText>
+            )}
+          </>
+        ) : (
+          <AppText variant="caption" color={colors.inkFaint}>
+            Sin perfil configurado. Pulsa «Editar» para añadir gustos y nº de comensales.
+          </AppText>
+        )}
+      </Card>
+
+      {/* Modal: editar perfil del hogar */}
+      <Modal
+        visible={perfilHogarModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setPerfilHogarModalVisible(false)}
+      >
+        <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: colors.overlay }}>
+          <View
+            style={{
+              backgroundColor: colors.card,
+              borderTopLeftRadius: radius.xxl,
+              borderTopRightRadius: radius.xxl,
+              padding: spacing.xl,
+              paddingBottom: spacing.xxxl,
+            }}
+          >
+            <View style={{ alignItems: 'center', marginBottom: spacing.md }}>
+              <View
+                style={{
+                  width: 40,
+                  height: 4,
+                  borderRadius: 2,
+                  backgroundColor: colors.borderStrong,
+                }}
+              />
+            </View>
+            <AppText variant="h2" style={{ marginBottom: spacing.lg }}>
+              Perfil del hogar
+            </AppText>
+
+            <AppText variant="label" color={colors.inkMuted} style={{ marginBottom: spacing.sm }}>
+              Comensales
+            </AppText>
+            <View style={{ flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.lg }}>
+              {[1, 2, 3, 4, 5, 6].map((n) => (
+                <Chip
+                  key={n}
+                  label={`${n}`}
+                  active={editComensales === n}
+                  onPress={() => {
+                    haptics.selection();
+                    setEditComensales(n);
+                  }}
+                  flex
+                />
+              ))}
+            </View>
+
+            <Field
+              label="Gustos culinarios"
+              placeholder="Ej: legumbres, pescado, arroces, sin picante"
+              value={editGustos}
+              onChangeText={setEditGustos}
+              containerStyle={{ marginBottom: spacing.sm }}
+            />
+            <AppText variant="micro" color={colors.inkFaint} style={{ marginBottom: spacing.lg }}>
+              Separa con comas. Influyen en las recetas sugeridas por IA.
+            </AppText>
+
+            <Button
+              label={savingPerfilHogar ? 'Guardando...' : 'Guardar'}
+              loading={savingPerfilHogar}
+              onPress={guardarPerfilHogar}
+              style={{ marginBottom: spacing.sm }}
+            />
+            <Button
+              label="Cancelar"
+              variant="ghost"
+              onPress={() => setPerfilHogarModalVisible(false)}
+            />
+          </View>
+        </View>
+      </Modal>
 
       {/* Tarjeta: Sesión */}
       <Card style={{ marginBottom: spacing.lg }}>

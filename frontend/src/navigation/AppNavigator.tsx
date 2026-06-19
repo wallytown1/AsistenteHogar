@@ -18,6 +18,7 @@ import OnboardingProfileScreen from '../screens/OnboardingProfileScreen';
 import PaywallScreen from '../screens/PaywallScreen';
 import RecipeDetailScreen from '../screens/RecipeDetailScreen';
 import PlanComidaScreen from '../screens/PlanComidaScreen';
+import HistorialScreen from '../screens/HistorialScreen';
 import { RecetaSugerida } from '../types/types';
 import { useAuthStore } from '../state/authStore';
 import { usePurchasesStore } from '../state/purchasesStore';
@@ -37,6 +38,7 @@ type RootStackParamList = {
   Paywall: undefined;
   RecetaDetalle: { receta: RecetaSugerida };
   PlanComidas: undefined;
+  Historial: undefined;
 };
 
 const Tab = createBottomTabNavigator<RootTabParamList>();
@@ -141,6 +143,11 @@ function AuthedApp() {
       <Stack.Screen
         name="PlanComidas"
         component={PlanComidaScreen}
+        options={{ animation: 'slide_from_right' }}
+      />
+      <Stack.Screen
+        name="Historial"
+        component={HistorialScreen}
         options={{ animation: 'slide_from_right' }}
       />
     </Stack.Navigator>
