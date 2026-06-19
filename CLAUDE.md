@@ -83,6 +83,14 @@ npm run ts:check
 # Lint + format (ESLint + Prettier)
 npm run lint
 npm run format
+
+# EAS Build (requires: npm install -g eas-cli + eas login)
+eas init                          # one-time: creates projectId, updates app.json
+eas build --profile development   # dev client (iOS simulator or device)
+eas build --profile preview       # APK for internal testing
+eas build --profile production    # store-ready build
+eas submit --platform ios         # submit to App Store Connect
+eas submit --platform android     # submit to Google Play
 ```
 
 ### Admin web (panel Next.js — `admin-web/`)
@@ -278,7 +286,7 @@ Generate secrets: `python -c "import secrets; print(secrets.token_hex(48))"`
 **Próximas fases:**
 - ✅ **Fase 4** — Inyección del `recetario_maestro` en prompts (`_bloque_recetario` en `llm.py`, catálogo vacío → sin impacto) + `POST /pantry/recetas/rechazar-ingrediente` (Gemini identifica ingrediente problemático → añade a `excluir_ingredientes` del perfil individual; undo visible en frontend). Sin context caching por ahora (catálogo vacío).
 - ⏳ **Fase 5** — RevenueCat 3 tiers + flujos A/B/C completos. Bloqueada: requiere `REVENUECAT_SECRET_KEY`.
-- ⏳ **F6 — EAS Build**: production build con EAS, iconos/splash reales, plugin `expo-notifications` + permisos de micrófono y cámara en `app.json`, App Store Connect + Google Play.
+- ✅ **F6 — EAS Build**: `app.json` completo (bundleIdentifier, package, permisos micrófono/cámara, plugins), `eas.json` con perfiles development/preview/production. Assets placeholder en `assets/` (reemplazar por arte real antes de stores). `eas init` pendiente para obtener `projectId`.
 
 **Completed phases (summary)**: F0–F5, F-IA, F-IA-2, F-UI, F-LEGAL, F-AUDIT, F4 (Freemium/RevenueCat), F-AUDIT2 (server-side premium gate + Railway deploy), F-OCR, F-AGENDA, F-PIVOT #1–6, Pivote 2, Fase 2, Fase 3. See `CHANGELOG.md` for details.
 

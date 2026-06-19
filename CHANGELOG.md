@@ -6,6 +6,24 @@ Formato: `[FECHA] [ÁREA] [TIPO] Descripción`
 
 ---
 
+## [2026-06-19] — F6: EAS Build — configuración de producción
+
+### Frontend
+- **CFG** `app.json` — reescrito completo: `name`, `slug`, `version`, `orientation`, `icon`, `splash` (fondo `#6366F1`), `newArchEnabled: true`, `userInterfaceStyle: light`.
+  - iOS: `bundleIdentifier: com.wallytown1.asistentehogar`, permisos `NSMicrophoneUsageDescription` y `NSCameraUsageDescription` en `infoPlist`.
+  - Android: `package: com.wallytown1.asistentehogar`, `adaptiveIcon` con fondo `#6366F1`, permisos `RECORD_AUDIO` y `CAMERA`.
+  - Plugins: `expo-secure-store`, `expo-notifications` (icono + color de marca), `expo-image-picker` (strings de permiso en español, sin micrófono).
+  - `extra.eas.projectId`: placeholder — reemplazar con ID real tras `eas init`.
+- **ADD** `eas.json` — perfiles `development` (devClient, iOS simulator), `preview` (APK interno), `production` (autoIncrement). Sección `submit.production` con placeholders para Apple y Google.
+- **ADD** `assets/` — placeholders PNG (icon 1024×1024, splash 1284×2778, adaptive-icon 1024×1024, favicon 32×32, notification-icon 96×96 blanco transparente). Sustituir por assets reales antes del build de stores.
+
+### Pendiente para stores
+- Sustituir `assets/*.png` por arte real (icon 1024×1024, splash, notification icon monocromático).
+- Ejecutar `eas init` en `frontend/` para obtener el `projectId` real.
+- Rellenar `submit.production` en `eas.json` con Apple ID, App Store Connect App ID, Team ID y service account de Google Play.
+
+---
+
 ## [2026-06-19] — Fase 4: Recetario en prompts + ajuste de perfil al rechazar receta
 
 ### Backend (7/7 smoke suites sin regresiones)

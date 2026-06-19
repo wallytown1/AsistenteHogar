@@ -1,6 +1,61 @@
 {
-  "plugins": [
-    "expo-secure-store",
-    "expo-notifications"
-  ]
+  "expo": {
+    "name": "Asistente del Hogar",
+    "slug": "asistente-hogar",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#6366F1"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.wallytown1.asistentehogar",
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "Necesitamos acceso al micrófono para que puedas añadir alimentos a la despensa por voz.",
+        "NSCameraUsageDescription": "Necesitamos acceso a la cámara para escanear tickets de compra y fotografiar la nevera."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#6366F1"
+      },
+      "package": "com.wallytown1.asistentehogar",
+      "permissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.CAMERA"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-secure-store",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#6366F1"
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Necesitamos acceso a tus fotos para escanear tickets de compra.",
+          "cameraPermission": "Necesitamos acceso a la cámara para escanear tickets de compra y fotografiar la nevera.",
+          "microphonePermission": false
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "REEMPLAZAR_CON_EAS_PROJECT_ID"
+      }
+    }
+  }
 }
