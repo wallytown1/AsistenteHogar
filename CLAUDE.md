@@ -56,6 +56,8 @@ python smoke_test_modules.py    # pantry CRUD + AI endpoints (recetas, audio, fo
 python smoke_test_dashboard.py  # dashboard aggregation/filtering + isolation (19 checks)
 python smoke_test_validation.py # endpoint error contract: 400/401/404/422 (20 checks)
 python smoke_test_legal.py      # GDPR purge, account deletion, LLM anonymization (26 checks)
+python smoke_test_admin.py      # admin bootstrap, login, prompts CRUD, recetario CRUD
+python smoke_test_perfiles.py   # perfiles individuales CRUD + isolation + limit (10/hogar)
 
 # Manual GDPR purge pass (also runs automatically every 24h from the app lifespan)
 python -m app.jobs.purge
@@ -77,7 +79,30 @@ npm run ios
 
 # TypeScript check (must return 0 errors before committing)
 npm run ts:check
+
+# Lint + format (ESLint + Prettier)
+npm run lint
+npm run format
 ```
+
+### Admin web (panel Next.js — `admin-web/`)
+
+```bash
+cd admin-web
+
+npm install
+
+# Dev server (http://localhost:3000)
+npm run dev
+
+# Production build
+npm run build
+
+# TypeScript check
+npm run ts:check
+```
+
+Bootstrap the first admin user via `POST /api/v1/admin/auth/bootstrap` (requires `ADMIN_BOOTSTRAP_TOKEN` set in backend `.env`). After that, log in via `POST /api/v1/admin/auth/login` — the resulting token is separate from family JWTs and only works on `/admin/*` routes.
 
 ### Quality shield (runs automatically on every commit via husky)
 
@@ -107,6 +132,8 @@ python smoke_test_modules.py     # must pass
 python smoke_test_dashboard.py   # 19/19 must pass
 python smoke_test_validation.py  # 20/20 must pass
 python smoke_test_legal.py       # 26/26 must pass
+python smoke_test_admin.py       # must pass
+python smoke_test_perfiles.py    # must pass
 
 # Frontend
 cd frontend && npm run ts:check           # 0 errors
@@ -204,14 +231,21 @@ The AI (Gemini) **suggests by default; confirmación explícita requerida para a
 
 | Variable | Required | Default | Purpose |
 |---|---|---|---|
-| `JWT_SECRET_KEY` | **Yes** | — | Signs JWT tokens; app exits at startup without it |
+| `JWT_SECRET_KEY` | **Yes** | — | Signs family JWT tokens; app exits at startup without it |
 | `DATABASE_URL` | No | `sqlite+aiosqlite:///./asistente_hogar.db` | Dev: SQLite. Prod: `postgresql+asyncpg://...` |
 | `ENVIRONMENT` | No | `development` | `production` disables `/docs`, `/redoc`, `/openapi.json` |
 | `GEMINI_API_KEY` | No | — | Without it, AI features run in fallback/static mode |
 | `GEMINI_MODEL` | No | `gemini-2.5-flash` | Configurable Gemini model |
 | `ALLOWED_ORIGINS` | No | Expo localhost origins | CORS origins (comma-separated) |
+| `ACCESS_TOKEN_EXPIRE_MINUTES` | No | `43200` (30 days) | Family JWT validity |
+| `REDIS_URL` | No | — | Shared cache + rate-limit store. Without it, in-memory only (single worker). Required in production with multiple workers. |
+| `REVENUECAT_SECRET_KEY` | No | — | Server-side premium gate. Without it, premium gate is disabled and AI endpoints are open (dev/test mode). |
+| `REVENUECAT_ENTITLEMENT` | No | `premium` | RevenueCat entitlement ID to check |
+| `ADMIN_JWT_SECRET_KEY` | No | — | Signs admin JWT tokens. Without it, all `/admin/*` routes return 503. Generate same as `JWT_SECRET_KEY`. |
+| `ADMIN_JWT_EXPIRE_MINUTES` | No | `480` (8 h) | Admin JWT validity |
+| `ADMIN_BOOTSTRAP_TOKEN` | No | — | One-time token for `POST /api/v1/admin/auth/bootstrap`. Disabled (501) if empty. |
 
-Generate a `JWT_SECRET_KEY`: `python -c "import secrets; print(secrets.token_hex(48))"`
+Generate secrets: `python -c "import secrets; print(secrets.token_hex(48))"`
 
 ---
 

@@ -28,6 +28,7 @@ Thumbs.db
 
 # Claude Code: permisos locales por máquina (el resto de .claude/ sí se versiona)
 .claude/settings.local.json
+.mcp.json
 
 # Artefactos generados por graphify (knowledge graph, ~1.4 MB).
 # Se regenera con `graphify update .` (sin coste de API).
