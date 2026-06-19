@@ -66,7 +66,7 @@ export const typography: Record<string, TextStyle> = {
   captionStrong: { fontSize: 13, fontWeight: '700' },
   caption: { fontSize: 13, fontWeight: '500' },
   label: { fontSize: 11, fontWeight: '800', letterSpacing: 0.6, textTransform: 'uppercase' },
-  micro: { fontSize: 10, fontWeight: '600' },
+  micro: { fontSize: 11, fontWeight: '600' },
 };
 
 export const shadow = {

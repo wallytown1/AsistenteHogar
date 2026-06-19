@@ -29,7 +29,15 @@ function ItemRow({
 
   return (
     <View style={styles.row}>
-      <TouchableOpacity onPress={onToggle} style={styles.check} hitSlop={8}>
+      <TouchableOpacity
+        onPress={onToggle}
+        style={styles.check}
+        accessibilityLabel={
+          item.is_checked ? `Desmarcar ${item.nombre}` : `Marcar ${item.nombre} como comprado`
+        }
+        accessibilityRole="checkbox"
+        accessibilityState={{ checked: item.is_checked }}
+      >
         <Ionicons
           name={item.is_checked ? 'checkmark-circle' : 'ellipse-outline'}
           size={24}
@@ -50,7 +58,11 @@ function ItemRow({
           </AppText>
         )}
       </View>
-      <TouchableOpacity onPress={onDelete} hitSlop={8}>
+      <TouchableOpacity
+        onPress={onDelete}
+        hitSlop={13}
+        accessibilityLabel={`Eliminar ${item.nombre}`}
+      >
         <Ionicons name="trash-outline" size={18} color={colors.inkFaint} />
       </TouchableOpacity>
     </View>
@@ -131,7 +143,7 @@ export default function ShoppingListScreen() {
   return (
     <Screen>
       <View style={styles.headerRow}>
-        <AppText variant="h1">Lista de la compra</AppText>
+        <AppText variant="title">Lista de la compra</AppText>
         {comprados.length > 0 && (
           <TouchableOpacity onPress={handleClearChecked} style={styles.clearBtn}>
             <AppText variant="captionStrong" color={colors.danger}>
@@ -228,7 +240,7 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.sm,
   },
   clearBtn: {
-    paddingVertical: spacing.xs,
+    paddingVertical: spacing.md,
     paddingHorizontal: spacing.sm,
   },
   scroll: {
@@ -258,6 +270,10 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   check: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
     flexShrink: 0,
   },
   rowContent: {

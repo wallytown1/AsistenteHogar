@@ -21,22 +21,22 @@ const SLIDES: Slide[] = [
     icon: 'home',
     accent: colors.home,
     accentSoft: colors.homeSoft,
-    title: 'Tu hogar,\nbien organizado',
-    body: 'Gestiona tareas, despensa y calendario desde un solo lugar. Todo tu hogar en tu bolsillo.',
+    title: 'Tu cocina,\nbien organizada',
+    body: 'Gestiona tu despensa, recetas y lista de la compra desde un solo lugar. Todo en tu bolsillo.',
   },
   {
     icon: 'sparkles',
     accent: colors.brand,
     accentSoft: colors.brandSoft,
     title: 'IA que te\nahorra tiempo',
-    body: 'Recibe un briefing diario, sugerencias de recetas y añade eventos con lenguaje natural.',
+    body: 'Recibe un briefing diario, sugerencias de recetas mediterráneas y añade alimentos con lenguaje natural.',
   },
   {
     icon: 'notifications',
     accent: colors.warning,
     accentSoft: colors.warningSoft,
     title: 'Nada se\ncaduca ni olvida',
-    body: 'Alertas antes de que caduquen los alimentos y recordatorios de tareas pendientes.',
+    body: 'Alertas antes de que caduquen los alimentos para aprovecharlos en recetas de temporada.',
   },
 ];
 
@@ -136,7 +136,12 @@ export default function OnboardingScreen({ onDone }: { onDone: () => void }) {
         {/* Indicadores de página */}
         <View style={{ flexDirection: 'row', gap: spacing.xs }}>
           {SLIDES.map((_, i) => (
-            <Pressable key={i} onPress={() => goTo(i)} hitSlop={8}>
+            <Pressable
+              key={i}
+              onPress={() => goTo(i)}
+              hitSlop={19}
+              accessibilityLabel={`Ir a slide ${i + 1}`}
+            >
               <View
                 style={{
                   height: 6,

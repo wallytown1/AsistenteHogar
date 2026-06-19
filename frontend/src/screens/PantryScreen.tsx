@@ -884,7 +884,8 @@ export default function PantryScreen() {
                           ]
                         );
                       }}
-                      hitSlop={6}
+                      hitSlop={9}
+                      accessibilityLabel={`Reducir cantidad de ${item.nombre}`}
                       style={{
                         width: 26,
                         height: 26,
@@ -919,7 +920,8 @@ export default function PantryScreen() {
                           ]
                         );
                       }}
-                      hitSlop={6}
+                      hitSlop={9}
+                      accessibilityLabel={`Aumentar cantidad de ${item.nombre}`}
                       style={{
                         width: 26,
                         height: 26,

@@ -328,7 +328,7 @@ export default function SettingsScreen() {
               </View>
               <Pressable
                 onPress={() => abrirEditarPerfil(p)}
-                hitSlop={8}
+                hitSlop={14}
                 style={{ marginRight: spacing.sm }}
                 accessibilityLabel={`Editar ${p.nombre}`}
               >
@@ -336,7 +336,7 @@ export default function SettingsScreen() {
               </Pressable>
               <Pressable
                 onPress={() => eliminarPerfil(p)}
-                hitSlop={8}
+                hitSlop={14}
                 accessibilityLabel={`Eliminar ${p.nombre}`}
               >
                 <Icon name="trash-outline" size={16} color={colors.danger} />
@@ -432,7 +432,7 @@ export default function SettingsScreen() {
           style={{ lineHeight: 18, marginBottom: spacing.lg }}
         >
           Al eliminar la cuenta se destruyen de forma permanente el hogar y todos sus datos:
-          usuarios, despensa, tareas y calendario. Esta acción no se puede deshacer.
+          usuarios, despensa e historial de recetas. Esta acción no se puede deshacer.
         </AppText>
 
         {!confirmando ? (
