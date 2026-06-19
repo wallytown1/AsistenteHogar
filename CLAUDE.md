@@ -287,8 +287,10 @@ Generate secrets: `python -c "import secrets; print(secrets.token_hex(48))"`
 - ✅ **Fase 4** — Inyección del `recetario_maestro` en prompts (`_bloque_recetario` en `llm.py`, catálogo vacío → sin impacto) + `POST /pantry/recetas/rechazar-ingrediente` (Gemini identifica ingrediente problemático → añade a `excluir_ingredientes` del perfil individual; undo visible en frontend). Sin context caching por ahora (catálogo vacío).
 - ⏳ **Fase 5** — RevenueCat 3 tiers + flujos A/B/C completos. Bloqueada: requiere `REVENUECAT_SECRET_KEY`.
 - ✅ **F6 — EAS Build**: `app.json` completo (bundleIdentifier, package, permisos micrófono/cámara, plugins), `eas.json` con perfiles development/preview/production. Assets placeholder en `assets/` (reemplazar por arte real antes de stores). `eas init` pendiente para obtener `projectId`.
+- ✅ **Notificaciones locales de caducidad**: `src/lib/notifications.ts` — hasta 2 notificaciones diarias a las 9:00 (urgente ≤3 días, pronto ≤umbral). Se reprograman en cada fetch de despensa. Permisos solicitados al arrancar. Sin credenciales externas.
+- ✅ **Lista de la compra**: tabla `lista_compra` (migración `c6d8f0a1b2e3`), 5 endpoints REST bajo `/lista-compra`, `ShoppingListScreen` con secciones pendientes/comprados y barra de input, nueva pestaña "Compra" en bottom tabs.
 
-**Completed phases (summary)**: F0–F5, F-IA, F-IA-2, F-UI, F-LEGAL, F-AUDIT, F4 (Freemium/RevenueCat), F-AUDIT2 (server-side premium gate + Railway deploy), F-OCR, F-AGENDA, F-PIVOT #1–6, Pivote 2, Fase 2, Fase 3. See `CHANGELOG.md` for details.
+**Completed phases (summary)**: F0–F5, F-IA, F-IA-2, F-UI, F-LEGAL, F-AUDIT, F4 (Freemium/RevenueCat), F-AUDIT2 (server-side premium gate + Railway deploy), F-OCR, F-AGENDA, F-PIVOT #1–6, Pivote 2, Fase 2, Fase 3, Fase 4, F6, Notificaciones locales, Lista de la compra. See `CHANGELOG.md` for details.
 
 ## graphify
 
