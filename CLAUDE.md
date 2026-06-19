@@ -57,7 +57,8 @@ python smoke_test_dashboard.py  # dashboard aggregation/filtering + isolation (1
 python smoke_test_validation.py # endpoint error contract: 400/401/404/422 (20 checks)
 python smoke_test_legal.py      # GDPR purge, account deletion, LLM anonymization (26 checks)
 python smoke_test_admin.py      # admin bootstrap, login, prompts CRUD, recetario CRUD
-python smoke_test_perfiles.py   # perfiles individuales CRUD + isolation + limit (10/hogar)
+python smoke_test_perfiles.py       # perfiles individuales CRUD + isolation + limit (10/hogar)
+python smoke_test_lista_compra.py   # lista de la compra CRUD + borrado masivo + isolation (27 checks)
 
 # Manual GDPR purge pass (also runs automatically every 24h from the app lifespan)
 python -m app.jobs.purge
@@ -141,7 +142,8 @@ python smoke_test_dashboard.py   # 19/19 must pass
 python smoke_test_validation.py  # 20/20 must pass
 python smoke_test_legal.py       # 26/26 must pass
 python smoke_test_admin.py       # must pass
-python smoke_test_perfiles.py    # must pass
+python smoke_test_perfiles.py        # must pass
+python smoke_test_lista_compra.py    # 27/27 must pass
 
 # Frontend
 cd frontend && npm run ts:check           # 0 errors
