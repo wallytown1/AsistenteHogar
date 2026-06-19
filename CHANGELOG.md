@@ -6,6 +6,25 @@ Formato: `[FECHA] [ÁREA] [TIPO] Descripción`
 
 ---
 
+## [2026-06-19] — Lista de la compra
+
+### Backend (smoke tests sin regresiones)
+- **ADD** Migración Alembic `c6d8f0a1b2e3` — tabla `lista_compra` (id, hogar_id FK→hogares CASCADE, nombre, cantidad, unidad, is_checked, is_deleted, timestamps). Dialect-aware SQLite/PostgreSQL.
+- **ADD** `models/models.py` — modelo `ListaCompraItem` + relación `Hogar.lista_compra` (cascade `all, delete-orphan`).
+- **ADD** `schemas/schemas.py` — `ListaCompraItemCreate` / `ListaCompraItemUpdate` / `ListaCompraItemResponse`. `extra='forbid'`. Validator `limpiar_nombre`.
+- **ADD** `repositories/lista_compra.py` — `ListaCompraRepository`: `list_by_hogar` (pendientes primero), `create`, `get_by_id`, `update`, `delete` (soft), `delete_checked` (bulk soft delete).
+- **ADD** `api/routers/lista_compra.py` — 5 endpoints bajo `/lista-compra`: `GET` (list), `POST` (add), `PATCH /{id}` (toggle/edit), `DELETE /{id}` (remove), `DELETE` (limpiar marcados). Todos protegidos por JWT.
+- **MOD** `api/deps.py` — añadida `get_lista_compra_repo`.
+- **MOD** `main.py` — registrado `lista_compra.router`.
+
+### Frontend (ts:check 0 errores)
+- **ADD** `types/types.ts` — interfaz `ListaCompraItem`.
+- **ADD** `hooks/useListaCompra.ts` — `pendientes` / `comprados` separados; `addItem`, `toggleItem`, `deleteItem`, `clearChecked` con optimistic update local.
+- **ADD** `screens/ShoppingListScreen.tsx` — pantalla completa: secciones "Por comprar" / "Comprados", checkbox tap para marcar, swipe-to-delete con Alert de confirmación, barra de input inferior para añadir ítems, "Limpiar marcados" visible solo si hay ítems comprados. Estado vacío con ícono de carrito.
+- **MOD** `navigation/AppNavigator.tsx` — nueva pestaña "Compra" (icono `cart`) entre Despensa y Ajustes.
+
+---
+
 ## [2026-06-19] — Notificaciones locales de caducidad
 
 ### Frontend

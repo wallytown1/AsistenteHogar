@@ -112,6 +112,9 @@ class Hogar(Base):
     perfiles_individuales: Mapped[list["PerfilIndividual"]] = relationship(
         "PerfilIndividual", back_populates="hogar", cascade="all, delete-orphan"
     )
+    lista_compra: Mapped[list["ListaCompraItem"]] = relationship(
+        "ListaCompraItem", back_populates="hogar", cascade="all, delete-orphan"
+    )
 
 
 class Usuario(Base):
@@ -309,6 +312,40 @@ class PerfilIndividual(Base):
     hogar: Mapped["Hogar"] = relationship(
         "Hogar", back_populates="perfiles_individuales"
     )
+
+
+class ListaCompraItem(Base):
+    """Ítem de la lista de la compra del hogar. Soft delete vía is_deleted."""
+
+    __tablename__ = "lista_compra"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID_TYPE, primary_key=True, default=uuid.uuid4
+    )
+    hogar_id: Mapped[uuid.UUID] = mapped_column(
+        UUID_TYPE,
+        ForeignKey("hogares.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    nombre: Mapped[str] = mapped_column(String(200), nullable=False)
+    cantidad: Mapped[float | None] = mapped_column(Numeric(10, 2), nullable=True)
+    unidad: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    is_checked: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    is_deleted: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, index=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        TZDateTime, nullable=False, server_default=utcnow()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        TZDateTime,
+        nullable=False,
+        server_default=utcnow(),
+        onupdate=lambda: datetime.now(UTC),
+    )
+
+    hogar: Mapped["Hogar"] = relationship("Hogar", back_populates="lista_compra")
 
 
 class AdminUser(Base):

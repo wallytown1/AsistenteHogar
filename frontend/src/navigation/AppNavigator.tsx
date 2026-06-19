@@ -11,6 +11,7 @@ import { Ionicons } from '@expo/vector-icons';
 import DashboardScreen from '../screens/DashboardScreen';
 import PantryScreen from '../screens/PantryScreen';
 import SettingsScreen from '../screens/SettingsScreen';
+import ShoppingListScreen from '../screens/ShoppingListScreen';
 import AuthScreen from '../screens/AuthScreen';
 import OnboardingScreen, { hasSeenOnboarding } from '../screens/OnboardingScreen';
 import OnboardingProfileScreen from '../screens/OnboardingProfileScreen';
@@ -26,6 +27,7 @@ import { colors } from '../theme/tokens';
 type RootTabParamList = {
   Inicio: undefined;
   Despensa: undefined;
+  Compra: undefined;
   Ajustes: undefined;
 };
 
@@ -44,6 +46,7 @@ const ICONS: Record<
 > = {
   Inicio: { on: 'home', off: 'home-outline' },
   Despensa: { on: 'basket', off: 'basket-outline' },
+  Compra: { on: 'cart', off: 'cart-outline' },
   Ajustes: { on: 'settings', off: 'settings-outline' },
 };
 
@@ -83,6 +86,7 @@ function MainTabs() {
     >
       <Tab.Screen name="Inicio" component={DashboardScreen} />
       <Tab.Screen name="Despensa" component={PantryScreen} />
+      <Tab.Screen name="Compra" component={ShoppingListScreen} />
       <Tab.Screen name="Ajustes" component={SettingsScreen} />
     </Tab.Navigator>
   );

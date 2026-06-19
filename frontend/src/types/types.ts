@@ -140,6 +140,17 @@ export interface TokenResponse {
   hogar: Hogar;
 }
 
+export interface ListaCompraItem {
+  id: string;
+  hogar_id: string;
+  nombre: string;
+  cantidad: number | null;
+  unidad: string | null;
+  is_checked: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface RechazarIngredienteResponse {
   perfil_id: string;
   nombre_perfil: string;

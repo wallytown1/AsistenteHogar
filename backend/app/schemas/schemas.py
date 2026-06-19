@@ -595,3 +595,35 @@ class RechazarIngredienteResponse(BaseSchema):
     excluir_ingredientes_actualizado: list[str]
     generado_por_ia: bool
     mensaje: str | None = None
+
+
+# --- LISTA DE LA COMPRA ---
+
+
+class ListaCompraItemCreate(BaseSchema):
+    nombre: str = Field(..., min_length=1, max_length=200)
+    cantidad: float | None = Field(None, gt=0)
+    unidad: str | None = Field(None, max_length=50)
+
+    @field_validator("nombre")
+    @classmethod
+    def limpiar_nombre(cls, v: str) -> str:
+        return v.strip()
+
+
+class ListaCompraItemUpdate(BaseSchema):
+    nombre: str | None = Field(None, min_length=1, max_length=200)
+    cantidad: float | None = Field(None, gt=0)
+    unidad: str | None = Field(None, max_length=50)
+    is_checked: bool | None = None
+
+
+class ListaCompraItemResponse(BaseSchema):
+    id: UUID
+    hogar_id: UUID
+    nombre: str
+    cantidad: float | None
+    unidad: str | None
+    is_checked: bool
+    created_at: datetime
+    updated_at: datetime

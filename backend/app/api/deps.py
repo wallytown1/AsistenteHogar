@@ -11,6 +11,7 @@ from app.database import get_async_session
 from app.models.models import AdminUser, Usuario
 from app.repositories.admin_user import AdminUserRepository
 from app.repositories.historial import RecetaHistorialRepository
+from app.repositories.lista_compra import ListaCompraRepository
 from app.repositories.pantry import PantryRepository
 from app.repositories.perfil import PerfilHogarRepository
 from app.repositories.perfiles_individual import PerfilIndividualRepository
@@ -219,3 +220,10 @@ async def get_recetario_repo(
 ) -> RecetaMaestraRepository:
     """Provee el repositorio del recetario maestro (catálogo global de referencia)."""
     return RecetaMaestraRepository(session)
+
+
+async def get_lista_compra_repo(
+    session: AsyncSession = Depends(get_async_session),
+) -> ListaCompraRepository:
+    """Provee el repositorio de la lista de la compra del hogar."""
+    return ListaCompraRepository(session)

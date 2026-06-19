@@ -22,6 +22,7 @@ from app.api.routers import (
     auth,
     dashboard,
     historial,
+    lista_compra,
     onboarding,
     pantry,
     perfiles,
@@ -210,6 +211,7 @@ app.include_router(admin_auth.router, prefix="/api/v1")
 app.include_router(admin_prompts.router, prefix="/api/v1")
 app.include_router(admin_recetario.router, prefix="/api/v1")
 app.include_router(perfiles.router, prefix="/api/v1")
+app.include_router(lista_compra.router, prefix="/api/v1")
 
 
 @app.get("/health", tags=["Health"])

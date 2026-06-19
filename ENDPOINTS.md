@@ -273,6 +273,39 @@ Si la IA no identifica ingredientes: `ingredientes_anadidos=[]`, `generado_por_i
 
 ---
 
+## Lista de la Compra 🔒
+
+### `GET /api/v1/lista-compra` 🔒
+Devuelve todos los ítems de la lista del hogar (no eliminados). Orden: pendientes primero, luego comprados; dentro de cada grupo por `created_at` ascendente.
+
+**200** → `list[ListaCompraItemResponse]`
+
+### `POST /api/v1/lista-compra` 🔒
+Añade un ítem a la lista.
+
+**Body** (`ListaCompraItemCreate`):
+```json
+{ "nombre": "Aceite de oliva virgen extra", "cantidad": 1, "unidad": "botella" }
+```
+`cantidad` y `unidad` son opcionales. **201** → `ListaCompraItemResponse` · **422** validación.
+
+### `PATCH /api/v1/lista-compra/{item_id}` 🔒
+Actualiza un ítem: marcar/desmarcar como comprado o editar nombre/cantidad.
+
+**Body** (`ListaCompraItemUpdate`, todos opcionales):
+```json
+{ "is_checked": true }
+```
+**200** → `ListaCompraItemResponse` · **404** ítem inexistente o de otro hogar.
+
+### `DELETE /api/v1/lista-compra/{item_id}` 🔒
+Elimina un ítem (soft delete). **204** · **404** ítem inexistente o de otro hogar.
+
+### `DELETE /api/v1/lista-compra` 🔒
+Elimina en bloque todos los ítems marcados como comprados (`is_checked=true`) del hogar. **204**.
+
+---
+
 ## Panel de Administración (Fase 2)
 
 > Rutas exclusivas del super-admin. Usan un JWT firmado con **`ADMIN_JWT_SECRET_KEY`**, secreto
