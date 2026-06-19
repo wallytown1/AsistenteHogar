@@ -292,6 +292,53 @@ Generate secrets: `python -c "import secrets; print(secrets.token_hex(48))"`
 
 **Completed phases (summary)**: F0–F5, F-IA, F-IA-2, F-UI, F-LEGAL, F-AUDIT, F4 (Freemium/RevenueCat), F-AUDIT2 (server-side premium gate + Railway deploy), F-OCR, F-AGENDA, F-PIVOT #1–6, Pivote 2, Fase 2, Fase 3, Fase 4, F6, Notificaciones locales, Lista de la compra. See `CHANGELOG.md` for details.
 
+## MCPs disponibles — reglas de uso automático
+
+Cuatro MCP servers activos (scope global). Usarlos sin que el usuario tenga que pedirlo.
+
+### context7 — documentación actualizada de librerías
+**Usar SIEMPRE antes de adivinar** la API de cualquier librería o framework.
+
+Trigger automático en cualquiera de estos casos:
+- Duda sobre API de Expo SDK, React Native, expo-notifications, expo-image-picker, etc.
+- Duda sobre FastAPI, SQLAlchemy 2.0 async, Pydantic v2, Alembic.
+- Error TypeScript con tipos de librería externa.
+- Cualquier pregunta de tipo "¿cómo se hace X en la versión Y?".
+- Antes de escribir código que dependa de una API concreta (triggers, hooks, schemas).
+
+Flujo: `mcp__context7__resolve-library-id` → `mcp__context7__query-docs`. No más de 3 llamadas por pregunta.
+
+### github — gestión del repositorio remoto
+**Usar en lugar de `gh` CLI** para todo lo que sea GitHub (no git local).
+
+Trigger automático en cualquiera de estos casos:
+- Crear un Pull Request → `mcp__github__create_pull_request`
+- Crear una issue para trackear deuda técnica o bug → `mcp__github__create_issue`
+- Consultar estado de CI / checks de un PR → `mcp__github__get_pull_request_status`
+- Revisar comentarios de revisión de un PR → `mcp__github__get_pull_request_comments`
+- Buscar código en el repo remoto → `mcp__github__search_code`
+- Añadir comentario a una issue o PR → `mcp__github__add_issue_comment`
+
+**No usar** para operaciones git locales (commit, push, branch) — esas siguen con Bash.
+
+### Gmail y Google Calendar
+Disponibles pero no relevantes para trabajo de desarrollo en este proyecto. No usar salvo instrucción explícita del usuario.
+
+---
+
+### MCPs de frontend — pendientes de instalar
+
+| MCP | Caso de uso | Comando de instalación |
+|-----|------------|----------------------|
+| **Figma MCP** (`@figma/code-connect-mcp` o equiv.) | Extraer tokens de diseño, componentes y assets de Figma directamente | `claude mcp add --scope user figma -- npx -y @figma/mcp` |
+| **React Native Debugger MCP** | Inspección de estado en simulador/dispositivo | Evaluar opciones cuando tengamos build nativo |
+| **PostgreSQL MCP** (`sgaunet/postgresql-mcp`) | Inspección directa de BD Railway en producción | Instalar cuando Railway tenga datos reales |
+| **Playwright MCP** (`@playwright/mcp`) | Tests E2E cuando haya build de producción | `claude mcp add --scope user playwright -- npx -y @playwright/mcp` |
+
+> Los 15 **Expo skills oficiales** ya están instalados en scope global (`claude plugin install expo@claude-plugins-official`): building-native-ui, expo-deployment, upgrading-expo, native-data-fetching, expo-dev-client, etc. Se activan automáticamente por nombre de skill.
+
+---
+
 ## graphify
 
 This project has a knowledge graph at graphify-out/ with god nodes, community structure, and cross-file relationships.
