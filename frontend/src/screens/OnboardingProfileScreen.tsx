@@ -196,9 +196,10 @@ export default function OnboardingProfileScreen({ onSave, onSkip }: Props) {
         />
         <Pressable
           onPress={onSkip}
-          hitSlop={8}
+          hitSlop={12}
           disabled={guardando}
-          style={{ alignItems: 'center' }}
+          accessibilityLabel="Saltar configuración del perfil"
+          style={{ alignItems: 'center', paddingVertical: spacing.sm }}
         >
           <AppText variant="caption" color={colors.inkFaint}>
             Ahora no
