@@ -1,11 +1,13 @@
 import React from 'react';
-import { View, ScrollView, StyleSheet } from 'react-native';
+import { Alert, View, ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRoute, useNavigation, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
-import { RecetaSugerida } from '../types/types';
+import { RechazarIngredienteResponse, RecetaSugerida } from '../types/types';
 import { useRecetaHistorial } from '../hooks/useRecetaHistorial';
+import { usePerfiles } from '../hooks/usePerfiles';
+import { apiRequest } from '../api/api';
 import { colors, spacing, radius } from '../theme/tokens';
 import { Card, Button, IconButton, AppText, SectionHeader } from '../components/ui';
 import { haptics } from '../lib/haptics';
@@ -18,6 +20,7 @@ export default function RecipeDetailScreen() {
   const navigation = useNavigation<NavProp>();
   const { receta } = route.params;
   const { registrarAccion, isLoading } = useRecetaHistorial();
+  const { perfiles } = usePerfiles();
 
   const handleCocinada = async () => {
     haptics.success();
@@ -25,10 +28,64 @@ export default function RecipeDetailScreen() {
     navigation.goBack();
   };
 
+  const enviarRechazo = async (perfilId: string) => {
+    try {
+      const res = await apiRequest<RechazarIngredienteResponse>(
+        '/pantry/recetas/rechazar-ingrediente',
+        {
+          method: 'POST',
+          json: {
+            nombre_receta: receta.titulo,
+            ingredientes_receta: receta.ingredientes_usados,
+            perfil_id: perfilId,
+          },
+        }
+      );
+      if (res.ingredientes_anadidos.length > 0) {
+        const lista = res.ingredientes_anadidos.join(', ');
+        Alert.alert('Preferencia guardada', `Evitaré "${lista}" para ${res.nombre_perfil}.`, [
+          {
+            text: 'Deshacer',
+            onPress: async () => {
+              const revertida = res.excluir_ingredientes_actualizado.filter(
+                (i) => !res.ingredientes_anadidos.includes(i)
+              );
+              try {
+                await apiRequest(`/perfiles/${perfilId}`, {
+                  method: 'PATCH',
+                  json: { excluir_ingredientes: revertida },
+                });
+              } catch {
+                /* silent — el undo falla silenciosamente */
+              }
+              navigation.goBack();
+            },
+          },
+          { text: 'OK', onPress: () => navigation.goBack() },
+        ]);
+        return;
+      }
+    } catch {
+      /* silent — el rechazo de ingrediente es best-effort */
+    }
+    navigation.goBack();
+  };
+
   const handleRechazada = async () => {
     haptics.light();
     await registrarAccion(receta.titulo, 'rechazada');
-    navigation.goBack();
+    if (perfiles.length === 0) {
+      navigation.goBack();
+      return;
+    }
+    if (perfiles.length === 1) {
+      await enviarRechazo(perfiles[0].id);
+      return;
+    }
+    Alert.alert('¿Para quién no gusta?', 'Apuntaré el ingrediente problemático en su perfil.', [
+      ...perfiles.map((p) => ({ text: p.nombre, onPress: () => enviarRechazo(p.id) })),
+      { text: 'Nadie en concreto', style: 'cancel' as const, onPress: () => navigation.goBack() },
+    ]);
   };
 
   return (

@@ -15,6 +15,7 @@ from app.repositories.pantry import PantryRepository
 from app.repositories.perfil import PerfilHogarRepository
 from app.repositories.perfiles_individual import PerfilIndividualRepository
 from app.repositories.prompt_template import PromptTemplateRepository
+from app.repositories.receta_maestra import RecetaMaestraRepository
 from app.repositories.user import UserRepository
 from app.services.admin_auth import AdminAuthService
 from app.services.auth import AuthService
@@ -211,3 +212,10 @@ async def get_prompt_config_service(
     session: AsyncSession = Depends(get_async_session),
 ) -> PromptConfigService:
     return PromptConfigService(PromptTemplateRepository(session))
+
+
+async def get_recetario_repo(
+    session: AsyncSession = Depends(get_async_session),
+) -> RecetaMaestraRepository:
+    """Provee el repositorio del recetario maestro (catálogo global de referencia)."""
+    return RecetaMaestraRepository(session)

@@ -10,6 +10,7 @@ from app.api.deps import (
     get_pantry_service,
     get_perfiles_repo,
     get_prompt_config_service,
+    get_recetario_repo,
     requiere_premium,
 )
 from app.core.rate_limit import (
@@ -21,6 +22,7 @@ from app.core.rate_limit import (
     recetas_rate_limiter,
 )
 from app.repositories.perfiles_individual import PerfilIndividualRepository
+from app.repositories.receta_maestra import RecetaMaestraRepository
 from app.schemas.schemas import (
     FotoNeveraRequest,
     FotoNeveraResponse,
@@ -32,6 +34,7 @@ from app.schemas.schemas import (
     PantryStockMetrics,
     PerfilIndividualResponse,
     PlanComidasResponse,
+    RecetaMaestraResponse,
     RecetasSugeridasResponse,
     SugerenciaMetadataResponse,
     SugerenciasResponse,
@@ -77,6 +80,7 @@ async def get_recetas_sugeridas(
     historial_service: RecetaHistorialService = Depends(get_historial_service),
     prompt_config: PromptConfigService = Depends(get_prompt_config_service),
     perfiles_repo: PerfilIndividualRepository = Depends(get_perfiles_repo),
+    recetario_repo: RecetaMaestraRepository = Depends(get_recetario_repo),
 ) -> RecetasSugeridasResponse:
     """Sugiere recetas con IA a partir del inventario real de la despensa del Hogar,
     priorizando los alimentos próximos a caducar y personalizando según el perfil del
@@ -86,6 +90,8 @@ async def get_recetas_sugeridas(
     historial = await historial_service.get_historial(hogar_id)
     _perfiles = await perfiles_repo.list_by_hogar(hogar_id)
     perfiles = [PerfilIndividualResponse.model_validate(p) for p in _perfiles] or None
+    _recetario = await recetario_repo.list_all(activa_only=True)
+    recetario = [RecetaMaestraResponse.model_validate(r) for r in _recetario] or None
     return await generate_recipe_suggestions(
         metrics.items,
         metrics.alertas_caducidad,
@@ -93,6 +99,7 @@ async def get_recetas_sugeridas(
         historial,
         prompt_config,
         perfiles_individuales=perfiles,
+        recetario=recetario,
     )
 
 
@@ -107,6 +114,7 @@ async def get_plan_comidas(
     onboarding_service: OnboardingService = Depends(get_onboarding_service),
     prompt_config: PromptConfigService = Depends(get_prompt_config_service),
     perfiles_repo: PerfilIndividualRepository = Depends(get_perfiles_repo),
+    recetario_repo: RecetaMaestraRepository = Depends(get_recetario_repo),
 ) -> PlanComidasResponse:
     """Genera un plan de comidas semanal con IA a partir de la despensa real,
     priorizando lo que caduca pronto y personalizando según perfiles del hogar.
@@ -115,12 +123,15 @@ async def get_plan_comidas(
     perfil = await onboarding_service.get_perfil(hogar_id)
     _perfiles = await perfiles_repo.list_by_hogar(hogar_id)
     perfiles = [PerfilIndividualResponse.model_validate(p) for p in _perfiles] or None
+    _recetario = await recetario_repo.list_all(activa_only=True)
+    recetario = [RecetaMaestraResponse.model_validate(r) for r in _recetario] or None
     return await generate_meal_plan(
         metrics.items,
         metrics.alertas_caducidad,
         perfil,
         prompt_config,
         perfiles_individuales=perfiles,
+        recetario=recetario,
     )
 
 
@@ -140,6 +151,7 @@ async def get_sugerencias(
     historial_service: RecetaHistorialService = Depends(get_historial_service),
     prompt_config: PromptConfigService = Depends(get_prompt_config_service),
     perfiles_repo: PerfilIndividualRepository = Depends(get_perfiles_repo),
+    recetario_repo: RecetaMaestraRepository = Depends(get_recetario_repo),
 ) -> SugerenciasResponse:
     """Devuelve recetas sugeridas y plan de comidas en una sola llamada (asyncio.gather),
     personalizadas según el perfil del hogar, perfiles individuales e historial."""
@@ -148,6 +160,8 @@ async def get_sugerencias(
     historial = await historial_service.get_historial(hogar_id)
     _perfiles = await perfiles_repo.list_by_hogar(hogar_id)
     perfiles = [PerfilIndividualResponse.model_validate(p) for p in _perfiles] or None
+    _recetario = await recetario_repo.list_all(activa_only=True)
+    recetario = [RecetaMaestraResponse.model_validate(r) for r in _recetario] or None
     recetas_res, plan_res = await asyncio.gather(
         generate_recipe_suggestions(
             metrics.items,
@@ -156,6 +170,7 @@ async def get_sugerencias(
             historial,
             prompt_config,
             perfiles_individuales=perfiles,
+            recetario=recetario,
         ),
         generate_meal_plan(
             metrics.items,
@@ -163,6 +178,7 @@ async def get_sugerencias(
             perfil,
             prompt_config,
             perfiles_individuales=perfiles,
+            recetario=recetario,
         ),
     )
     return SugerenciasResponse(recetas=recetas_res, plan_comidas=plan_res)

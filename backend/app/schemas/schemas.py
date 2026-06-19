@@ -569,3 +569,29 @@ class RecetaMaestraResponse(BaseSchema):
     activa: bool
     created_at: datetime
     updated_at: datetime
+
+
+# --- RECHAZO DE INGREDIENTES (Fase 4b) ---
+
+
+class RechazarIngredienteRequest(BaseSchema):
+    nombre_receta: str = Field(..., min_length=1, max_length=200)
+    ingredientes_receta: list[str] = Field(..., min_length=1)
+    perfil_id: UUID
+
+    @field_validator("ingredientes_receta")
+    @classmethod
+    def no_vacios(cls, v: list[str]) -> list[str]:
+        limpio = [x.strip() for x in v if x.strip()]
+        if not limpio:
+            raise ValueError("La lista de ingredientes no puede estar vacía")
+        return limpio
+
+
+class RechazarIngredienteResponse(BaseSchema):
+    perfil_id: UUID
+    nombre_perfil: str
+    ingredientes_anadidos: list[str]
+    excluir_ingredientes_actualizado: list[str]
+    generado_por_ia: bool
+    mensaje: str | None = None

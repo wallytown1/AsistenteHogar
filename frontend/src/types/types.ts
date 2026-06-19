@@ -139,3 +139,12 @@ export interface TokenResponse {
   usuario: Usuario;
   hogar: Hogar;
 }
+
+export interface RechazarIngredienteResponse {
+  perfil_id: string;
+  nombre_perfil: string;
+  ingredientes_anadidos: string[];
+  excluir_ingredientes_actualizado: string[];
+  generado_por_ia: boolean;
+  mensaje: string | null;
+}

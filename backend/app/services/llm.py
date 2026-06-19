@@ -24,6 +24,7 @@ from app.schemas.schemas import (
     PerfilIndividualResponse,
     PlanComidasResponse,
     RecetaHistorialResponse,
+    RecetaMaestraResponse,
     RecetasSugeridasResponse,
     RecetaSugerida,
     SugerenciaMetadataResponse,
@@ -444,6 +445,22 @@ def _bloque_perfiles_individuales(
     )
 
 
+def _bloque_recetario(recetario: list[RecetaMaestraResponse] | None) -> str:
+    """Construye el bloque de referencia del recetario maestro para el prompt.
+    Cadena vacía si el catálogo está vacío: sin impacto en el comportamiento actual."""
+    if not recetario:
+        return ""
+    lineas = []
+    for r in recetario[:15]:
+        etiqueta = " [aprovechamiento]" if r.aprovechamiento else ""
+        ingredientes_clave = ", ".join(r.ingredientes[:8])
+        lineas.append(f"- {r.nombre}{etiqueta}: {ingredientes_clave}")
+    return (
+        "Recetario de referencia del hogar (inspírate en estas recetas mediterráneas, "
+        "adapta con el inventario disponible):\n" + "\n".join(lineas) + "\n"
+    )
+
+
 _DEFAULT_RECETAS = (
     "Eres el chef asistente de un hogar en España. A partir del inventario real de la "
     "despensa, sugiere entre 1 y 3 recetas caseras sencillas en español.\n"
@@ -464,6 +481,7 @@ async def generate_recipe_suggestions(
     historial: list[RecetaHistorialResponse] | None = None,
     prompt_config: "PromptConfigService | None" = None,
     perfiles_individuales: list[PerfilIndividualResponse] | None = None,
+    recetario: list[RecetaMaestraResponse] | None = None,
 ) -> RecetasSugeridasResponse:
     """Sugiere hasta 3 recetas a partir de la despensa del hogar, priorizando los
     alimentos a punto de caducar. IA pasiva: solo sugiere, nunca modifica datos."""
@@ -490,6 +508,7 @@ async def generate_recipe_suggestions(
         f"{_bloque_perfil(perfil)}"
         f"{_bloque_historial(historial)}"
         f"{_bloque_perfiles_individuales(perfiles_individuales)}"
+        f"{_bloque_recetario(recetario)}"
     )
 
     cache_key = _hash_key("recetas", prompt_usuario)
@@ -775,6 +794,7 @@ async def generate_meal_plan(
     perfil: PerfilHogarResponse | None = None,
     prompt_config: "PromptConfigService | None" = None,
     perfiles_individuales: list[PerfilIndividualResponse] | None = None,
+    recetario: list[RecetaMaestraResponse] | None = None,
 ) -> PlanComidasResponse:
     """Genera un plan de comidas semanal (comida + cena) aprovechando la despensa,
     priorizando lo que caduca pronto. IA pasiva: solo sugiere. Cacheado 2 h."""
@@ -799,6 +819,7 @@ async def generate_meal_plan(
         f"Alimentos que caducan pronto (priorízalos en los primeros días): {nombres_caducan or 'ninguno'}\n"
         f"{_bloque_perfil(perfil)}"
         f"{_bloque_perfiles_individuales(perfiles_individuales)}"
+        f"{_bloque_recetario(recetario)}"
     )
 
     cache_key = _hash_key("plancomidas", prompt_usuario)
@@ -1031,3 +1052,58 @@ async def analyze_fridge_photo(
             sugerencias_rapidas=[],
             mensaje="Error interno analizando la foto.",
         )
+
+
+# --- Identificación de ingredientes rechazados (Fase 4b) ------------------------
+
+_INGREDIENTES_RECHAZADOS_SCHEMA = {
+    "type": "ARRAY",
+    "items": {"type": "STRING"},
+}
+
+
+async def identify_rejected_ingredients(
+    nombre_receta: str,
+    ingredientes: list[str],
+    excluir_actuales: list[str],
+) -> list[str]:
+    """Identifica los ingredientes de una receta rechazada que probablemente
+    motivaron el rechazo, para añadirlos al perfil individual del miembro.
+    Escritura de bajo riesgo + reversible: el frontend ofrece undo visible."""
+    if not GEMINI_API_KEY:
+        return []
+
+    ya_excluidos = (
+        f"Ya excluidos previamente (no repetir): {excluir_actuales}"
+        if excluir_actuales
+        else ""
+    )
+    prompt_usuario = (
+        f"Receta rechazada: {nombre_receta}\n"
+        f"Ingredientes: {ingredientes}\n"
+        f"{ya_excluidos}"
+    )
+
+    texto = await _call_gemini(
+        "Eres el asistente culinario de un hogar. Dado el nombre de una receta rechazada "
+        "y su lista de ingredientes, identifica cuáles son el motivo más probable del rechazo. "
+        "Devuelve únicamente los nombres de los ingredientes problemáticos (array de strings). "
+        "Si no puedes determinarlo con certeza, devuelve [].",
+        prompt_usuario,
+        max_output_tokens=150,
+        response_schema=_INGREDIENTES_RECHAZADOS_SCHEMA,
+    )
+    if texto is None:
+        return []
+
+    try:
+        candidatos = json.loads(texto)
+        if not isinstance(candidatos, list):
+            return []
+        return [
+            c.strip()
+            for c in candidatos
+            if isinstance(c, str) and c.strip() and c.strip() not in excluir_actuales
+        ]
+    except (json.JSONDecodeError, ValueError):
+        return []
