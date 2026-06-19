@@ -484,6 +484,17 @@ npm run ts:check  # Debe retornar 0 errores
 
 ---
 
+## 🎯 Próximos pasos (sesión 2026-06-19 → siguiente)
+
+| Tarea | Dificultad | Archivos a crear/tocar |
+|-------|-----------|----------------------|
+| **Editar perfil del hogar desde Ajustes** — gustos y nº comensales no son editables después del onboarding | Baja | `SettingsScreen.tsx` (modal o nav), `useOnboarding.ts` (ya tiene `savePerfil`) |
+| **`HistorialScreen`** — lista de recetas cocinadas/rechazadas | Baja | `screens/HistorialScreen.tsx`, `hooks/useRecetaHistorial.ts` (ya existe), `AppNavigator.tsx` |
+| **`SECURITY.md`** — revisión de seguridad (F-QA2 Bloque 5) | Media | doc nuevo: multi-tenant, JWT, LLM data flow, GDPR |
+| **seed en Railway** — activar recetario en producción | Mínima | `python seed_recetario.py` con `DATABASE_URL` de Railway |
+
+---
+
 ## 🐛 Deuda técnica conocida
 
 | Problema | Ubicación | Impacto | Solución |
