@@ -1,5 +1,7 @@
 import React from 'react';
-import { View, Alert, ActivityIndicator } from 'react-native';
+import { View, Alert, ActivityIndicator, Pressable } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useDashboard } from '../hooks/useDashboard';
 import { getDiasParaCaducar } from '../hooks/usePantry';
 import { getSemaforoCaducidad } from '../lib/caducidad';
@@ -8,6 +10,8 @@ import AIDisclaimerBanner from '../components/AIDisclaimerBanner';
 import { colors, radius, spacing } from '../theme/tokens';
 import { Screen, Card, IconButton, Badge, AppText, Icon, FoodIcon, Button } from '../components/ui';
 import { getCategoriaIcon } from '../lib/categoria';
+
+type NavProp = NativeStackNavigationProp<{ PlanComidas: undefined }>;
 
 function formatFechaCorta(iso?: string): string {
   const d = iso ? new Date(iso) : new Date();
@@ -18,6 +22,7 @@ export default function DashboardScreen() {
   const { loading, briefing, error, refetch } = useDashboard();
   const usuario = useAuthStore((s) => s.usuario);
   const logout = useAuthStore((s) => s.logout);
+  const navigation = useNavigation<NavProp>();
 
   const handleLogout = () => {
     Alert.alert('Cerrar sesión', '¿Deseas cerrar la sesión en este dispositivo?', [
@@ -236,12 +241,53 @@ export default function DashboardScreen() {
         )}
       </Card>
 
+      {/* Acceso al plan de la semana */}
+      <Pressable
+        onPress={() => navigation.navigate('PlanComidas')}
+        accessibilityLabel="Ver plan de la semana"
+        style={({ pressed }) => ({
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          backgroundColor: colors.card,
+          borderWidth: 1,
+          borderColor: colors.border,
+          borderRadius: radius.lg,
+          paddingHorizontal: spacing.xl,
+          paddingVertical: spacing.lg,
+          marginTop: spacing.xl,
+          opacity: pressed ? 0.7 : 1,
+        })}
+      >
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
+          <View
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: radius.md,
+              backgroundColor: colors.brandSoft,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Icon name="calendar" size={18} color={colors.brand} />
+          </View>
+          <View>
+            <AppText variant="captionStrong">Plan de la semana</AppText>
+            <AppText variant="micro" color={colors.inkFaint}>
+              Menú diario de aprovechamiento
+            </AppText>
+          </View>
+        </View>
+        <Icon name="chevron-forward" size={18} color={colors.inkFaint} />
+      </Pressable>
+
       <Button
         label="Actualizar briefing"
         icon="refresh"
         variant="secondary"
         onPress={refetch}
-        style={{ marginTop: spacing.xl }}
+        style={{ marginTop: spacing.md }}
       />
     </Screen>
   );

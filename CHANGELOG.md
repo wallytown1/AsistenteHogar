@@ -6,9 +6,14 @@ Formato: `[FECHA] [ÁREA] [TIPO] Descripción`
 
 ---
 
-## [2026-06-19] — Auditoría UI + FlatList PantryScreen + seed recetario
+## [2026-06-19] — PlanComidaScreen + Auditoría UI + FlatList PantryScreen + seed recetario
 
 ### Frontend (ts:check 0 errores · ESLint + Prettier OK)
+
+**Pantalla Plan de la semana**
+- **ADD** `screens/PlanComidaScreen.tsx` — pantalla dedicada para el plan semanal de comidas. Muestra 7 días (comida + cena por día) en tarjetas con FlatList. `AIDisclaimerBanner` si generado por IA. Estado vacío, loading y error con reintento. Botón de regenerar en header. `timeoutMs: TIMEOUT.AI`.
+- **MOD** `navigation/AppNavigator.tsx` — nueva ruta `PlanComidas` en el Stack (slide_from_right). Import de `PlanComidaScreen`.
+- **MOD** `screens/DashboardScreen.tsx` — tarjeta "Plan de la semana" Pressable bajo las alertas de despensa; navega a `PlanComidas`. Import de `useNavigation`.
 
 **Auditoría de accesibilidad y touch targets (mobile-app-design skill)**
 - **FIX** `src/theme/tokens.ts` — `micro` fontSize 10 → 11pt (mínimo WCAG; 10pt era demasiado pequeño).

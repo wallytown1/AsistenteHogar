@@ -17,6 +17,11 @@
 - **FIX** `screens/OnboardingScreen.tsx`: copy actualizado post-Pivote2 + `hitSlop` 8→19pt.
 - **FIX** `screens/OnboardingProfileScreen.tsx`: «Ahora no» 36→44pt + `accessibilityLabel`.
 
+### Plan de la semana — nueva pantalla
+- **ADD** `screens/PlanComidaScreen.tsx`: pantalla dedicada al plan semanal de aprovechamiento (7 días × comida/cena). FlatList de tarjetas con icono sol/luna, `AIDisclaimerBanner`, estados loading/error/vacío, botón regenerar en header.
+- **MOD** `navigation/AppNavigator.tsx`: ruta `PlanComidas` en Stack + import.
+- **MOD** `screens/DashboardScreen.tsx`: tarjeta Pressable "Plan de la semana" → navega a `PlanComidas`.
+
 ### Tests
 - **ADD** `backend/smoke_test_lista_compra.py`: 27/27 checks — CRUD lista de la compra + borrado masivo + aislamiento multi-tenant.
 
