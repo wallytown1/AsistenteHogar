@@ -11,11 +11,12 @@ export interface SemaforoCaducidad {
 
 /**
  * Devuelve el nivel del semáforo de caducidad según los días restantes.
- * Umbrales alineados con las alertas del backend (≤6 días) y notificaciones locales (≤3 días).
+ * `umbral` (default 6) define cuándo empieza "Consumir pronto"; es configurable por el usuario.
+ * El borde "urgente" (≤3 días) es fijo — siempre requiere atención inmediata.
  * Pasa null para artículos sin fecha de caducidad → siempre "fresco".
  */
-export function getSemaforoCaducidad(dias: number | null): SemaforoCaducidad {
-  if (dias === null || dias > 6) {
+export function getSemaforoCaducidad(dias: number | null, umbral = 6): SemaforoCaducidad {
+  if (dias === null || dias > umbral) {
     return {
       nivel: 'fresco',
       color: colors.success,
@@ -23,7 +24,7 @@ export function getSemaforoCaducidad(dias: number | null): SemaforoCaducidad {
       etiqueta: 'Fresco',
     };
   }
-  if (dias >= 4) {
+  if (dias > 3) {
     return {
       nivel: 'pronto',
       color: colors.warning,

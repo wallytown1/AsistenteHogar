@@ -37,6 +37,7 @@ import { getCategoriaIcon } from '../lib/categoria';
 import { getSemaforoCaducidad } from '../lib/caducidad';
 import { haptics } from '../lib/haptics';
 import { usePurchasesStore } from '../state/purchasesStore';
+import { usePantrySettingsStore } from '../state/pantrySettingsStore';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
@@ -44,9 +45,9 @@ const UMBRAL_BAJO_STOCK = 1;
 
 type OcrItem = AlimentoInterpretado & { seleccionado: boolean };
 
-function getItemStatus(item: AlimentoItem): { text: string; color: string } {
+function getItemStatus(item: AlimentoItem, umbral: number): { text: string; color: string } {
   const dias = getDiasParaCaducar(item.fecha_caducidad);
-  const semaforo = getSemaforoCaducidad(dias);
+  const semaforo = getSemaforoCaducidad(dias, umbral);
   if (semaforo.nivel !== 'fresco') return { text: semaforo.etiqueta, color: semaforo.color };
   if (item.cantidad <= UMBRAL_BAJO_STOCK) return { text: 'Bajo stock', color: colors.danger };
   return { text: 'Stock correcto', color: colors.success };
@@ -71,6 +72,7 @@ export default function PantryScreen() {
   const [modalVisible, setModalVisible] = useState(false);
 
   const isPremium = usePurchasesStore((s) => s.isPremium);
+  const diasUmbral = usePantrySettingsStore((s) => s.diasUmbral);
   const navigation = useNavigation<NativeStackNavigationProp<any>>();
 
   const checkPremiumGate = () => {
@@ -729,7 +731,7 @@ export default function PantryScreen() {
           </Card>
         ) : (
           itemsFiltrados.map((item) => {
-            const status = getItemStatus(item);
+            const status = getItemStatus(item, diasUmbral);
             const isSelected = selectedItems.includes(item.id);
             return (
               <Card key={item.id} padding={spacing.lg} style={{ marginBottom: spacing.md }}>

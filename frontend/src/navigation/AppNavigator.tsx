@@ -19,6 +19,7 @@ import RecipeDetailScreen from '../screens/RecipeDetailScreen';
 import { RecetaSugerida } from '../types/types';
 import { useAuthStore } from '../state/authStore';
 import { usePurchasesStore } from '../state/purchasesStore';
+import { usePantrySettingsStore } from '../state/pantrySettingsStore';
 import { useOnboarding } from '../hooks/useOnboarding';
 import { colors } from '../theme/tokens';
 
@@ -140,6 +141,7 @@ export default function AppNavigator() {
   const usuario = useAuthStore((s) => s.usuario);
   const hydrated = useAuthStore((s) => s.hydrated);
   const hydrate = useAuthStore((s) => s.hydrate);
+  const hydratePantrySettings = usePantrySettingsStore((s) => s.hydrate);
   const configure = usePurchasesStore((s) => s.configure);
   const isConfigured = usePurchasesStore((s) => s.isConfigured);
   const logIn = usePurchasesStore((s) => s.logIn);
@@ -160,7 +162,8 @@ export default function AppNavigator() {
 
   useEffect(() => {
     hydrate();
-  }, [hydrate]);
+    hydratePantrySettings();
+  }, [hydrate, hydratePantrySettings]);
 
   useEffect(() => {
     hasSeenOnboarding().then((seen) => {

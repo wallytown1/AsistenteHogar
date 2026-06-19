@@ -6,6 +6,17 @@ Formato: `[FECHA] [ÁREA] [TIPO] Descripción`
 
 ---
 
+## [2026-06-19] — Mejora #7: umbral de caducidad configurable por hogar
+
+### Frontend (ts:check 0 errores)
+- **ADD** `state/pantrySettingsStore.ts` — Zustand store con `diasUmbral` (default 6 días), persistido en `expo-secure-store`. Expone `OPCIONES_UMBRAL = [3, 6, 10, 14]` y `hydrate()`.
+- **MOD** `lib/caducidad.ts` — `getSemaforoCaducidad(dias, umbral = 6)` acepta umbral configurable. El borde "urgente" (≤3 días) es fijo; "Consumir pronto" empieza en `dias > 3 && dias <= umbral`.
+- **MOD** `screens/PantryScreen.tsx` — lee `diasUmbral` del store y lo pasa a `getItemStatus(item, umbral)`.
+- **MOD** `screens/SettingsScreen.tsx` — tarjeta «Despensa» con Chip picker 3d / 6d / 10d / 14d. El valor se persiste y se aplica inmediatamente al semáforo del inventario.
+- **MOD** `navigation/AppNavigator.tsx` — `hydratePantrySettings()` en el mismo `useEffect` que `hydrate()` de auth.
+
+---
+
 ## [2026-06-18] — Foto de nevera: UI completa en PantryScreen
 
 ### Frontend (ts:check 0 errores)

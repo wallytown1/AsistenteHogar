@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { View } from 'react-native';
 import { useAuthStore } from '../state/authStore';
+import { usePantrySettingsStore, OPCIONES_UMBRAL } from '../state/pantrySettingsStore';
 import { colors, radius, spacing } from '../theme/tokens';
-import { Screen, Card, Button, Field, AppText, Icon } from '../components/ui';
+import { Screen, Card, Button, Field, AppText, Icon, Chip } from '../components/ui';
 import { haptics } from '../lib/haptics';
 
 /**
@@ -19,6 +20,9 @@ export default function SettingsScreen() {
   const hogar = useAuthStore((s) => s.hogar);
   const logout = useAuthStore((s) => s.logout);
   const deleteAccount = useAuthStore((s) => s.deleteAccount);
+
+  const diasUmbral = usePantrySettingsStore((s) => s.diasUmbral);
+  const setDiasUmbral = usePantrySettingsStore((s) => s.setDiasUmbral);
 
   const [confirmando, setConfirmando] = useState(false);
   const [password, setPassword] = useState('');
@@ -117,6 +121,34 @@ export default function SettingsScreen() {
         <AppText variant="micro" color={colors.inkMuted} center style={{ marginTop: spacing.sm }}>
           Tus datos se conservan; podrás volver a entrar cuando quieras.
         </AppText>
+      </Card>
+
+      {/* Tarjeta: Despensa */}
+      <Card style={{ marginBottom: spacing.lg }}>
+        <View
+          style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: spacing.sm }}
+        >
+          <Icon name="time-outline" size={18} color={colors.pantry} />
+          <AppText variant="h2">Despensa</AppText>
+        </View>
+        <AppText variant="caption" color={colors.inkMuted} style={{ marginBottom: spacing.md }}>
+          Mostrar «Consumir pronto» cuando quedan…
+        </AppText>
+        <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+          {OPCIONES_UMBRAL.map((dias) => (
+            <Chip
+              key={dias}
+              label={`${dias}d`}
+              active={diasUmbral === dias}
+              onPress={() => {
+                haptics.selection();
+                setDiasUmbral(dias);
+              }}
+              activeColor={colors.pantry}
+              flex
+            />
+          ))}
+        </View>
       </Card>
 
       {/* Tarjeta: Zona de peligro */}
