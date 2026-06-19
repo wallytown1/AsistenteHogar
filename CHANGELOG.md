@@ -6,6 +6,28 @@ Formato: `[FECHA] [ÁREA] [TIPO] Descripción`
 
 ---
 
+## [2026-06-19] — Fase 4: Recetario en prompts + ajuste de perfil al rechazar receta
+
+### Backend (7/7 smoke suites sin regresiones)
+
+**4a — Inyección del recetario maestro en prompts LLM**
+- **ADD** `services/llm.py` — `_bloque_recetario(recetario)`: construye el bloque de referencia del recetario maestro para el prompt. Limita a 15 recetas activas, marca `[aprovechamiento]`. Cadena vacía si el catálogo está vacío → sin impacto en comportamiento actual.
+- **MOD** `services/llm.py` — `generate_recipe_suggestions` y `generate_meal_plan` aceptan nuevo parámetro opcional `recetario: list[RecetaMaestraResponse] | None`. El bloque entra en `prompt_usuario` → forma parte de la clave de caché SHA-256 (cambios en catálogo invalidan caché automáticamente).
+- **ADD** `api/deps.py` — `get_recetario_repo()`: dependencia FastAPI para `RecetaMaestraRepository`.
+- **MOD** `api/routers/pantry.py` — `GET /pantry/recetas`, `/plan-comidas`, `/sugerencias` inyectan `recetario_repo` y pasan el catálogo activo a las funciones LLM.
+
+**4b — Ajuste de perfil al rechazar ingrediente**
+- **ADD** `services/llm.py` — `identify_rejected_ingredients(nombre_receta, ingredientes, excluir_actuales)`: llama a Gemini con structured output para identificar el ingrediente problemático. Devuelve `[]` sin API key (graceful degradation). Sin caché (llamada barata, contexto variable). Filtra ingredientes ya excluidos para evitar duplicados.
+- **ADD** `schemas/schemas.py` — `RechazarIngredienteRequest` / `RechazarIngredienteResponse`. `extra='forbid'`. Validator en `ingredientes_receta` (no vacía).
+- **ADD** `api/routers/historial.py` — `POST /pantry/recetas/rechazar-ingrediente`: valida que `perfil_id` pertenece al hogar del JWT (→ 404 si no), llama al LLM, actualiza `excluir_ingredientes` del perfil si hay ingredientes nuevos. Escritura de bajo riesgo + reversible (sin rate limit propio).
+
+### Frontend (ts:check 0 errores · ESLint + Prettier OK)
+- **ADD** `hooks/usePerfiles.ts` — hook de carga única al montar; devuelve `{ perfiles, loading }`.
+- **ADD** `types/types.ts` — interfaz `RechazarIngredienteResponse`.
+- **MOD** `screens/RecipeDetailScreen.tsx` — `handleRechazada` extendido: si 0 perfiles → back directo; 1 perfil → ajuste automático; >1 perfiles → `Alert` selector. `enviarRechazo()` llama al nuevo endpoint y muestra Alert con "Deshacer" (PATCH `/perfiles/{id}` con lista revertida) si se guardaron ingredientes. Todo best-effort: errores silenciosos para no bloquear el flujo de rechazo.
+
+---
+
 ## [2026-06-19] — Fase 3: Perfiles individuales de miembros del hogar
 
 ### Backend (smoke_test_perfiles.py: 20/20 · suites existentes sin regresiones)

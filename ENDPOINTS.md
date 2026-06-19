@@ -240,6 +240,39 @@ Borrado lógico (`is_deleted = true`). Las preferencias dejan de influir en las 
 
 ---
 
+## Ajuste de perfil al rechazar ingrediente (Fase 4b)
+
+### `POST /api/v1/pantry/recetas/rechazar-ingrediente` 🔒
+Identifica los ingredientes problemáticos de una receta rechazada (vía Gemini structured output)
+y los añade a `excluir_ingredientes` del perfil individual indicado.
+Escritura de **bajo riesgo y reversible**: el frontend ofrece undo visible.
+`perfil_id` debe pertenecer al hogar del JWT (→ **404** si no).
+Sin API key, devuelve respuesta vacía (`ingredientes_anadidos=[]`, `generado_por_ia=false`) sin error.
+
+**Body** (`RechazarIngredienteRequest`):
+```json
+{
+  "nombre_receta": "Tortilla de bacalao",
+  "ingredientes_receta": ["bacalao", "huevos", "patatas"],
+  "perfil_id": "uuid-del-perfil"
+}
+```
+**200** → `RechazarIngredienteResponse`:
+```json
+{
+  "perfil_id": "uuid-del-perfil",
+  "nombre_perfil": "Ana",
+  "ingredientes_anadidos": ["bacalao"],
+  "excluir_ingredientes_actualizado": ["cilantro", "bacalao"],
+  "generado_por_ia": true,
+  "mensaje": null
+}
+```
+Si la IA no identifica ingredientes: `ingredientes_anadidos=[]`, `generado_por_ia=false`, `mensaje="No se identificaron ingredientes problemáticos."`. No escribe en BD.
+**404** perfil inexistente o de otro hogar · **422** validación.
+
+---
+
 ## Panel de Administración (Fase 2)
 
 > Rutas exclusivas del super-admin. Usan un JWT firmado con **`ADMIN_JWT_SECRET_KEY`**, secreto

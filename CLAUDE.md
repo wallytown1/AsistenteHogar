@@ -276,7 +276,7 @@ Generate secrets: `python -c "import secrets; print(secrets.token_hex(48))"`
 - ✅ **Fase 3** — `perfiles_individuales`: preferencias culinarias por miembro (máx. 10/hogar, solo datos gastronómicos). CRUD completo + inyección en prompts LLM. Migración `a5b3c1d9e7f2`.
 
 **Próximas fases:**
-- ⏳ **Fase 4** — Inyección del `recetario_maestro` en prompts vía Gemini context caching + function calling (ajuste de perfil al rechazar ingredientes).
+- ✅ **Fase 4** — Inyección del `recetario_maestro` en prompts (`_bloque_recetario` en `llm.py`, catálogo vacío → sin impacto) + `POST /pantry/recetas/rechazar-ingrediente` (Gemini identifica ingrediente problemático → añade a `excluir_ingredientes` del perfil individual; undo visible en frontend). Sin context caching por ahora (catálogo vacío).
 - ⏳ **Fase 5** — RevenueCat 3 tiers + flujos A/B/C completos. Bloqueada: requiere `REVENUECAT_SECRET_KEY`.
 - ⏳ **F6 — EAS Build**: production build con EAS, iconos/splash reales, plugin `expo-notifications` + permisos de micrófono y cámara en `app.json`, App Store Connect + Google Play.
 
