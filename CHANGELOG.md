@@ -6,6 +6,34 @@ Formato: `[FECHA] [ÁREA] [TIPO] Descripción`
 
 ---
 
+## [2026-06-20] — Bloque A: JTI blocklist + webhook RC + admin panel Vercel
+
+### Seguridad (backend)
+
+- **ADD** `backend/app/core/token_blocklist.py` — `revoke_token(jti, exp)` / `is_token_revoked(jti)` con Redis TTL; fallback en memoria sin Redis.
+- **MOD** `backend/app/core/security.py` — `create_access_token` añade claim `jti: uuid4()` a cada token emitido.
+- **MOD** `backend/app/api/deps.py` — `get_current_user` verifica el blocklist tras decodificar; tokens revocados → 401 inmediato aunque no hayan expirado.
+- **ADD** `POST /api/v1/auth/logout` — invalida el JTI actual en Redis y devuelve `LogoutResponse`. Tokens de otros usuarios no se ven afectados.
+- **MOD** `backend/app/schemas/schemas.py` — `LogoutResponse` añadido.
+- **MOD** `backend/smoke_test_auth.py` — 4 checks nuevos: logout 200, token revocado 401, token ajeno no afectado. Total: 16/16.
+
+### Webhook RevenueCat
+
+- **MOD** `backend/app/core/config.py` — `REVENUECAT_WEBHOOK_SECRET` configurable.
+- **MOD** `backend/app/services/premium.py` — `invalidate_tier_cache(app_user_id)` borra `tier:{id}` de Redis.
+- **ADD** `backend/app/api/routers/webhooks.py` — `POST /api/v1/webhooks/revenuecat`: verifica firma Bearer, invalida cache en `INITIAL_PURCHASE / RENEWAL / CANCELLATION / EXPIRATION / BILLING_ISSUE / PRODUCT_CHANGE`; devuelve 501 sin secreto configurado.
+- **MOD** `backend/app/main.py` — webhook router registrado.
+- **MOD** `backend/.env.example` — `REVENUECAT_WEBHOOK_SECRET` documentado.
+
+### Admin panel — Vercel
+
+- **ADD** `admin-web/nixpacks.toml` — build/start explícitos para despliegue en Railway/Vercel.
+- Panel desplegado en **https://admin-web-theta-pink.vercel.app** (Next.js, Vercel free tier).
+- `ALLOWED_ORIGINS=https://admin-web-theta-pink.vercel.app` añadido en Railway para resolver CORS.
+- Bootstrap del admin: `POST /api/v1/admin/auth/bootstrap` con `ADMIN_BOOTSTRAP_TOKEN` de Railway.
+
+---
+
 ## [2026-06-20] — Fase 5: RevenueCat 3 tiers Free/Premium/Familia
 
 ### Backend

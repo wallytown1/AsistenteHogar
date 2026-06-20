@@ -55,6 +55,12 @@ El mensaje de error no distingue entre email inexistente y contraseña errónea
 **Body** (`LoginRequest`): `{ "email": "...", "password": "..." }`
 **200** → `TokenResponse` · **401** credenciales incorrectas · **429** rate limit.
 
+### `POST /api/v1/auth/logout` 🔒
+Invalida el token actual en el servidor (JTI blocklist en Redis, TTL = tiempo restante del token).
+El cliente debe descartar el token localmente. Cualquier petición posterior con ese token devuelve 401
+aunque el token no haya expirado. Los tokens de otros dispositivos no se ven afectados.
+**200** → `LogoutResponse` `{ "success": true, "message": "Sesión cerrada correctamente." }` · **401** token ya revocado o inválido.
+
 ### `GET /api/v1/auth/me` 🔒
 Devuelve el perfil del usuario autenticado.
 **200** → `UsuarioResponse` · **401** sin token.
@@ -413,6 +419,21 @@ Actualización parcial (`RecetaMaestraUpdate`, todos los campos opcionales).
 #### `DELETE /api/v1/admin/recetario/{receta_id}` 🔑
 Elimina la receta de forma definitiva (hard delete — sin datos personales).
 **200** → `{ "success": true }` · **404** no encontrada.
+
+---
+
+## Webhooks
+
+### `POST /api/v1/webhooks/revenuecat` (sin auth de usuario)
+Recibe eventos de suscripción de RevenueCat e invalida el cache de tier en Redis para que
+la siguiente petición del usuario re-consulte el tier real (sin esperar el TTL de 5 min).
+Autenticación: `Authorization: Bearer <REVENUECAT_WEBHOOK_SECRET>`.
+Sin `REVENUECAT_WEBHOOK_SECRET` configurado → **501**.
+Firma incorrecta → **401**.
+Eventos procesados: `INITIAL_PURCHASE`, `RENEWAL`, `PRODUCT_CHANGE`, `CANCELLATION`,
+`EXPIRATION`, `BILLING_ISSUE`, `SUBSCRIBER_ALIAS`. Otros eventos → ignorados (200 `action: ignored`).
+**200** → `{ "ok": true, "action": "cache_invalidated", "event_type": "RENEWAL" }`.
+Configurar en RC: Integrations → Webhooks → URL: `https://asistentehogar-production.up.railway.app/api/v1/webhooks/revenuecat`.
 
 ---
 
