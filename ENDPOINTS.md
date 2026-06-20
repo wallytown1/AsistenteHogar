@@ -104,17 +104,29 @@ Inventario activo y métricas de stock.
 **200** → `PantryStockMetrics` `{ porcentaje_stock, items_disponibles, alertas_caducidad[], items[] }`.
 `alertas_caducidad` incluye los alimentos que caducan en ≤6 días.
 
-### `GET /api/v1/pantry/recetas` 🔒
+### `GET /api/v1/pantry/recetas/basicas` 🔒 `[FREE]`
+Catálogo estático de recetas del recetario maestro, sin IA. Disponible en todos los tiers.
+**200** → `RecetasSugeridasResponse` `{ recetas[], generado_por_ia: false, mensaje }`.
+
+### `GET /api/v1/pantry/recetas` 🔒 `[PREMIUM+]`
 Sugerencias de recetas por IA a partir del inventario (prioriza lo que caduca).
 IA pasiva: solo sugiere. Sin API key devuelve lista vacía con mensaje.
 **200** → `RecetasSugeridasResponse` `{ recetas[], generado_por_ia, mensaje }`.
 Rate limit: 20/hora por IP (**429** al exceder). Cacheado 1 h.
+**402** si el tier del usuario es `free`.
 
-### `GET /api/v1/pantry/plan-comidas` 🔒
+### `GET /api/v1/pantry/plan-comidas` 🔒 `[FAMILIA]`
 Plan de comidas semanal (comida + cena, 7 días) por IA a partir de la despensa,
 priorizando lo que caduca. IA pasiva: solo sugiere.
 **200** → `PlanComidasResponse` `{ dias[] {dia, comida, cena}, generado_por_ia, mensaje }`.
 Rate limit: 10/hora por IP. Cacheado 2 h.
+**402** si el tier del usuario es `free` o `premium`.
+
+### `GET /api/v1/pantry/sugerencias` 🔒 `[FAMILIA]`
+Combo: recetas IA + plan de comidas en una sola llamada (`asyncio.gather`). Devuelve ambos.
+**200** → `SugerenciasResponse` `{ recetas: RecetasSugeridasResponse, plan_comidas: PlanComidasResponse }`.
+Rate limit: comparte límites de `/pantry/recetas` (20/h) y `/pantry/plan-comidas` (10/h).
+**402** si el tier del usuario es `free` o `premium`.
 
 ### `POST /api/v1/pantry/interpretar` 🔒
 Interpreta lenguaje natural y devuelve **propuestas** de uno o varios productos
@@ -212,8 +224,8 @@ el `extra='forbid'` rechaza esos campos si llegan por error.
 Lista los perfiles activos del hogar ordenados por fecha de creación.
 **200** → `list[PerfilIndividualResponse]` (vacío si no hay perfiles).
 
-### `POST /api/v1/perfiles` 🔒
-Crea un nuevo perfil individual.
+### `POST /api/v1/perfiles` 🔒 `[FAMILIA]`
+Crea un nuevo perfil individual. Requiere tier Familia (402 si premium o free).
 
 **Body** (`PerfilIndividualCreate`):
 ```json

@@ -6,6 +6,31 @@ Formato: `[FECHA] [ÁREA] [TIPO] Descripción`
 
 ---
 
+## [2026-06-20] — Fase 5: RevenueCat 3 tiers Free/Premium/Familia
+
+### Backend
+
+- **MOD** `backend/app/services/premium.py` — reescrito con sistema de tiers: `TIER_FREE / TIER_PREMIUM / TIER_FAMILIA`. `is_premium()` devuelve `True` para premium y familia. `is_familia()` solo para familia. Redis cache por `tier:{app_user_id}` TTL 300 s. Fail-open a `TIER_FAMILIA` en error de RC. Sin `REVENUECAT_SECRET_KEY` → `TIER_FAMILIA` (dev mode).
+- **ADD** `deps.py` → `requiere_familia` — dependencia FastAPI que lanza HTTP 402 si el tier del usuario < familia.
+- **MOD** `backend/app/core/config.py` — `REVENUECAT_FAMILIA_ENTITLEMENT` configurable (default `"familia"`).
+- **MOD** `backend/app/api/routers/pantry.py` — nuevo `GET /pantry/recetas/basicas` (free, sin IA, catálogo estático); `/pantry/plan-comidas` y `/pantry/sugerencias` ahora requieren `requiere_familia`; `/pantry/recetas` mantiene `requiere_premium`.
+- **MOD** `backend/app/api/routers/perfiles.py` — `POST /perfiles` ahora requiere `requiere_familia`.
+- **MOD** 9 smoke tests — añadido `os.environ["REVENUECAT_SECRET_KEY"] = ""` antes de cualquier import para aislar el gate en tests.
+
+### Frontend
+
+- **MOD** `frontend/src/state/purchasesStore.ts` — añadido `isFamilia: boolean`; `checkPremium` → `checkEntitlements`; lógica `familia ⊃ premium` en `_computeTiers`.
+- **MOD** `frontend/src/screens/PaywallScreen.tsx` — rediseño completo con 3 cards (Gratis/Premium/Familia). Badge «Plan actual» en tier activo; badge «MEJOR VALOR» en Familia; mapea `PACKAGE_TYPE.MONTHLY` → premium, `PACKAGE_TYPE.ANNUAL` → familia.
+- **MOD** `frontend/src/screens/DashboardScreen.tsx` — «Plan de la semana» navega a `Paywall` si `!isFamilia`; icono `lock-closed-outline` y texto «Plan Familia · Desbloquear».
+- **MOD** `frontend/src/screens/PantryScreen.tsx` — bifurca fetch: familia → `/pantry/sugerencias`, premium → `/pantry/recetas`, free → `/pantry/recetas/basicas`. Empty state con botón «Ver catálogo» para usuarios free.
+- **MOD** `frontend/src/screens/SettingsScreen.tsx` — «Miembros del hogar» muestra upsell + icono lock si `!isFamilia`; botón «Añadir» solo visible con tier familia.
+
+### Documentación
+
+- **MOD** `CLAUDE.md` — animaciones UI, onboarding hero images, corrección estado F6, Fase 5 añadida a fases completadas.
+
+---
+
 ## [2026-06-19] (sesión noche) — smoke test rechazar-ingrediente + CI completo + CLAUDE.md
 
 ### Tests

@@ -49,7 +49,7 @@ graph TB
     end
 
     Gemini["☁️ Gemini 2.5 Flash<br/>structured output · vision · context caching [Fase 4]"]
-    RC["💳 RevenueCat<br/>Free / Premium1 / Premium2"]
+    RC["💳 RevenueCat<br/>Free / Premium / Familia"]
 
     Home & Desp & Chat & Ajustes -->|Bearer JWT familia| API
     AdmRec & AdmPrompt -->|Bearer JWT admin| RAdmin
@@ -119,9 +119,12 @@ sequenceDiagram
 
 | Tier | Precio | Incluye |
 |---|---|---|
-| **Free** | 0 € | Recetario maestro + stock manual + 3-5 créditos IA/mes |
-| **Premium 1** | 1,99 €/mes | Escaneo de tickets, foto de nevera y chat con el chef ilimitados |
-| **Premium 2** | 4,99 €/mes | Todo lo anterior + planificador semanal de aprovechamiento + analítica nutricional invisible |
+| **Free** | 0 € | Despensa CRUD, briefing diario, recetas catálogo (`/pantry/recetas/basicas`), lista de la compra |
+| **Premium** | mensual | Free + recetas IA (`/pantry/recetas`), OCR ticket, audio NL, foto nevera, sugerir-metadata |
+| **Familia** | anual | Premium + plan semanal (`/pantry/plan-comidas`, `/pantry/sugerencias`) + perfiles individuales |
+
+`is_premium()` devuelve `True` para Premium y Familia. `is_familia()` solo para Familia.
+Gate server-side en `premium.py`: Redis cache TTL 300 s; fail-open a `TIER_FAMILIA` en error RC; sin `REVENUECAT_SECRET_KEY` → `TIER_FAMILIA` (dev mode).
 
 ## Estado por fases
 
@@ -129,4 +132,4 @@ sequenceDiagram
 - **Fase 2 (hecha):** `recetario_maestro` + `prompt_templates` dinámicos desde BD con caché TTL + panel admin Next.js (`admin-web/`). Commit `92609b5`.
 - **Fase 3 (hecha):** `perfiles_individuales` — preferencias culinarias por miembro del hogar (solo datos gastronómicos, no alergias médicas — RGPD art. 9). CRUD completo + límite 10/hogar + aislamiento multi-tenant + inyección en prompts LLM. Commit `8107fe5`.
 - **Fase 4 (hecha):** `_bloque_recetario` en `llm.py` inyecta hasta 15 recetas del `recetario_maestro` en los prompts. `seed_recetario.py` carga 15 recetas mediterráneas base (idempotente). `POST /pantry/recetas/rechazar-ingrediente` añade ingrediente a `excluir_ingredientes` del perfil individual. Lista de la compra: tabla `lista_compra` + 5 endpoints bajo `/lista-compra` + `ShoppingListScreen`.
-- **Fase 5:** RevenueCat 3 tiers + flujos A/B/C completos.
+- **Fase 5 (hecha):** RevenueCat 3 tiers Free/Premium/Familia. Gate server-side (`premium.py` + `requiere_premium`/`requiere_familia` deps). Frontend: `purchasesStore` con `isFamilia`, `PaywallScreen` 3 cards, bifurcación de fetch por tier en `PantryScreen`. Commit `15eaf0d`.
