@@ -1,12 +1,5 @@
 import React, { useState } from 'react';
-import {
-  View,
-  KeyboardAvoidingView,
-  ScrollView,
-  Platform,
-  Alert,
-  Pressable,
-} from 'react-native';
+import { View, KeyboardAvoidingView, ScrollView, Platform, Alert, Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { apiRequest } from '../api/api';
 import { useAuthStore } from '../state/authStore';
@@ -34,7 +27,8 @@ export default function AuthScreen() {
     if (!email.trim().includes('@')) return 'Introduce un email válido.';
     if (password.length < 8) return 'La contraseña debe tener al menos 8 caracteres.';
     if (esRegistro && nombre.trim().length < 2) return 'Introduce tu nombre (mínimo 2 caracteres).';
-    if (esRegistro && nombreHogar.trim().length < 2) return 'Introduce el nombre del hogar (mínimo 2 caracteres).';
+    if (esRegistro && nombreHogar.trim().length < 2)
+      return 'Introduce el nombre del hogar (mínimo 2 caracteres).';
     return null;
   };
 
@@ -75,7 +69,10 @@ export default function AuthScreen() {
     }
   };
 
-  const seleccionarModo = (m: Modo) => { haptics.selection(); setModo(m); };
+  const seleccionarModo = (m: Modo) => {
+    haptics.selection();
+    setModo(m);
+  };
 
   return (
     <KeyboardAvoidingView
@@ -95,24 +92,44 @@ export default function AuthScreen() {
       >
         {/* Cabecera de marca */}
         <View style={{ alignItems: 'center', marginBottom: spacing.xxxl }}>
-          <View style={{ width: 72, height: 72, borderRadius: radius.xl, backgroundColor: colors.brand, alignItems: 'center', justifyContent: 'center', marginBottom: spacing.lg }}>
+          <View
+            style={{
+              width: 72,
+              height: 72,
+              borderRadius: radius.xl,
+              backgroundColor: colors.brand,
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginBottom: spacing.lg,
+            }}
+          >
             <Icon name="home" size={34} color={colors.white} />
           </View>
-          <AppText variant="title">Asistente del Hogar</AppText>
+          <AppText variant="title">Fogón</AppText>
           <AppText variant="caption" color={colors.inkMuted} center style={{ marginTop: 4 }}>
             {esRegistro ? 'Crea tu hogar y empieza a organizarlo' : 'Inicia sesión en tu hogar'}
           </AppText>
         </View>
 
         {/* Selector login / registro */}
-        <View style={{ flexDirection: 'row', backgroundColor: colors.track, borderRadius: radius.pill, padding: 4, marginBottom: spacing.xxl }}>
+        <View
+          style={{
+            flexDirection: 'row',
+            backgroundColor: colors.track,
+            borderRadius: radius.pill,
+            padding: 4,
+            marginBottom: spacing.xxl,
+          }}
+        >
           {(['login', 'registro'] as Modo[]).map((m) => {
             const activo = modo === m;
             return (
               <Pressable
                 key={m}
                 onPress={() => seleccionarModo(m)}
-                accessibilityLabel={m === 'login' ? 'Cambiar a inicio de sesión' : 'Cambiar a registro de hogar'}
+                accessibilityLabel={
+                  m === 'login' ? 'Cambiar a inicio de sesión' : 'Cambiar a registro de hogar'
+                }
                 style={{
                   flex: 1,
                   borderRadius: radius.pill,
