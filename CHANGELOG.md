@@ -6,6 +6,25 @@ Formato: `[FECHA] [ÁREA] [TIPO] Descripción`
 
 ---
 
+## [2026-06-20] — EAS: primer build de Android verde (APK preview)
+
+### Frontend (deps)
+
+- **FIX** `frontend/package.json` — añadir `overrides: { eslint-import-resolver-typescript: "3.6.3" }`: la 3.7+ adopta `unrs-resolver` con bindings nativas opcionales por plataforma que rompían `npm ci` en el Linux de EAS (lockfile generado en Windows omitía variantes). Elimina el subárbol `@unrs/*` + `@emnapi/*`.
+- **ADD** `@expo/vector-icons@^15.0.3` como dependencia explícita (phantom dep usada por `components/ui/Icon`; npm 11 dejó de hoistearla).
+- **ADD** `babel-preset-expo@~54.0.10` como dependencia explícita (phantom dep usada por `babel.config.js`; rompía la fase "Bundle JavaScript").
+- **MOD** `package-lock.json` regenerado con npm 11 (consistente y multiplataforma).
+- Build resultante: `406f7c4c`, app v1.0.0 (code 1), **FINISHED** → APK instalable.
+- Diagnóstico vía `eas build:view <id> --json` (campo `logFiles`) + reproducción local con `npx expo export --platform android`.
+
+### Vercel (legal)
+
+URLs públicas confirmadas tras `vercel --prod`:
+- https://admin-web-theta-pink.vercel.app/privacidad
+- https://admin-web-theta-pink.vercel.app/terminos
+
+---
+
 ## [2026-06-20] — Legal: Privacy Policy + Términos y Condiciones
 
 ### Admin-web (Vercel)
