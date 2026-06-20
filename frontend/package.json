@@ -10,7 +10,7 @@
     "ts:check": "tsc",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "prepare": "cd .. && husky || true"
+    "prepare": "node -e \"process.env.CI || require('child_process').execSync('husky', {cwd: require('path').resolve('..'), stdio: 'inherit', shell: true})\""
   },
   "dependencies": {
     "@react-navigation/bottom-tabs": "^7.3.0",
