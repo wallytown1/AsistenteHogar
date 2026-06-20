@@ -16,6 +16,7 @@ Formato: `[FECHA] [ÁREA] [TIPO] Descripción`
 - **MOD** `package-lock.json` regenerado con npm 11 (consistente y multiplataforma).
 - Build resultante: `406f7c4c`, app v1.0.0 (code 1), **FINISHED** → APK instalable.
 - Diagnóstico vía `eas build:view <id> --json` (campo `logFiles`) + reproducción local con `npx expo export --platform android`.
+- **FIX** `frontend/eas.json` — añadir bloque `env` a los perfiles `preview` y `production` con `EXPO_PUBLIC_API_URL` (Railway prod). `.env.production` está gitignored y EAS no lo sube, así que el primer APK se horneó con la URL vacía (`API_BASE_URL=''` → fallo de red en runtime). Ahora las vars públicas van en `eas.json` (versionado). `EXPO_PUBLIC_RC_KEY` test en preview; la clave RC de producción queda pendiente.
 
 ### Vercel (legal)
 

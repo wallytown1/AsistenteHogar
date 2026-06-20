@@ -15,10 +15,17 @@
       "distribution": "internal",
       "android": {
         "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://asistentehogar-production.up.railway.app/api/v1",
+        "EXPO_PUBLIC_RC_KEY": "test_BSyECdcuqfYezxKaxRkboPzuaGc"
       }
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://asistentehogar-production.up.railway.app/api/v1"
+      }
     }
   },
   "submit": {
