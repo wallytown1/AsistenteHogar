@@ -6,13 +6,18 @@ import { useDashboard } from '../hooks/useDashboard';
 import { getDiasParaCaducar } from '../hooks/usePantry';
 import { getSemaforoCaducidad } from '../lib/caducidad';
 import { useAuthStore } from '../state/authStore';
+import { usePurchasesStore } from '../state/purchasesStore';
 import AIDisclaimerBanner from '../components/AIDisclaimerBanner';
 import { colors, radius, spacing } from '../theme/tokens';
 import { Screen, Card, IconButton, Badge, AppText, Icon, FoodIcon, Button } from '../components/ui';
 import { getCategoriaIcon } from '../lib/categoria';
 import { FadeInView } from '../animations';
 
-type NavProp = NativeStackNavigationProp<{ PlanComidas: undefined; Historial: undefined }>;
+type NavProp = NativeStackNavigationProp<{
+  PlanComidas: undefined;
+  Historial: undefined;
+  Paywall: undefined;
+}>;
 
 function formatFechaCorta(iso?: string): string {
   const d = iso ? new Date(iso) : new Date();
@@ -24,6 +29,7 @@ export default function DashboardScreen() {
   const usuario = useAuthStore((s) => s.usuario);
   const logout = useAuthStore((s) => s.logout);
   const navigation = useNavigation<NavProp>();
+  const isFamilia = usePurchasesStore((s) => s.isFamilia);
 
   const handleLogout = () => {
     Alert.alert('Cerrar sesión', '¿Deseas cerrar la sesión en este dispositivo?', [
@@ -246,10 +252,10 @@ export default function DashboardScreen() {
         </Card>
       </FadeInView>
 
-      {/* Acceso al plan de la semana */}
+      {/* Acceso al plan de la semana — exclusivo Familia */}
       <FadeInView delay={240}>
         <Pressable
-          onPress={() => navigation.navigate('PlanComidas')}
+          onPress={() => navigation.navigate(isFamilia ? 'PlanComidas' : 'Paywall')}
           accessibilityLabel="Ver plan de la semana"
           style={({ pressed }) => ({
             flexDirection: 'row',
@@ -281,11 +287,15 @@ export default function DashboardScreen() {
             <View>
               <AppText variant="captionStrong">Plan de la semana</AppText>
               <AppText variant="micro" color={colors.inkFaint}>
-                Menú diario de aprovechamiento
+                {isFamilia ? 'Menú diario de aprovechamiento' : 'Plan Familia · Desbloquear'}
               </AppText>
             </View>
           </View>
-          <Icon name="chevron-forward" size={18} color={colors.inkFaint} />
+          <Icon
+            name={isFamilia ? 'chevron-forward' : 'lock-closed-outline'}
+            size={18}
+            color={colors.inkFaint}
+          />
         </Pressable>
 
         {/* Acceso al historial de recetas */}

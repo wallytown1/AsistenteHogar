@@ -11,6 +11,7 @@ from app.api.deps import (
     get_perfiles_repo,
     get_prompt_config_service,
     get_recetario_repo,
+    requiere_familia,
     requiere_premium,
 )
 from app.core.rate_limit import (
@@ -36,6 +37,7 @@ from app.schemas.schemas import (
     PlanComidasResponse,
     RecetaMaestraResponse,
     RecetasSugeridasResponse,
+    RecetaSugerida,
     SugerenciaMetadataResponse,
     SugerenciasResponse,
     SugerirMetadataRequest,
@@ -66,6 +68,28 @@ async def get_pantry_metrics(
 ) -> PantryStockMetrics:
     """Obtiene el inventario de despensa y sus métricas de stock asociadas al Hogar."""
     return await pantry_service.get_stock_metrics(hogar_id)
+
+
+@router.get(
+    "/pantry/recetas/basicas",
+    response_model=RecetasSugeridasResponse,
+)
+async def get_recetas_basicas(
+    recetario_repo: RecetaMaestraRepository = Depends(get_recetario_repo),
+    _: uuid.UUID = Depends(get_hogar_id),
+) -> RecetasSugeridasResponse:
+    """Devuelve recetas del recetario maestro sin IA. Disponible en todos los tiers."""
+    recetas_db = await recetario_repo.list_all(activa_only=True)
+    recetas = [
+        RecetaSugerida(
+            titulo=r.nombre,
+            tiempo_min=30,
+            ingredientes_usados=r.ingredientes,
+            pasos=r.pasos,
+        )
+        for r in recetas_db
+    ]
+    return RecetasSugeridasResponse(recetas=recetas, generado_por_ia=False)
 
 
 @router.get(
@@ -106,7 +130,7 @@ async def get_recetas_sugeridas(
 @router.get(
     "/pantry/plan-comidas",
     response_model=PlanComidasResponse,
-    dependencies=[Depends(requiere_premium), Depends(plan_comidas_rate_limiter)],
+    dependencies=[Depends(requiere_familia), Depends(plan_comidas_rate_limiter)],
 )
 async def get_plan_comidas(
     hogar_id: uuid.UUID = Depends(get_hogar_id),
@@ -139,7 +163,7 @@ async def get_plan_comidas(
     "/pantry/sugerencias",
     response_model=SugerenciasResponse,
     dependencies=[
-        Depends(requiere_premium),
+        Depends(requiere_familia),
         Depends(recetas_rate_limiter),
         Depends(plan_comidas_rate_limiter),
     ],

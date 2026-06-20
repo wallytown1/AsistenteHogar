@@ -2,13 +2,70 @@ import React, { useEffect, useState } from 'react';
 import { View, StyleSheet, ScrollView, ActivityIndicator, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { PurchasesPackage } from 'react-native-purchases';
+import { PurchasesPackage, PACKAGE_TYPE } from 'react-native-purchases';
 import { Screen } from '../components/ui/Screen';
 import { AppText } from '../components/ui/AppText';
 import { Button } from '../components/ui/Button';
 import { IconButton } from '../components/ui/IconButton';
+import { Icon } from '../components/ui';
 import { colors, radius, spacing } from '../theme/tokens';
 import { usePurchasesStore } from '../state/purchasesStore';
+
+type TierKey = 'free' | 'premium' | 'familia';
+
+interface TierConfig {
+  key: TierKey;
+  label: string;
+  sublabel: string;
+  color: string;
+  colorSoft: string;
+  badge?: string;
+  features: string[];
+}
+
+const TIERS: TierConfig[] = [
+  {
+    key: 'free',
+    label: 'Gratis',
+    sublabel: 'Para siempre',
+    color: colors.inkFaint,
+    colorSoft: colors.cardAlt,
+    features: [
+      'Despensa manual (CRUD)',
+      'Briefing diario',
+      'Recetas del catálogo',
+      'Lista de la compra',
+    ],
+  },
+  {
+    key: 'premium',
+    label: 'Premium',
+    sublabel: 'Mensual',
+    color: colors.brand,
+    colorSoft: colors.brandSoft,
+    features: [
+      'Todo lo del plan Gratis',
+      'Recetas IA personalizadas',
+      'OCR de tickets de compra',
+      'Añadir por audio o texto IA',
+      'Foto de nevera con IA',
+    ],
+  },
+  {
+    key: 'familia',
+    label: 'Familia',
+    sublabel: 'Anual · mejor valor',
+    color: colors.success,
+    colorSoft: colors.successSoft,
+    badge: 'MEJOR VALOR',
+    features: [
+      'Todo lo del plan Premium',
+      'Plan semanal de comidas IA',
+      'Perfiles individuales por miembro',
+      'Personalización máxima',
+    ],
+  },
+];
 
 export default function PaywallScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<any>>();
@@ -17,9 +74,8 @@ export default function PaywallScreen() {
   const purchasePackage = usePurchasesStore((s) => s.purchasePackage);
   const restorePurchases = usePurchasesStore((s) => s.restorePurchases);
   const isPremium = usePurchasesStore((s) => s.isPremium);
+  const isFamilia = usePurchasesStore((s) => s.isFamilia);
   const [loading, setLoading] = useState(false);
-  // Identificador del paquete que se está comprando (null = ninguno), y estado
-  // independiente para "Restaurar": así el spinner solo aparece en el botón pulsado.
   const [purchasingId, setPurchasingId] = useState<string | null>(null);
   const [restoring, setRestoring] = useState(false);
   const busy = purchasingId !== null || restoring;
@@ -33,12 +89,22 @@ export default function PaywallScreen() {
     init();
   }, [loadPackages]);
 
-  // Si se vuelve premium en segundo plano o tras la compra, cerrar modal
   useEffect(() => {
-    if (isPremium) {
-      navigation.goBack();
-    }
-  }, [isPremium, navigation]);
+    if (isFamilia) navigation.goBack();
+  }, [isFamilia, navigation]);
+
+  const premiumPack = packages.find(
+    (p) =>
+      p.packageType === PACKAGE_TYPE.MONTHLY ||
+      p.identifier.includes('monthly') ||
+      p.identifier.includes('premium')
+  );
+  const familiaPack = packages.find(
+    (p) =>
+      p.packageType === PACKAGE_TYPE.ANNUAL ||
+      p.identifier.includes('annual') ||
+      p.identifier.includes('familia')
+  );
 
   const handlePurchase = async (pack: PurchasesPackage) => {
     setPurchasingId(pack.identifier);
@@ -56,9 +122,11 @@ export default function PaywallScreen() {
     if (success) {
       Alert.alert('Éxito', 'Compras restauradas correctamente.');
     } else {
-      Alert.alert('Error', 'No se han encontrado compras previas para restaurar.');
+      Alert.alert('Sin compras', 'No se han encontrado compras previas para restaurar.');
     }
   };
+
+  const currentTier: TierKey = isFamilia ? 'familia' : isPremium ? 'premium' : 'free';
 
   return (
     <View style={styles.container}>
@@ -66,49 +134,99 @@ export default function PaywallScreen() {
         <IconButton name="close" size={24} color={colors.ink} onPress={() => navigation.goBack()} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.content}>
-        <View style={styles.hero}>
-          <AppText variant="display" style={styles.title}>
-            AsistenteHogar Pro
-          </AppText>
-          <AppText variant="body" color="inkFaint" style={styles.subtitle}>
-            Desbloquea todo el poder de la Inteligencia Artificial y ahorra tiempo en tu día a día.
-          </AppText>
-        </View>
-
-        <View style={styles.featuresList}>
-          <FeatureItem icon="sparkles" text="Plan de comidas semanal generado por IA" />
-          <FeatureItem icon="fast-food" text="Categorización automática de despensa" />
-          <FeatureItem icon="chatbubbles" text="Añadir tareas en lenguaje natural" />
-          <FeatureItem icon="infinite" text="Límites extendidos de inteligencia artificial" />
-        </View>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <AppText variant="display" style={styles.title}>
+          Elige tu plan
+        </AppText>
+        <AppText variant="body" color="inkFaint" style={styles.subtitle}>
+          Desbloquea la IA para cocinar mejor con lo que tienes en casa.
+        </AppText>
 
         {loading ? (
-          <ActivityIndicator size="large" color={colors.brand} style={{ marginVertical: 30 }} />
+          <ActivityIndicator size="large" color={colors.brand} style={{ marginVertical: 40 }} />
         ) : (
-          <View style={styles.packagesContainer}>
-            {packages.map((pack) => (
-              <View key={pack.identifier} style={styles.packageCard}>
-                <View style={styles.packageInfo}>
-                  <AppText variant="h2">{pack.product.title}</AppText>
-                  <AppText variant="body" color="inkFaint">
-                    {pack.product.description}
-                  </AppText>
+          <View style={styles.tiersContainer}>
+            {TIERS.map((tier) => {
+              const isCurrent = currentTier === tier.key;
+              const pack =
+                tier.key === 'premium' ? premiumPack : tier.key === 'familia' ? familiaPack : null;
+              const price = pack ? pack.product.priceString : tier.key === 'free' ? 'Gratis' : null;
+
+              return (
+                <View
+                  key={tier.key}
+                  style={[
+                    styles.tierCard,
+                    { borderColor: isCurrent ? tier.color : colors.border },
+                    isCurrent && styles.tierCardActive,
+                  ]}
+                >
+                  {tier.badge && (
+                    <View style={[styles.badge, { backgroundColor: tier.color }]}>
+                      <AppText variant="micro" style={{ color: '#fff', fontWeight: '700' }}>
+                        {tier.badge}
+                      </AppText>
+                    </View>
+                  )}
+
+                  <View style={styles.tierHeader}>
+                    <View style={[styles.tierDot, { backgroundColor: tier.colorSoft }]}>
+                      <Icon
+                        name={
+                          tier.key === 'free'
+                            ? 'leaf-outline'
+                            : tier.key === 'premium'
+                              ? 'sparkles'
+                              : 'people'
+                        }
+                        size={18}
+                        color={tier.color}
+                      />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <AppText variant="h2" style={{ color: tier.color }}>
+                        {tier.label}
+                      </AppText>
+                      <AppText variant="micro" color="inkFaint">
+                        {tier.sublabel}
+                      </AppText>
+                    </View>
+                    {price && (
+                      <AppText variant="captionStrong" style={{ color: tier.color }}>
+                        {price}
+                      </AppText>
+                    )}
+                  </View>
+
+                  <View style={styles.featureList}>
+                    {tier.features.map((f) => (
+                      <View key={f} style={styles.featureRow}>
+                        <Icon name="checkmark-circle" size={15} color={tier.color} />
+                        <AppText variant="caption" style={styles.featureText}>
+                          {f}
+                        </AppText>
+                      </View>
+                    ))}
+                  </View>
+
+                  {isCurrent ? (
+                    <View style={[styles.currentBadge, { borderColor: tier.color }]}>
+                      <AppText variant="micro" style={{ color: tier.color, fontWeight: '700' }}>
+                        Plan actual
+                      </AppText>
+                    </View>
+                  ) : pack ? (
+                    <Button
+                      label={`Suscribirse · ${pack.product.priceString}`}
+                      onPress={() => handlePurchase(pack)}
+                      loading={purchasingId === pack.identifier}
+                      disabled={busy && purchasingId !== pack.identifier}
+                      style={{ marginTop: spacing.md }}
+                    />
+                  ) : null}
                 </View>
-                <Button
-                  label={pack.product.priceString}
-                  onPress={() => handlePurchase(pack)}
-                  loading={purchasingId === pack.identifier}
-                  disabled={busy && purchasingId !== pack.identifier}
-                  style={styles.buyButton}
-                />
-              </View>
-            ))}
-            {packages.length === 0 && (
-              <AppText variant="body" color={colors.danger} style={{ textAlign: 'center' }}>
-                No hay suscripciones disponibles en este momento.
-              </AppText>
-            )}
+              );
+            })}
           </View>
         )}
 
@@ -120,98 +238,72 @@ export default function PaywallScreen() {
           disabled={busy && !restoring}
           style={styles.restoreButton}
         />
+
+        <AppText variant="micro" color="inkFaint" style={styles.legal}>
+          Los precios pueden variar por región. Las suscripciones se renuevan automáticamente.
+          Puedes cancelar en cualquier momento desde los ajustes de tu cuenta.
+        </AppText>
       </ScrollView>
     </View>
   );
 }
 
-function FeatureItem({ icon, text }: { icon: any; text: string }) {
-  return (
-    <View style={styles.featureItem}>
-      <IconButton
-        name={icon}
-        size={24}
-        color={colors.brand}
-        bg={colors.brandSoft}
-        onPress={() => {}}
-      />
-      <AppText variant="body" style={styles.featureText}>
-        {text}
-      </AppText>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.bg,
-  },
+  container: { flex: 1, backgroundColor: colors.bg },
   header: {
     paddingHorizontal: spacing.md,
     paddingTop: spacing.xl,
     paddingBottom: spacing.sm,
     alignItems: 'flex-end',
   },
-  content: {
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.xxxl,
-  },
-  hero: {
-    alignItems: 'center',
-    marginVertical: spacing.xl,
-  },
-  title: {
-    textAlign: 'center',
-    marginBottom: spacing.sm,
-    color: colors.brand,
-  },
-  subtitle: {
-    textAlign: 'center',
-    paddingHorizontal: spacing.md,
-  },
-  featuresList: {
-    backgroundColor: colors.card,
-    borderRadius: radius.lg,
-    padding: spacing.lg,
-    marginBottom: spacing.xl,
-    shadowColor: colors.ink,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    elevation: 2,
-  },
-  featureItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: spacing.md,
-  },
-  featureText: {
-    marginLeft: spacing.md,
-    flex: 1,
-  },
-  packagesContainer: {
-    gap: spacing.md,
-    marginBottom: spacing.xl,
-  },
-  packageCard: {
+  content: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxxl },
+  title: { textAlign: 'center', marginBottom: spacing.sm, marginTop: spacing.md },
+  subtitle: { textAlign: 'center', paddingHorizontal: spacing.md, marginBottom: spacing.xl },
+  tiersContainer: { gap: spacing.md },
+  tierCard: {
     backgroundColor: colors.card,
     borderWidth: 2,
-    borderColor: colors.brand,
-    borderRadius: radius.md,
+    borderColor: colors.border,
+    borderRadius: radius.lg,
     padding: spacing.lg,
+  },
+  tierCardActive: {
+    shadowColor: colors.ink,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  badge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+    borderRadius: radius.sm,
+    marginBottom: spacing.sm,
+  },
+  tierHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    gap: spacing.md,
+    marginBottom: spacing.md,
   },
-  packageInfo: {
-    flex: 1,
-    marginRight: spacing.md,
+  tierDot: {
+    width: 36,
+    height: 36,
+    borderRadius: radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  buyButton: {
-    minWidth: 100,
+  featureList: { gap: spacing.xs },
+  featureRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  featureText: { flex: 1 },
+  currentBadge: {
+    marginTop: spacing.md,
+    borderWidth: 1,
+    borderRadius: radius.sm,
+    paddingVertical: spacing.xs,
+    alignItems: 'center',
   },
-  restoreButton: {
-    marginTop: spacing.sm,
-  },
+  restoreButton: { marginTop: spacing.xl },
+  legal: { textAlign: 'center', marginTop: spacing.lg, paddingHorizontal: spacing.md },
 });

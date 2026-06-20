@@ -227,7 +227,11 @@ All schemas extend `BaseSchema` which enforces `extra='forbid'` globally. The pa
 
 ### Frontend screens
 
-Stack navigation (`AppNavigator.tsx`) with bottom tabs (Dashboard, Despensa, Compra, Ajustes) plus these Stack screens:
+Two-layer onboarding before auth: `OnboardingScreen` (pager con hero images de `assets/onboarding/` — mercado.jpg, cocina.jpg — se marca visto en `expo-secure-store`). Después del login, `useOnboarding` hace `GET /onboarding`; si falla (404/red), monta `OnboardingProfileScreen` para capturar gustos y nº comensales (saltable).
+
+Stack navigation (`AppNavigator.tsx`) con bottom tabs (Inicio → `DashboardScreen`, Despensa → `PantryScreen`, Compra → `ShoppingListScreen`, Ajustes → `SettingsScreen`) y estas Stack screens:
+- `AuthScreen` — login/registro.
+- `PaywallScreen` — modal fullscreen RevenueCat (presentation: fullScreenModal).
 - `RecipeDetailScreen` — pasos numerados + ingredientes con checkmark + botones «Marcar cocinada»/«No me gusta».
 - `PlanComidaScreen` — plan semanal 7 días (comida/cena) con `AIDisclaimerBanner` + botón regenerar.
 - `HistorialScreen` — FlatList del historial de recetas con badges cocinada/rechazada + pull-to-refresh.
@@ -239,6 +243,7 @@ Stack navigation (`AppNavigator.tsx`) with bottom tabs (Dashboard, Despensa, Com
 - **Tokens**: `src/theme/tokens.ts` — única fuente de color, tipografía, espaciado, radios y sombras. Marca índigo `#6366F1`; acento de despensa verde. No hardcodear valores en componentes/pantallas.
 - **Componentes UI**: `src/components/ui/` (barrel en `index.ts`): `Screen` (safe-area + pull-to-refresh), `Card`, `Button`, `IconButton`, `Chip`, `StatCard`, `SectionHeader`, `Fab`, `Badge`, `EmptyState`, `Field`, `AppText`, `Icon`/`FoodIcon`. `LoadingView`/`ErrorView` se co-exportan desde `Feedback.tsx` (un solo fichero).
 - **Iconos**: vectoriales vía `@expo/vector-icons` (Ionicons + MaterialCommunityIcons para comida). Sin emoji en la UI.
+- **Animaciones**: `src/animations/index.ts` — `useFadeInFromBottom` (fade + rise, para cards y secciones async), `usePulseGlow` (loop de opacidad para badges de caducidad urgente), `FadeInView` (wrapper JSX). Usar `useNativeDriver: true` siempre.
 - **Lib utilities**: `src/lib/haptics.ts` (no-op en web), `src/lib/notifications.ts` (caducidad local), `src/lib/caducidad.ts` (`getSemaforoCaducidad(dias, umbral)` — semáforo configurable), `src/lib/categoria.ts` (`getCategoriaIcon()` — icono por categoría de alimento).
 - **Importante**: la UI ya **no usa NativeWind `className`**; todo es StyleSheet + tokens. NativeWind y Tailwind se **desinstalaron por completo** (deps + `global.css` + `tailwind.config.js` + `nativewind-env.d.ts` + cableado en `babel.config.js`/`metro.config.js`). No reintroducir `className` en pantallas.
 
@@ -307,9 +312,9 @@ Generate secrets: `python -c "import secrets; print(secrets.token_hex(48))"`
 - ✅ **Fase 3** — `perfiles_individuales`: preferencias culinarias por miembro (máx. 10/hogar, solo datos gastronómicos). CRUD completo + inyección en prompts LLM. Migración `a5b3c1d9e7f2`.
 
 **Próxima fase pendiente:**
-- ⏳ **Fase 5** — RevenueCat 3 tiers + flujos A/B/C completos. Bloqueada: requiere `REVENUECAT_SECRET_KEY`. Pendiente también `eas init` para obtener `projectId` (F6).
+- ⏳ **Fase 5** — RevenueCat 3 tiers + flujos A/B/C completos. Bloqueada: requiere `REVENUECAT_SECRET_KEY`.
 
-**Fases recientemente completadas**: Fase 4 (`rechazar-ingrediente` + inyección `recetario_maestro`), F6 (EAS Build + `eas.json`), Notificaciones locales de caducidad, Lista de la compra.
+**Fases recientemente completadas**: Fase 4 (`rechazar-ingrediente` + inyección `recetario_maestro`), F6 (EAS Build + `eas.json` + `eas init`), Notificaciones locales de caducidad, Lista de la compra, Animaciones UI + Onboarding con hero images.
 
 **Historial completo**: F0–F5, F-IA, F-IA-2, F-UI, F-LEGAL, F-AUDIT, F4 (Freemium/RevenueCat), F-AUDIT2 (server-side premium gate + Railway deploy), F-OCR, F-AGENDA, F-PIVOT #1–6, Pivote 2, Fase 2, Fase 3, Fase 4, F6, Notificaciones locales, Lista de la compra. Ver `CHANGELOG.md` para detalles.
 

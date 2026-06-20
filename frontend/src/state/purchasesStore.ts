@@ -8,27 +8,34 @@ import { Platform } from 'react-native';
 
 const RC_API_KEY = process.env.EXPO_PUBLIC_RC_KEY || '';
 
-// Referencia al listener activo para poder desuscribirlo y evitar duplicados
-// (fuga de memoria si `configure` se reejecutara o en hot-reload de desarrollo).
 let customerInfoListener: CustomerInfoUpdateListener | null = null;
 
 interface PurchasesState {
   isConfigured: boolean;
   isPremium: boolean;
+  isFamilia: boolean;
   packages: PurchasesPackage[];
   customerInfo: CustomerInfo | null;
   configure: () => Promise<void>;
   logIn: (appUserId: string) => Promise<void>;
   logOut: () => Promise<void>;
-  checkPremium: (info?: CustomerInfo) => Promise<void>;
+  checkEntitlements: (info?: CustomerInfo) => Promise<void>;
   loadPackages: () => Promise<void>;
   purchasePackage: (pack: PurchasesPackage) => Promise<boolean>;
   restorePurchases: () => Promise<boolean>;
 }
 
+function _computeTiers(info: CustomerInfo): { isPremium: boolean; isFamilia: boolean } {
+  const active = info.entitlements.active;
+  const isFamilia = active['familia'] !== undefined;
+  const isPremium = isFamilia || active['premium'] !== undefined;
+  return { isPremium, isFamilia };
+}
+
 export const usePurchasesStore = create<PurchasesState>((set, get) => ({
   isConfigured: false,
   isPremium: false,
+  isFamilia: false,
   packages: [],
   customerInfo: null,
 
@@ -43,22 +50,16 @@ export const usePurchasesStore = create<PurchasesState>((set, get) => ({
       if (Platform.OS === 'ios' || Platform.OS === 'android') {
         Purchases.configure({ apiKey: RC_API_KEY });
 
-        // Listener de actualización (cuando la suscripción cambia en background).
-        // Quitamos cualquier listener previo antes de registrar el nuevo para no
-        // acumular suscripciones duplicadas.
         if (customerInfoListener) {
           Purchases.removeCustomerInfoUpdateListener(customerInfoListener);
         }
         customerInfoListener = (info) => {
-          get().checkPremium(info);
+          get().checkEntitlements(info);
         };
         Purchases.addCustomerInfoUpdateListener(customerInfoListener);
 
-        // Verificación inicial
-        await get().checkPremium();
+        await get().checkEntitlements();
 
-        // IMPORTANTE: Marcamos como configurado al FINAL para que
-        // AppNavigator.tsx no dispare logIn() mientras estamos haciendo checkPremium()
         set({ isConfigured: true });
       }
     } catch (error) {
@@ -70,7 +71,7 @@ export const usePurchasesStore = create<PurchasesState>((set, get) => ({
     if (!get().isConfigured) return;
     try {
       const { customerInfo } = await Purchases.logIn(appUserId);
-      await get().checkPremium(customerInfo);
+      await get().checkEntitlements(customerInfo);
     } catch (error) {
       console.error('Error haciendo logIn en RevenueCat:', error);
     }
@@ -80,20 +81,19 @@ export const usePurchasesStore = create<PurchasesState>((set, get) => ({
     if (!get().isConfigured) return;
     try {
       const customerInfo = await Purchases.logOut();
-      await get().checkPremium(customerInfo);
+      await get().checkEntitlements(customerInfo);
     } catch (error) {
       console.error('Error haciendo logOut en RevenueCat:', error);
     }
   },
 
-  checkPremium: async (info?: CustomerInfo) => {
+  checkEntitlements: async (info?: CustomerInfo) => {
     try {
       const currentInfo = info || (await Purchases.getCustomerInfo());
-      // Verificamos si existe el entitlement "premium" y está activo
-      const isPremium = currentInfo?.entitlements.active['premium'] !== undefined;
-      set({ customerInfo: currentInfo, isPremium });
+      const { isPremium, isFamilia } = _computeTiers(currentInfo);
+      set({ customerInfo: currentInfo, isPremium, isFamilia });
     } catch (error) {
-      console.error('Error chequeando status premium:', error);
+      console.error('Error chequeando entitlements:', error);
     }
   },
 
@@ -112,8 +112,8 @@ export const usePurchasesStore = create<PurchasesState>((set, get) => ({
   purchasePackage: async (pack: PurchasesPackage) => {
     try {
       const { customerInfo } = await Purchases.purchasePackage(pack);
-      const isPremium = customerInfo.entitlements.active['premium'] !== undefined;
-      set({ customerInfo, isPremium });
+      const { isPremium, isFamilia } = _computeTiers(customerInfo);
+      set({ customerInfo, isPremium, isFamilia });
       return isPremium;
     } catch (error: any) {
       if (!error.userCancelled) {
@@ -126,8 +126,8 @@ export const usePurchasesStore = create<PurchasesState>((set, get) => ({
   restorePurchases: async () => {
     try {
       const customerInfo = await Purchases.restorePurchases();
-      const isPremium = customerInfo.entitlements.active['premium'] !== undefined;
-      set({ customerInfo, isPremium });
+      const { isPremium, isFamilia } = _computeTiers(customerInfo);
+      set({ customerInfo, isPremium, isFamilia });
       return isPremium;
     } catch (error) {
       console.error('Error restaurando compras:', error);

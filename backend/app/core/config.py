@@ -47,8 +47,9 @@ REDIS_URL = os.getenv("REDIS_URL")
 # IA quedan accesibles (modo desarrollo/test). En producción debe estar definida
 # para que el freemium se aplique en el servidor y no solo en la UI.
 REVENUECAT_SECRET_KEY = os.getenv("REVENUECAT_SECRET_KEY")
-# Identificador del entitlement premium configurado en RevenueCat.
+# Identificadores de entitlement en RevenueCat.
 REVENUECAT_ENTITLEMENT = os.getenv("REVENUECAT_ENTITLEMENT", "premium")
+REVENUECAT_FAMILIA_ENTITLEMENT = os.getenv("REVENUECAT_FAMILIA_ENTITLEMENT", "familia")
 
 # Panel de administración. JWT firmado con una clave SEPARADA del JWT familiar
 # para que los tokens de admin y los de usuarios del hogar no sean intercambiables.

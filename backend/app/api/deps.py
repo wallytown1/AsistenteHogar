@@ -83,7 +83,7 @@ async def get_hogar_id(current_user: Usuario = Depends(get_current_user)) -> uui
 async def requiere_premium(
     current_user: Usuario = Depends(get_current_user),
 ) -> None:
-    """Exige una suscripción premium activa para acceder al endpoint.
+    """Exige tier Premium o Familia para acceder al endpoint.
 
     El gate de la UI no es suficiente: esta dependencia valida el entitlement
     contra RevenueCat (server-side) para que las funciones de IA de pago no se
@@ -95,7 +95,25 @@ async def requiere_premium(
     if not await is_premium(str(current_user.id)):
         raise HTTPException(
             status_code=status.HTTP_402_PAYMENT_REQUIRED,
-            detail="Esta función requiere una suscripción premium activa.",
+            detail="Esta función requiere una suscripción Premium activa.",
+        )
+
+
+async def requiere_familia(
+    current_user: Usuario = Depends(get_current_user),
+) -> None:
+    """Exige tier Familia para acceder al endpoint (plan anual).
+
+    Familia ⊃ Premium: un usuario Familia también tiene acceso a todos los
+    endpoints premium. Si RevenueCat no está configurado (desarrollo/tests),
+    el gate queda desactivado y permite el paso.
+    """
+    from app.services.premium import is_familia
+
+    if not await is_familia(str(current_user.id)):
+        raise HTTPException(
+            status_code=status.HTTP_402_PAYMENT_REQUIRED,
+            detail="Esta función requiere el plan Familia.",
         )
 
 

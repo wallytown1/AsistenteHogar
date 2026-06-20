@@ -8,7 +8,7 @@ import uuid
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_user, get_hogar_id
+from app.api.deps import get_current_user, get_hogar_id, requiere_familia
 from app.database import get_async_session
 from app.models.models import Usuario
 from app.repositories.perfiles_individual import PerfilIndividualRepository
@@ -39,7 +39,10 @@ async def list_perfiles(
 
 
 @router.post(
-    "", response_model=PerfilIndividualResponse, status_code=status.HTTP_201_CREATED
+    "",
+    response_model=PerfilIndividualResponse,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(requiere_familia)],
 )
 async def create_perfil(
     data: PerfilIndividualCreate,
@@ -47,7 +50,7 @@ async def create_perfil(
     repo: PerfilIndividualRepository = Depends(_get_repo),
     _: Usuario = Depends(get_current_user),
 ) -> PerfilIndividualResponse:
-    """Crea un perfil culinario para un miembro del hogar (máx. 10)."""
+    """Crea un perfil culinario para un miembro del hogar (máx. 10). Requiere plan Familia."""
     perfil = await repo.create(hogar_id, data)
     return PerfilIndividualResponse.model_validate(perfil)
 

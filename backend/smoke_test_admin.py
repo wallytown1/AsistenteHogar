@@ -12,6 +12,7 @@ import sys
 TEST_DB = "smoke_test_admin.db"
 os.environ["DATABASE_URL"] = f"sqlite+aiosqlite:///./{TEST_DB}"
 os.environ["GEMINI_API_KEY"] = ""
+os.environ["REVENUECAT_SECRET_KEY"] = ""  # gate desactivado en tests
 os.environ.setdefault("JWT_SECRET_KEY", "test-jwt-secret-for-smoke-admin")
 os.environ["ADMIN_JWT_SECRET_KEY"] = "test-admin-jwt-secret-for-smoke"
 os.environ["ADMIN_BOOTSTRAP_TOKEN"] = "test-bootstrap-token-smoke"

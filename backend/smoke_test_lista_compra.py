@@ -11,6 +11,7 @@ _DB = f"./smoke_lista_compra_{uuid.uuid4().hex[:8]}.db"
 os.environ["DATABASE_URL"] = f"sqlite+aiosqlite:///{_DB}"
 os.environ.setdefault("JWT_SECRET_KEY", "smoke-test-lista-compra-secret-key")
 os.environ["GEMINI_API_KEY"] = ""
+os.environ["REVENUECAT_SECRET_KEY"] = ""  # gate desactivado en tests
 
 from alembic import command as alembic_command
 from alembic.config import Config

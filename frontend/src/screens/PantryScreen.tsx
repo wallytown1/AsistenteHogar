@@ -22,6 +22,7 @@ import {
   SugerenciaMetadataResponse,
   DiaPlanComidas,
   RecetaSugerida,
+  RecetasSugeridasResponse,
   SugerenciasResponse,
   FotoNeveraResponse,
 } from '../types/types';
@@ -305,6 +306,7 @@ export default function PantryScreen() {
   const [modalVisible, setModalVisible] = useState(false);
 
   const isPremium = usePurchasesStore((s) => s.isPremium);
+  const isFamilia = usePurchasesStore((s) => s.isFamilia);
   const diasUmbral = usePantrySettingsStore((s) => s.diasUmbral);
   const navigation = useNavigation<NativeStackNavigationProp<any>>();
 
@@ -690,21 +692,50 @@ export default function PantryScreen() {
     setRecetasMensaje(null);
     setPlanMensaje(null);
     try {
-      const res = await apiRequest<SugerenciasResponse>('/pantry/sugerencias', {
-        timeoutMs: TIMEOUT.OCR_FULL,
-      });
-      setRecetas(res.recetas.recetas);
-      setRecetasGeneradasPorIA(res.recetas.generado_por_ia);
-      if (res.recetas.recetas.length === 0)
-        setRecetasMensaje(res.recetas.mensaje || 'No hay sugerencias disponibles.');
-      setPlanDias(res.plan_comidas.dias);
-      setPlanGeneradoPorIA(res.plan_comidas.generado_por_ia);
-      if (res.plan_comidas.dias.length === 0)
-        setPlanMensaje(res.plan_comidas.mensaje || 'No hay suficientes datos para el plan.');
+      if (isFamilia) {
+        // Familia: recetas IA + plan semanal en una sola llamada
+        const res = await apiRequest<SugerenciasResponse>('/pantry/sugerencias', {
+          timeoutMs: TIMEOUT.OCR_FULL,
+        });
+        setRecetas(res.recetas.recetas);
+        setRecetasGeneradasPorIA(res.recetas.generado_por_ia);
+        if (res.recetas.recetas.length === 0)
+          setRecetasMensaje(res.recetas.mensaje || 'No hay sugerencias disponibles.');
+        setPlanDias(res.plan_comidas.dias);
+        setPlanGeneradoPorIA(res.plan_comidas.generado_por_ia);
+        if (res.plan_comidas.dias.length === 0)
+          setPlanMensaje(res.plan_comidas.mensaje || 'No hay suficientes datos para el plan.');
+      } else {
+        // Premium (sin plan semanal): solo recetas IA
+        const res = await apiRequest<RecetasSugeridasResponse>('/pantry/recetas', {
+          timeoutMs: TIMEOUT.AI,
+        });
+        setRecetas(res.recetas);
+        setRecetasGeneradasPorIA(res.generado_por_ia);
+        if (res.recetas.length === 0)
+          setRecetasMensaje(res.mensaje || 'No hay sugerencias disponibles.');
+      }
     } catch (err: any) {
       const msg = err.message || 'Error al cargar las sugerencias.';
       setRecetasMensaje(msg);
       setPlanMensaje(msg);
+    } finally {
+      setSugerenciasLoading(false);
+    }
+  };
+
+  const fetchRecetasBasicas = async () => {
+    setSugerenciasLoading(true);
+    setRecetasMensaje(null);
+    try {
+      const res = await apiRequest<RecetasSugeridasResponse>('/pantry/recetas/basicas', {
+        timeoutMs: TIMEOUT.DEFAULT,
+      });
+      setRecetas(res.recetas);
+      setRecetasGeneradasPorIA(false);
+      if (res.recetas.length === 0) setRecetasMensaje('El catálogo de recetas está vacío.');
+    } catch (err: any) {
+      setRecetasMensaje(err.message || 'Error al cargar el catálogo.');
     } finally {
       setSugerenciasLoading(false);
     }
@@ -716,7 +747,7 @@ export default function PantryScreen() {
       fetchSugerencias();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [items.length, isPremium]);
+  }, [items.length, isPremium, isFamilia]);
 
   const toggleSelectProduct = useCallback(
     (id: string) => {
@@ -1024,15 +1055,30 @@ export default function PantryScreen() {
         ) : null}
 
         {!sugerenciasLoading && recetas.length === 0 && !recetasMensaje ? (
-          <AppText
-            variant="caption"
-            color={colors.inkFaint}
-            center
-            style={{ paddingVertical: spacing.md, lineHeight: 18 }}
-          >
-            Pulsa «Sugerir con IA» para recibir recetas que aprovechen tu despensa, priorizando lo
-            que caduca pronto.
-          </AppText>
+          isPremium ? (
+            <AppText
+              variant="caption"
+              color={colors.inkFaint}
+              center
+              style={{ paddingVertical: spacing.md, lineHeight: 18 }}
+            >
+              Pulsa «Sugerir con IA» para recibir recetas que aprovechen tu despensa, priorizando lo
+              que caduca pronto.
+            </AppText>
+          ) : (
+            <View style={{ paddingVertical: spacing.md, gap: spacing.sm }}>
+              <AppText variant="caption" color={colors.inkFaint} center style={{ lineHeight: 18 }}>
+                Activa Premium para recetas IA personalizadas según tu despensa.
+              </AppText>
+              <Button
+                label="Ver catálogo de recetas"
+                variant="secondary"
+                size="sm"
+                icon="book-outline"
+                onPress={fetchRecetasBasicas}
+              />
+            </View>
+          )
         ) : null}
 
         {!sugerenciasLoading && recetas.length > 0 && recetasGeneradasPorIA ? (

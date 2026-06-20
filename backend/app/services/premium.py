@@ -1,17 +1,18 @@
-"""Verificación de suscripción premium contra RevenueCat (server-side).
+"""Verificación de suscripción por tiers contra RevenueCat (server-side).
 
-El freemium NO puede depender solo del gate de la UI: cualquier cliente con un
-JWT válido podría llamar a los endpoints de IA directamente. Aquí validamos el
-entitlement `premium` consultando la API REST de RevenueCat con la clave SECRETA
-del servidor, y cacheamos el resultado en Redis (TTL corto) para no pegarle a
-RevenueCat en cada request.
+Tiers (de menor a mayor):
+- free    : sin suscripción activa
+- premium : entitlement "premium" activo  → IA features (OCR, audio, foto nevera, recetas IA)
+- familia : entitlement "familia" activo  → todo Premium + perfiles individuales + plan semanal
 
-Comportamiento:
-- Sin `REVENUECAT_SECRET_KEY` (desarrollo/tests): se considera a todos premium
-  (el gate queda desactivado y la batería de smoke tests sigue verde).
-- Ante un fallo de RevenueCat (caída/latencia): fail-open (se permite el acceso)
-  para no bloquear a usuarios de pago durante una incidencia del proveedor. El
-  abuso sigue acotado por los rate-limiters de los endpoints de IA.
+Familia ⊃ Premium: un usuario Familia tiene acceso a todos los endpoints premium
+Y a los exclusivos de Familia. Un usuario Premium NO tiene acceso a los de Familia.
+
+Sin REVENUECAT_SECRET_KEY (desarrollo/tests): todos se consideran "familia" para
+no bloquear ninguna feature durante el desarrollo.
+
+Ante un fallo de RevenueCat (caída/latencia): fail-open (se considera "familia")
+para no bloquear usuarios de pago durante una incidencia del proveedor.
 """
 
 from __future__ import annotations
@@ -19,49 +20,64 @@ from __future__ import annotations
 import datetime
 import logging
 
-from app.core.config import REVENUECAT_ENTITLEMENT, REVENUECAT_SECRET_KEY
+from app.core.config import (
+    REVENUECAT_ENTITLEMENT,
+    REVENUECAT_FAMILIA_ENTITLEMENT,
+    REVENUECAT_SECRET_KEY,
+)
 from app.core.redis_client import get_redis
 from app.services.llm import _get_http_client
 
 logger = logging.getLogger("app.premium")
 
 _RC_SUBSCRIBERS_URL = "https://api.revenuecat.com/v1/subscribers"
-_PREMIUM_CACHE_TTL = 300  # 5 minutos
+_TIER_CACHE_TTL = 300  # 5 minutos
+
+TIER_FREE = "free"
+TIER_PREMIUM = "premium"
+TIER_FAMILIA = "familia"
 
 
-async def is_premium(app_user_id: str) -> bool:
-    """Devuelve True si el usuario tiene el entitlement premium activo.
-
-    `app_user_id` es el identificador con el que el cliente hace `logIn` en
-    RevenueCat (el id de usuario derivado del JWT).
-    """
-    # Gate desactivado si no hay clave de servidor configurada.
+async def _get_tier(app_user_id: str) -> str:
+    """Devuelve el tier activo: 'free', 'premium' o 'familia'."""
     if not REVENUECAT_SECRET_KEY:
-        return True
+        return TIER_FAMILIA
 
-    cache_key = f"premium:{app_user_id}"
+    cache_key = f"tier:{app_user_id}"
     redis = get_redis()
     if redis is not None:
         try:
             cached = await redis.get(cache_key)
             if cached is not None:
-                return bool(cached == "1")
+                value = cached.decode() if isinstance(cached, bytes) else str(cached)
+                if value in (TIER_FREE, TIER_PREMIUM, TIER_FAMILIA):
+                    return value
         except Exception as e:
-            logger.warning(f"Error leyendo estado premium de Redis ({e}).")
+            logger.warning(f"Error leyendo tier de Redis ({e}).")
 
-    premium = await _query_revenuecat(app_user_id)
+    tier = await _query_tier(app_user_id)
 
     if redis is not None:
         try:
-            await redis.setex(cache_key, _PREMIUM_CACHE_TTL, "1" if premium else "0")
+            await redis.setex(cache_key, _TIER_CACHE_TTL, tier)
         except Exception as e:
-            logger.warning(f"Error cacheando estado premium en Redis ({e}).")
+            logger.warning(f"Error cacheando tier en Redis ({e}).")
 
-    return premium
+    return tier
 
 
-async def _query_revenuecat(app_user_id: str) -> bool:
-    """Consulta la API REST de RevenueCat y evalúa el entitlement premium."""
+async def is_premium(app_user_id: str) -> bool:
+    """True si el usuario tiene acceso premium o superior (tier premium o familia)."""
+    return await _get_tier(app_user_id) in (TIER_PREMIUM, TIER_FAMILIA)
+
+
+async def is_familia(app_user_id: str) -> bool:
+    """True si el usuario tiene el tier Familia (plan anual con perfiles + plan semanal)."""
+    return await _get_tier(app_user_id) == TIER_FAMILIA
+
+
+async def _query_tier(app_user_id: str) -> str:
+    """Consulta la API REST de RevenueCat y determina el tier activo."""
     client = _get_http_client()
     try:
         resp = await client.get(
@@ -71,20 +87,29 @@ async def _query_revenuecat(app_user_id: str) -> bool:
         resp.raise_for_status()
         data = resp.json()
         entitlements = data.get("subscriber", {}).get("entitlements", {})
-        ent = entitlements.get(REVENUECAT_ENTITLEMENT)
-        if not ent:
-            return False
 
-        expires = ent.get("expires_date")
-        # expires_date nulo = suscripción vitalicia/no caduca.
-        if expires is None:
-            return True
-        exp = datetime.datetime.fromisoformat(expires.replace("Z", "+00:00"))
-        return exp > datetime.datetime.now(datetime.UTC)
+        now = datetime.datetime.now(datetime.UTC)
+
+        def _is_active(ent: dict) -> bool:  # type: ignore[type-arg]
+            expires = ent.get("expires_date")
+            if expires is None:
+                return True  # vitalicio
+            exp = datetime.datetime.fromisoformat(expires.replace("Z", "+00:00"))
+            return exp > now
+
+        # Familia tiene prioridad (es el tier superior)
+        familia_ent = entitlements.get(REVENUECAT_FAMILIA_ENTITLEMENT)
+        if familia_ent and _is_active(familia_ent):
+            return TIER_FAMILIA
+
+        premium_ent = entitlements.get(REVENUECAT_ENTITLEMENT)
+        if premium_ent and _is_active(premium_ent):
+            return TIER_PREMIUM
+
+        return TIER_FREE
     except Exception as e:
-        # Fail-open: no bloquear a usuarios de pago si RevenueCat falla.
         logger.error(
             f"No se pudo verificar la suscripción en RevenueCat ({e}); "
             "se permite el acceso (fail-open)."
         )
-        return True
+        return TIER_FAMILIA  # fail-open

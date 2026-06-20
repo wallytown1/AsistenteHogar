@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { View, Modal, Alert, Pressable } from 'react-native';
 import { useAuthStore } from '../state/authStore';
 import { usePantrySettingsStore, OPCIONES_UMBRAL } from '../state/pantrySettingsStore';
+import { usePurchasesStore } from '../state/purchasesStore';
 import { PerfilIndividual, PerfilHogar } from '../types/types';
 import { apiRequest } from '../api/api';
 import { colors, radius, spacing } from '../theme/tokens';
@@ -25,6 +26,7 @@ export default function SettingsScreen() {
 
   const diasUmbral = usePantrySettingsStore((s) => s.diasUmbral);
   const setDiasUmbral = usePantrySettingsStore((s) => s.setDiasUmbral);
+  const isFamilia = usePurchasesStore((s) => s.isFamilia);
 
   // --- Perfil del hogar ---
   const [perfilHogar, setPerfilHogar] = useState<PerfilHogar | null>(null);
@@ -440,7 +442,7 @@ export default function SettingsScreen() {
         </View>
       </Card>
 
-      {/* Tarjeta: Miembros del hogar */}
+      {/* Tarjeta: Miembros del hogar — exclusivo plan Familia */}
       <Card style={{ marginBottom: spacing.lg }}>
         <View
           style={{
@@ -451,20 +453,37 @@ export default function SettingsScreen() {
           }}
         >
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <Icon name="people-outline" size={18} color={colors.brand} />
-            <AppText variant="h2">Miembros del hogar</AppText>
+            <Icon
+              name="people-outline"
+              size={18}
+              color={isFamilia ? colors.brand : colors.inkFaint}
+            />
+            <AppText variant="h2" color={isFamilia ? undefined : 'inkFaint'}>
+              Miembros del hogar
+            </AppText>
           </View>
-          <Button
-            label="Añadir"
-            icon="add"
-            size="sm"
-            variant="secondary"
-            fullWidth={false}
-            onPress={abrirNuevoPerfil}
-          />
+          {isFamilia ? (
+            <Button
+              label="Añadir"
+              icon="add"
+              size="sm"
+              variant="secondary"
+              fullWidth={false}
+              onPress={abrirNuevoPerfil}
+            />
+          ) : (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <Icon name="lock-closed-outline" size={13} color={colors.inkFaint} />
+              <AppText variant="micro" color="inkFaint">
+                Plan Familia
+              </AppText>
+            </View>
+          )}
         </View>
         <AppText variant="caption" color={colors.inkMuted} style={{ marginBottom: spacing.md }}>
-          Las preferencias culinarias de cada miembro influyen en las recetas sugeridas por IA.
+          {isFamilia
+            ? 'Las preferencias culinarias de cada miembro influyen en las recetas sugeridas por IA.'
+            : 'Disponible con el plan Familia (anual). Personaliza las recetas para cada miembro del hogar.'}
         </AppText>
         {perfiles.length === 0 ? (
           <AppText variant="caption" color={colors.inkFaint} center>

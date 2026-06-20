@@ -18,6 +18,7 @@ TEST_DB = "smoke_test_dashboard.db"
 os.environ["DATABASE_URL"] = f"sqlite+aiosqlite:///./{TEST_DB}"
 # Forzar el modo de contingencia del briefing: prueba determinista, sin red.
 os.environ["GEMINI_API_KEY"] = ""
+os.environ["REVENUECAT_SECRET_KEY"] = ""  # gate desactivado en tests
 
 if os.path.exists(TEST_DB):
     os.remove(TEST_DB)
