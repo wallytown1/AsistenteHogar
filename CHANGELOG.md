@@ -6,6 +6,19 @@ Formato: `[FECHA] [ÁREA] [TIPO] Descripción`
 
 ---
 
+## [2026-06-20] — Legal: Privacy Policy + Términos y Condiciones
+
+### Admin-web (Vercel)
+
+- **ADD** `admin-web/src/app/privacidad/page.tsx` — Política de Privacidad en español (RGPD: responsable, datos recogidos, Gemini billing, terceros, derechos, supresión).
+- **ADD** `admin-web/src/app/terminos/page.tsx` — Términos y Condiciones (planes Free/Premium/Familia, IA, propiedad intelectual, legislación española).
+- URLs públicas tras el próximo deploy de Vercel:
+  - `https://admin-web-theta-pink.vercel.app/privacidad`
+  - `https://admin-web-theta-pink.vercel.app/terminos`
+- Ambas páginas son requisito obligatorio para App Store y Google Play Store.
+
+---
+
 ## [2026-06-20] — UX: 9 correcciones de pantallas principales
 
 ### Frontend
