@@ -1,15 +1,18 @@
 import React, { useRef, useState } from 'react';
-import { View, ScrollView, Pressable, Dimensions } from 'react-native';
+import { View, ScrollView, Pressable, Dimensions, Image, Animated } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as SecureStore from 'expo-secure-store';
 import { colors, spacing, radius } from '../theme/tokens';
 import { Icon, IconName, AppText, Button } from '../components/ui';
 import { haptics } from '../lib/haptics';
 
-const { width: SW } = Dimensions.get('window');
+const { width: SW, height: SH } = Dimensions.get('window');
+const IMAGE_HEIGHT = SH * 0.48;
 
 type Slide = {
-  icon: IconName;
+  type: 'image' | 'icon';
+  image?: ReturnType<typeof require>;
+  icon?: IconName;
   accent: string;
   accentSoft: string;
   title: string;
@@ -18,20 +21,23 @@ type Slide = {
 
 const SLIDES: Slide[] = [
   {
-    icon: 'home',
-    accent: colors.home,
-    accentSoft: colors.homeSoft,
+    type: 'image',
+    image: require('../../assets/onboarding/mercado.jpg'),
+    accent: colors.brand,
+    accentSoft: colors.brandSoft,
     title: 'Tu cocina,\nbien organizada',
     body: 'Gestiona tu despensa, recetas y lista de la compra desde un solo lugar. Todo en tu bolsillo.',
   },
   {
-    icon: 'sparkles',
+    type: 'image',
+    image: require('../../assets/onboarding/cocina.jpg'),
     accent: colors.brand,
     accentSoft: colors.brandSoft,
     title: 'IA que te\nahorra tiempo',
     body: 'Recibe un briefing diario, sugerencias de recetas mediterráneas y añade alimentos con lenguaje natural.',
   },
   {
+    type: 'icon',
     icon: 'notifications',
     accent: colors.warning,
     accentSoft: colors.warningSoft,
@@ -54,12 +60,17 @@ export async function hasSeenOnboarding(): Promise<boolean> {
 export default function OnboardingScreen({ onDone }: { onDone: () => void }) {
   const [page, setPage] = useState(0);
   const scrollRef = useRef<ScrollView>(null);
+  const [fadeAnim] = useState(() => new Animated.Value(1));
   const insets = useSafeAreaInsets();
   const isLast = page === SLIDES.length - 1;
 
-  const goTo = (idx: number) => {
-    scrollRef.current?.scrollTo({ x: idx * SW, animated: true });
-    setPage(idx);
+  const transitionTo = (idx: number) => {
+    // Cross-fade entre slides
+    Animated.timing(fadeAnim, { toValue: 0, duration: 160, useNativeDriver: true }).start(() => {
+      scrollRef.current?.scrollTo({ x: idx * SW, animated: false });
+      setPage(idx);
+      Animated.timing(fadeAnim, { toValue: 1, duration: 260, useNativeDriver: true }).start();
+    });
   };
 
   const finish = () => {
@@ -72,12 +83,15 @@ export default function OnboardingScreen({ onDone }: { onDone: () => void }) {
       finish();
     } else {
       haptics.light();
-      goTo(page + 1);
+      transitionTo(page + 1);
     }
   };
 
+  const s = SLIDES[page];
+
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg, paddingTop: insets.top }}>
+      {/* ScrollView sirve solo como contenedor de posición — la transición es via fade */}
       <ScrollView
         ref={scrollRef}
         horizontal
@@ -86,45 +100,101 @@ export default function OnboardingScreen({ onDone }: { onDone: () => void }) {
         scrollEnabled={false}
         style={{ flex: 1 }}
       >
-        {SLIDES.map((s, i) => (
-          <View
+        {SLIDES.map((slide, i) => (
+          <Animated.View
             key={i}
             style={{
               width: SW,
               flex: 1,
-              alignItems: 'center',
-              justifyContent: 'center',
-              paddingHorizontal: spacing.xxxl,
+              opacity: i === page ? fadeAnim : 0,
             }}
           >
-            <View
-              style={{
-                width: 104,
-                height: 104,
-                borderRadius: radius.xxl,
-                backgroundColor: s.accentSoft,
-                alignItems: 'center',
-                justifyContent: 'center',
-                marginBottom: spacing.xxxl,
-              }}
-            >
-              <Icon name={s.icon} size={48} color={s.accent} />
-            </View>
-
-            <AppText
-              variant="display"
-              center
-              style={{ fontSize: 30, lineHeight: 38, marginBottom: spacing.md }}
-            >
-              {s.title}
-            </AppText>
-            <AppText variant="body" center color={colors.inkMuted} style={{ lineHeight: 23 }}>
-              {s.body}
-            </AppText>
-          </View>
+            {slide.type === 'image' && slide.image ? (
+              <>
+                {/* Hero image */}
+                <Image
+                  source={slide.image}
+                  style={{
+                    width: SW,
+                    height: IMAGE_HEIGHT,
+                    resizeMode: 'cover',
+                  }}
+                />
+                {/* Overlay sutil en parte inferior de la imagen */}
+                <View
+                  style={{
+                    position: 'absolute',
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    height: IMAGE_HEIGHT * 0.3,
+                    // Degradado simulado con opacidad — sin LinearGradient
+                    backgroundColor: colors.bg,
+                    opacity: 0.45,
+                  }}
+                  pointerEvents="none"
+                />
+                {/* Texto debajo de la imagen */}
+                <View
+                  style={{
+                    flex: 1,
+                    paddingHorizontal: spacing.xxxl,
+                    paddingTop: spacing.xxl,
+                    alignItems: 'center',
+                  }}
+                >
+                  <AppText
+                    variant="display"
+                    center
+                    style={{ fontSize: 28, lineHeight: 36, marginBottom: spacing.md }}
+                  >
+                    {slide.title}
+                  </AppText>
+                  <AppText variant="body" center color={colors.inkMuted} style={{ lineHeight: 24 }}>
+                    {slide.body}
+                  </AppText>
+                </View>
+              </>
+            ) : (
+              /* Slide de icono (sin imagen) */
+              <View
+                style={{
+                  flex: 1,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  paddingHorizontal: spacing.xxxl,
+                }}
+              >
+                <View
+                  style={{
+                    width: 104,
+                    height: 104,
+                    borderRadius: radius.xxl,
+                    backgroundColor: slide.accentSoft,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginBottom: spacing.xxxl,
+                  }}
+                >
+                  <Icon name={slide.icon!} size={48} color={slide.accent} />
+                </View>
+                <AppText
+                  variant="display"
+                  center
+                  style={{ fontSize: 30, lineHeight: 38, marginBottom: spacing.md }}
+                >
+                  {slide.title}
+                </AppText>
+                <AppText variant="body" center color={colors.inkMuted} style={{ lineHeight: 23 }}>
+                  {slide.body}
+                </AppText>
+              </View>
+            )}
+          </Animated.View>
         ))}
       </ScrollView>
 
+      {/* Controles */}
       <View
         style={{
           paddingHorizontal: spacing.xxl,
@@ -138,7 +208,7 @@ export default function OnboardingScreen({ onDone }: { onDone: () => void }) {
           {SLIDES.map((_, i) => (
             <Pressable
               key={i}
-              onPress={() => goTo(i)}
+              onPress={() => transitionTo(i)}
               hitSlop={19}
               accessibilityLabel={`Ir a slide ${i + 1}`}
             >
@@ -147,7 +217,7 @@ export default function OnboardingScreen({ onDone }: { onDone: () => void }) {
                   height: 6,
                   width: i === page ? 20 : 6,
                   borderRadius: radius.pill,
-                  backgroundColor: i === page ? colors.brand : colors.track,
+                  backgroundColor: i === page ? s.accent : colors.track,
                 }}
               />
             </Pressable>
