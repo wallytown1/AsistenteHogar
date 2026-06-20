@@ -54,8 +54,9 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "REEMPLAZAR_CON_EAS_PROJECT_ID"
+        "projectId": "ef3addea-6e08-4e55-b096-3b81053816cd"
       }
-    }
+    },
+    "owner": "wallytown"
   }
 }
