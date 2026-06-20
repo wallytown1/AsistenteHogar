@@ -1,6 +1,12 @@
 # Secrets y configuración local (nunca subir .env reales)
 backend/.env
 frontend/.env
+frontend/.env.development
+frontend/.env.production
+frontend/.env.local
+
+# Scripts de utilidad no pertenecientes a la app
+generate_videos.py
 
 # Bases de datos locales
 *.db
