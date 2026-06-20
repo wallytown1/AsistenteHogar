@@ -13,6 +13,7 @@
     "prepare": "node -e \"process.env.CI || require('child_process').execSync('husky', {cwd: require('path').resolve('..'), stdio: 'inherit', shell: true})\""
   },
   "dependencies": {
+    "@expo/vector-icons": "^15.0.3",
     "@react-navigation/bottom-tabs": "^7.3.0",
     "@react-navigation/native": "^7.3.0",
     "@react-navigation/native-stack": "^7.17.5",
@@ -43,6 +44,9 @@
     "lint-staged": "^15.2.2",
     "prettier": "^3.8.4",
     "typescript": "~5.9.2"
+  },
+  "overrides": {
+    "eslint-import-resolver-typescript": "3.6.3"
   },
   "private": true
 }

@@ -8,7 +8,6 @@ import {
   AppText,
   SectionHeader,
   Card,
-  Button,
   IconButton,
   Icon,
   LoadingView,
