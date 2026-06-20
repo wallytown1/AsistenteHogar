@@ -1,9 +1,11 @@
 # Dependencias SOLO de desarrollo/CI — NO se despliegan en producción.
 #
-# schemathesis (fuzzing del esquema OpenAPI en CI) está aquí y no en
-# requirements.txt porque su rama 3.x constriñe starlette a <1.x, lo que
-# bloquearía el fix de seguridad de producción (starlette>=1.3.1). Al aislarla,
-# la API de producción usa starlette parcheada y el fuzzing de CI corre en su
-# propio entorno. pytest llega de forma transitiva (su CVE solo afecta a tests).
--r requirements.txt
+# Instalar SOBRE requirements.txt (no lo referencia con -r a propósito): schemathesis
+# 3.x constriñe starlette a <1.x, así que al instalarlo pip BAJA starlette respecto al
+# fix de producción (>=1.3.1). Eso es aceptable solo en el entorno de fuzzing de CI; si
+# se re-incluyera `-r requirements.txt` aquí, su pin duro de starlette>=1.3.1 chocaría
+# con schemathesis y la instalación fallaría (ResolutionImpossible).
+#
+# Uso local:  pip install -r requirements.txt  && pip install -r requirements-dev.txt
+# pytest llega de forma transitiva (su CVE solo afecta a tests, no a producción).
 schemathesis>=3.27,<4
