@@ -50,6 +50,9 @@ REVENUECAT_SECRET_KEY = os.getenv("REVENUECAT_SECRET_KEY")
 # Identificadores de entitlement en RevenueCat.
 REVENUECAT_ENTITLEMENT = os.getenv("REVENUECAT_ENTITLEMENT", "premium")
 REVENUECAT_FAMILIA_ENTITLEMENT = os.getenv("REVENUECAT_FAMILIA_ENTITLEMENT", "familia")
+# Secreto del webhook de RevenueCat. Si no está definido, el endpoint de webhook
+# devuelve 501 (desactivado). Configurable en el panel RC > Integrations > Webhooks.
+REVENUECAT_WEBHOOK_SECRET: str | None = os.getenv("REVENUECAT_WEBHOOK_SECRET")
 
 # Panel de administración. JWT firmado con una clave SEPARADA del JWT familiar
 # para que los tokens de admin y los de usuarios del hogar no sean intercambiables.

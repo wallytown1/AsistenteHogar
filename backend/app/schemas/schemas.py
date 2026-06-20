@@ -133,6 +133,11 @@ class CuentaEliminadaResponse(BaseSchema):
     message: str = Field(..., description="Confirmación de la eliminación")
 
 
+class LogoutResponse(BaseSchema):
+    success: bool = Field(..., description="True si la sesión fue cerrada")
+    message: str = Field(..., description="Confirmación del cierre de sesión")
+
+
 # --- INVENTARIO ALIMENTOS ---
 class InventarioAlimentoCreate(BaseSchema):
     nombre: str = Field(

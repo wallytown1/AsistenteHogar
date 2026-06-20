@@ -1,16 +1,20 @@
 from fastapi import APIRouter, Depends, status
+from fastapi.security import HTTPAuthorizationCredentials
 
-from app.api.deps import get_auth_service, get_current_user
+from app.api.deps import bearer_scheme, get_auth_service, get_current_user
 from app.core.rate_limit import (
     cuenta_eliminar_rate_limiter,
     login_rate_limiter,
     registro_rate_limiter,
 )
+from app.core.security import decode_access_token
+from app.core.token_blocklist import revoke_token
 from app.models.models import Usuario
 from app.schemas.schemas import (
     CuentaEliminadaResponse,
     CuentaEliminarRequest,
     LoginRequest,
+    LogoutResponse,
     RegistroRequest,
     TokenResponse,
     UsuarioResponse,
@@ -43,6 +47,19 @@ async def login(
 ) -> TokenResponse:
     """Inicia sesión con email y contraseña. Devuelve un token JWT de acceso."""
     return await auth_service.login(schema)
+
+
+@router.post("/auth/logout", response_model=LogoutResponse)
+async def logout(
+    credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
+    _: Usuario = Depends(get_current_user),
+) -> LogoutResponse:
+    """Invalida el token actual en el servidor (JTI blocklist). El cliente debe
+    descartar el token localmente. Un token revocado devuelve 401 en cualquier
+    endpoint protegido aunque aún no haya expirado."""
+    payload = decode_access_token(credentials.credentials)
+    await revoke_token(payload["jti"], int(payload["exp"]))
+    return LogoutResponse(success=True, message="Sesión cerrada correctamente.")
 
 
 @router.get("/auth/me", response_model=UsuarioResponse)

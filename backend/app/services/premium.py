@@ -66,6 +66,17 @@ async def _get_tier(app_user_id: str) -> str:
     return tier
 
 
+async def invalidate_tier_cache(app_user_id: str) -> None:
+    """Elimina el tier cacheado para que la siguiente petición lo re-consulte a RC.
+    Llamado por el webhook de RC al recibir eventos de suscripción."""
+    redis = get_redis()
+    if redis is not None:
+        try:
+            await redis.delete(f"tier:{app_user_id}")
+        except Exception as e:
+            logger.warning(f"Error invalidando cache de tier en Redis ({e}).")
+
+
 async def is_premium(app_user_id: str) -> bool:
     """True si el usuario tiene acceso premium o superior (tier premium o familia)."""
     return await _get_tier(app_user_id) in (TIER_PREMIUM, TIER_FAMILIA)

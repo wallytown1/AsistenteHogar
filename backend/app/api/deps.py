@@ -49,6 +49,7 @@ async def get_current_user(
     try:
         payload = decode_access_token(credentials.credentials)
         usuario_id = uuid.UUID(payload["sub"])
+        jti: str = payload.get("jti", "")
     except jwt.ExpiredSignatureError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -61,6 +62,16 @@ async def get_current_user(
             detail="El token de autenticación no es válido.",
             headers=unauthorized_headers,
         ) from None
+
+    if jti:
+        from app.core.token_blocklist import is_token_revoked
+
+        if await is_token_revoked(jti):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="La sesión ha sido cerrada. Vuelve a iniciar sesión.",
+                headers=unauthorized_headers,
+            )
 
     user_repo = UserRepository(session)
     usuario = await user_repo.get_by_id(usuario_id)

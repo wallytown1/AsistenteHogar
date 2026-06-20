@@ -28,6 +28,7 @@ def create_access_token(usuario_id: uuid.UUID, hogar_id: uuid.UUID) -> str:
     payload = {
         "sub": str(usuario_id),
         "hogar_id": str(hogar_id),
+        "jti": str(uuid.uuid4()),
         "iat": now,
         "exp": now + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
     }

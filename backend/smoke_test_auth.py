@@ -113,6 +113,22 @@ with TestClient(app) as client:
         statuses.append(r.status_code)
     check("Rate limiting en login devuelve 429", 429 in statuses, f"(últimos status={statuses[-3:]})")
 
+    # 12-14. Logout real con JTI blocklist
+    # Usar token2 (Berta, obtenido en check 10 antes del rate limit hammer)
+    berta_headers = {"Authorization": f"Bearer {token2}"}
+
+    r = client.post("/api/v1/auth/logout", headers=berta_headers)
+    check("POST /auth/logout devuelve 200", r.status_code == 200, f"(status={r.status_code})")
+    check("Logout devuelve success=True", r.json().get("success") is True)
+
+    # El mismo token ya no sirve: JTI está en el blocklist
+    r = client.get("/api/v1/auth/me", headers=berta_headers)
+    check("Token revocado devuelve 401", r.status_code == 401, f"(status={r.status_code})")
+
+    # Un token distinto (Ana, sin revocar) sigue funcionando
+    r = client.get("/api/v1/auth/me", headers=auth_headers)
+    check("Token de otro usuario no afectado por logout ajeno", r.status_code == 200, f"(status={r.status_code})")
+
 print()
 if fallos:
     print(f"RESULTADO: {len(fallos)} fallos -> {fallos}")
