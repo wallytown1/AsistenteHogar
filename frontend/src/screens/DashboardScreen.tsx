@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Alert, ActivityIndicator, Pressable } from 'react-native';
+import { View, ActivityIndicator, Pressable } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useDashboard } from '../hooks/useDashboard';
@@ -9,7 +9,7 @@ import { useAuthStore } from '../state/authStore';
 import { usePurchasesStore } from '../state/purchasesStore';
 import AIDisclaimerBanner from '../components/AIDisclaimerBanner';
 import { colors, radius, spacing } from '../theme/tokens';
-import { Screen, Card, IconButton, Badge, AppText, Icon, FoodIcon, Button } from '../components/ui';
+import { Screen, Card, Badge, AppText, Icon, FoodIcon, Button } from '../components/ui';
 import { getCategoriaIcon } from '../lib/categoria';
 import { FadeInView } from '../animations';
 
@@ -27,22 +27,8 @@ function formatFechaCorta(iso?: string): string {
 export default function DashboardScreen() {
   const { loading, briefing, error, refetch } = useDashboard();
   const usuario = useAuthStore((s) => s.usuario);
-  const logout = useAuthStore((s) => s.logout);
   const navigation = useNavigation<NavProp>();
   const isFamilia = usePurchasesStore((s) => s.isFamilia);
-
-  const handleLogout = () => {
-    Alert.alert('Cerrar sesión', '¿Deseas cerrar la sesión en este dispositivo?', [
-      { text: 'Cancelar', style: 'cancel' },
-      {
-        text: 'Cerrar sesión',
-        style: 'destructive',
-        onPress: () => {
-          logout();
-        },
-      },
-    ]);
-  };
 
   const alertas = briefing?.alertas_despensa?.alertas_caducidad ?? [];
 
@@ -52,7 +38,6 @@ export default function DashboardScreen() {
       <View
         style={{
           flexDirection: 'row',
-          justifyContent: 'space-between',
           alignItems: 'center',
           marginBottom: spacing.xl,
         }}
@@ -77,15 +62,6 @@ export default function DashboardScreen() {
             <AppText variant="h2">{usuario?.nombre || 'Hogar'}</AppText>
           </View>
         </View>
-        <IconButton
-          name="person-circle-outline"
-          size={26}
-          color={colors.inkMuted}
-          bg={colors.card}
-          diameter={44}
-          onPress={handleLogout}
-          accessibilityLabel="Cerrar sesión"
-        />
       </View>
 
       {/* Briefing */}
@@ -338,14 +314,6 @@ export default function DashboardScreen() {
           </View>
           <Icon name="chevron-forward" size={18} color={colors.inkFaint} />
         </Pressable>
-
-        <Button
-          label="Actualizar briefing"
-          icon="refresh"
-          variant="secondary"
-          onPress={refetch}
-          style={{ marginTop: spacing.md }}
-        />
       </FadeInView>
     </Screen>
   );

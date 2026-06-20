@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
-import { View, ScrollView, TextInput, StyleSheet, TouchableOpacity, Alert } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { View, ScrollView, TextInput, StyleSheet, Pressable, Alert } from 'react-native';
 import { useListaCompra } from '../hooks/useListaCompra';
 import { ListaCompraItem } from '../types/types';
 import { colors, spacing, radius, typography } from '../theme/tokens';
@@ -10,6 +9,8 @@ import {
   SectionHeader,
   Card,
   Button,
+  IconButton,
+  Icon,
   LoadingView,
   ErrorView,
 } from '../components/ui';
@@ -29,7 +30,7 @@ function ItemRow({
 
   return (
     <View style={styles.row}>
-      <TouchableOpacity
+      <Pressable
         onPress={onToggle}
         style={styles.check}
         accessibilityLabel={
@@ -38,12 +39,12 @@ function ItemRow({
         accessibilityRole="checkbox"
         accessibilityState={{ checked: item.is_checked }}
       >
-        <Ionicons
+        <Icon
           name={item.is_checked ? 'checkmark-circle' : 'ellipse-outline'}
           size={24}
           color={item.is_checked ? colors.success : colors.inkFaint}
         />
-      </TouchableOpacity>
+      </Pressable>
       <View style={styles.rowContent}>
         <AppText
           variant="body"
@@ -58,13 +59,15 @@ function ItemRow({
           </AppText>
         )}
       </View>
-      <TouchableOpacity
+      <IconButton
+        name="trash-outline"
+        size={16}
+        color={colors.danger}
+        bg={colors.dangerSoft}
+        diameter={32}
         onPress={onDelete}
-        hitSlop={13}
         accessibilityLabel={`Eliminar ${item.nombre}`}
-      >
-        <Ionicons name="trash-outline" size={18} color={colors.inkFaint} />
-      </TouchableOpacity>
+      />
     </View>
   );
 }
@@ -143,13 +146,13 @@ export default function ShoppingListScreen() {
   return (
     <Screen>
       <View style={styles.headerRow}>
-        <AppText variant="title">Lista de la compra</AppText>
+        <AppText variant="display">Lista de la compra</AppText>
         {comprados.length > 0 && (
-          <TouchableOpacity onPress={handleClearChecked} style={styles.clearBtn}>
+          <Pressable onPress={handleClearChecked} style={styles.clearBtn}>
             <AppText variant="captionStrong" color={colors.danger}>
               Limpiar marcados
             </AppText>
-          </TouchableOpacity>
+          </Pressable>
         )}
       </View>
 
@@ -159,7 +162,7 @@ export default function ShoppingListScreen() {
       >
         {empty ? (
           <View style={styles.empty}>
-            <Ionicons name="cart-outline" size={48} color={colors.inkFaint} />
+            <Icon name="cart-outline" size={48} color={colors.inkFaint} />
             <AppText variant="body" color={colors.inkFaint} style={styles.emptyText}>
               Lista vacía — añade lo que necesites
             </AppText>
@@ -218,13 +221,13 @@ export default function ShoppingListScreen() {
           returnKeyType="done"
           editable={!adding}
         />
-        <TouchableOpacity
+        <Pressable
           onPress={handleAdd}
           disabled={adding || !texto.trim()}
           style={[styles.addBtn, (!texto.trim() || adding) && styles.addBtnDisabled]}
         >
-          <Ionicons name="add" size={24} color={colors.onBrand} />
-        </TouchableOpacity>
+          <Icon name="add" size={24} color={colors.onBrand} />
+        </Pressable>
       </View>
     </Screen>
   );

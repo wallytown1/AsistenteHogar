@@ -405,8 +405,17 @@ export default function SettingsScreen() {
           icon="log-out-outline"
           variant="secondary"
           onPress={() => {
-            haptics.light();
-            logout();
+            Alert.alert('Cerrar sesión', '¿Deseas cerrar la sesión en este dispositivo?', [
+              { text: 'Cancelar', style: 'cancel' },
+              {
+                text: 'Cerrar sesión',
+                style: 'destructive',
+                onPress: () => {
+                  haptics.light();
+                  logout();
+                },
+              },
+            ]);
           }}
         />
         <AppText variant="micro" color={colors.inkMuted} center style={{ marginTop: spacing.sm }}>
@@ -597,7 +606,7 @@ export default function SettingsScreen() {
               style={{ marginBottom: spacing.md, marginTop: -spacing.sm }}
             >
               Separa con comas. Solo preferencias culinarias — no uses este campo para alergias
-              medicas.
+              médicas.
             </AppText>
             <Field
               label="Ingredientes a evitar"

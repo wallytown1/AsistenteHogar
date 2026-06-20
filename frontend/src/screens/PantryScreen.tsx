@@ -133,7 +133,7 @@ const PantryItemCard = React.memo(function PantryItemCard({
             {item.cantidad} {item.unidad} · {item.categoria}
           </AppText>
           <AppText variant="micro" color={colors.inkFaint} style={{ marginTop: 1 }}>
-            Caduca: {item.fecha_caducidad || 'Indefinido'}
+            {item.fecha_caducidad ? `Caduca: ${item.fecha_caducidad}` : 'Sin caducidad'}
           </AppText>
         </View>
 
@@ -179,7 +179,7 @@ const PantryItemCard = React.memo(function PantryItemCard({
             <View
               style={{
                 height: '100%',
-                width: `${Math.min(100, Math.round((item.cantidad / 5) * 100))}%`,
+                width: `${Math.min(100, Math.round((item.cantidad / 10) * 100))}%`,
                 backgroundColor: status.color,
                 borderRadius: radius.pill,
               }}
@@ -214,20 +214,8 @@ const PantryItemCard = React.memo(function PantryItemCard({
                 );
                 return;
               }
-              Alert.alert(
-                'Confirmar decremento',
-                `¿Deseas disminuir la cantidad de "${item.nombre}" a ${nuevaCant} ${item.unidad}?`,
-                [
-                  { text: 'Cancelar', style: 'cancel' },
-                  {
-                    text: 'Confirmar',
-                    onPress: () => {
-                      haptics.light();
-                      onUpdateQuantity(item.id, nuevaCant);
-                    },
-                  },
-                ]
-              );
+              haptics.light();
+              onUpdateQuantity(item.id, nuevaCant);
             }}
             hitSlop={9}
             accessibilityLabel={`Reducir cantidad de ${item.nombre}`}
@@ -249,21 +237,8 @@ const PantryItemCard = React.memo(function PantryItemCard({
           </AppText>
           <Pressable
             onPress={() => {
-              const nuevaCant = item.cantidad + 1;
-              Alert.alert(
-                'Confirmar incremento',
-                `¿Deseas aumentar la cantidad de "${item.nombre}" a ${nuevaCant} ${item.unidad}?`,
-                [
-                  { text: 'Cancelar', style: 'cancel' },
-                  {
-                    text: 'Confirmar',
-                    onPress: () => {
-                      haptics.light();
-                      onUpdateQuantity(item.id, nuevaCant);
-                    },
-                  },
-                ]
-              );
+              haptics.light();
+              onUpdateQuantity(item.id, item.cantidad + 1);
             }}
             hitSlop={9}
             accessibilityLabel={`Aumentar cantidad de ${item.nombre}`}
@@ -1302,7 +1277,7 @@ export default function PantryScreen() {
       {/* FAB terciario: entrada por voz */}
       <Fab
         icon="mic-outline"
-        color={colors.calendar}
+        color={colors.brand}
         bottom={152}
         onPress={() => {
           if (!checkPremiumGate()) return;
@@ -1356,7 +1331,7 @@ export default function PantryScreen() {
                 marginBottom: spacing.xs,
               }}
             >
-              <Icon name="mic-outline" size={20} color={colors.calendar} />
+              <Icon name="mic-outline" size={20} color={colors.brand} />
               <AppText variant="h2">Dictar productos</AppText>
             </View>
             <AppText variant="caption" color={colors.inkMuted} style={{ marginBottom: spacing.lg }}>
@@ -1396,8 +1371,8 @@ export default function PantryScreen() {
               {propuestasAudio.map((alimento, idx) => (
                 <Card
                   key={idx}
-                  tint={colors.calendarSoft}
-                  borderColor={colors.calendar}
+                  tint={colors.brandSoft}
+                  borderColor={colors.brand}
                   style={{ marginBottom: spacing.sm }}
                 >
                   <View
