@@ -6,6 +6,17 @@ Formato: `[FECHA] [ÁREA] [TIPO] Descripción`
 
 ---
 
+## [2026-06-20] — UX: 9 correcciones de pantallas principales
+
+### Frontend
+
+- **FIX** `DashboardScreen.tsx` — eliminado botón `person-circle-outline` (logout duplicado con Ajustes) y botón "Actualizar briefing" (redundante: pull-to-refresh lo cubre).
+- **FIX** `PantryScreen.tsx` — steppers `+`/`−` sin Alert de confirmación (haptics directo); barra de stock de base 5 → 10 para escala más realista; "Indefinido" → "Sin caducidad"; `colors.calendar` → `colors.brand` en FAB mic y modal audio (módulo Calendario eliminado en Pivote 2).
+- **FIX** `SettingsScreen.tsx` — Alert de confirmación antes de cerrar sesión (consistencia con flujo destructivo); typo "alergias medicas" → "alergias médicas".
+- **FIX** `ShoppingListScreen.tsx` — `variant="title"` → `variant="display"` en cabecera; `TouchableOpacity` + `Ionicons` reemplazados por `Pressable` + `Icon`/`IconButton` del sistema de diseño.
+
+---
+
 ## [2026-06-20] — Bloque A: JTI blocklist + webhook RC + admin panel Vercel
 
 ### Seguridad (backend)
