@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { adminApi, ApiError } from "@/lib/api";
-import { setToken } from "@/lib/auth";
+import { setSessionHint } from "@/lib/auth";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -17,8 +17,10 @@ export default function LoginPage() {
     setError(null);
     setLoading(true);
     try {
-      const res = await adminApi.login(email, password);
-      setToken(res.access_token);
+      // El backend pone la cookie HttpOnly de sesión; aquí solo marcamos la
+      // pista de UX (no guardamos el token en JS).
+      await adminApi.login(email, password);
+      setSessionHint();
       router.push("/prompts");
     } catch (e) {
       if (e instanceof ApiError && e.status === 401) {

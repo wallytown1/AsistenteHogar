@@ -1,7 +1,7 @@
 import uuid
 
 import jwt
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -177,13 +177,30 @@ async def get_perfiles_repo(
 admin_bearer_scheme = HTTPBearer(auto_error=False)
 
 
+def _extract_admin_token(
+    request: Request, credentials: HTTPAuthorizationCredentials | None
+) -> str | None:
+    """Resuelve el token de admin: primero la cookie HttpOnly (navegador/panel),
+    con fallback a la cabecera Authorization: Bearer (clientes API y tests)."""
+    cookie_token: str | None = request.cookies.get(core_config.ADMIN_COOKIE_NAME)
+    if cookie_token:
+        return cookie_token
+    if credentials is not None:
+        token: str = credentials.credentials
+        return token
+    return None
+
+
 async def get_current_admin(
+    request: Request,
     credentials: HTTPAuthorizationCredentials = Depends(admin_bearer_scheme),
     session: AsyncSession = Depends(get_async_session),
 ) -> AdminUser:
     """Valida un JWT de admin (firmado con ADMIN_JWT_SECRET_KEY, role=='admin').
     Completamente separado de los tokens familiares — ningún token familiar puede
-    acceder a rutas de admin y viceversa."""
+    acceder a rutas de admin y viceversa. El token se lee de una cookie HttpOnly
+    (preferente) o de la cabecera Bearer (fallback). Soporta revocación vía
+    blocklist de JTI (logout real)."""
     unauthorized_headers = {"WWW-Authenticate": "Bearer"}
 
     if not core_config.ADMIN_JWT_SECRET_KEY:
@@ -192,7 +209,8 @@ async def get_current_admin(
             detail="El panel de administración no está configurado en este servidor.",
         )
 
-    if credentials is None:
+    token = _extract_admin_token(request, credentials)
+    if token is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Se requiere autenticación de administrador.",
@@ -201,13 +219,14 @@ async def get_current_admin(
 
     try:
         payload = jwt.decode(
-            credentials.credentials,
+            token,
             core_config.ADMIN_JWT_SECRET_KEY,
             algorithms=[core_config.JWT_ALGORITHM],
         )
         if payload.get("role") != "admin":
             raise ValueError("role != admin")
         admin_id = uuid.UUID(payload["sub"])
+        jti: str = payload.get("jti", "")
     except jwt.ExpiredSignatureError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -221,6 +240,16 @@ async def get_current_admin(
             headers=unauthorized_headers,
         ) from None
 
+    if jti:
+        from app.core.token_blocklist import is_token_revoked
+
+        if await is_token_revoked(jti):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="La sesión de administrador ha sido cerrada.",
+                headers=unauthorized_headers,
+            )
+
     repo = AdminUserRepository(session)
     admin = await repo.get_by_id(admin_id)
     if admin is None or not admin.is_active:
@@ -230,6 +259,19 @@ async def get_current_admin(
             headers=unauthorized_headers,
         )
     return admin
+
+
+async def require_admin_csrf(request: Request) -> None:
+    """Defensa CSRF para mutaciones del panel admin cuando la sesión viaja en
+    cookie. Exige una cabecera personalizada que un sitio atacante no puede
+    enviar cross-origin sin un preflight CORS que el backend rechaza (la
+    allow-list de orígenes no lo incluye). Las peticiones por Bearer puro
+    (tests/clientes API) también la envían."""
+    if request.headers.get("X-Admin-Request") != "1":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Falta la cabecera de protección CSRF (X-Admin-Request).",
+        )
 
 
 async def get_admin_auth_service(

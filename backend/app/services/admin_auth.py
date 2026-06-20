@@ -1,3 +1,4 @@
+import uuid
 from datetime import UTC, datetime, timedelta
 
 import bcrypt
@@ -43,6 +44,7 @@ class AdminAuthService:
             "sub": str(admin.id),
             "email": admin.email,
             "role": "admin",
+            "jti": uuid.uuid4().hex,
             "exp": expire,
         }
         return jwt.encode(payload, secret, algorithm=core.config.JWT_ALGORITHM)

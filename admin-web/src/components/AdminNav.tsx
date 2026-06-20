@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { clearToken } from "@/lib/auth";
+import { adminApi } from "@/lib/api";
+import { clearSessionHint } from "@/lib/auth";
 
 const NAV_ITEMS = [
   { href: "/prompts", label: "Prompts IA" },
@@ -13,8 +14,15 @@ export default function AdminNav() {
   const pathname = usePathname();
   const router = useRouter();
 
-  function handleLogout() {
-    clearToken();
+  async function handleLogout() {
+    // Revoca el token en el servidor (blocklist) y borra la cookie HttpOnly.
+    // Si la llamada falla, igualmente limpiamos la pista y redirigimos.
+    try {
+      await adminApi.logout();
+    } catch {
+      /* noop — el cierre local procede igualmente */
+    }
+    clearSessionHint();
     router.push("/login");
   }
 

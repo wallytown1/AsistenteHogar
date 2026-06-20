@@ -15,8 +15,8 @@ export default function PrivacidadPage() {
         <p>
           El responsable del tratamiento de sus datos personales es el desarrollador de la
           aplicación <strong>Fogón</strong>, contactable en{" "}
-          <a href="mailto:navaroruiz2000@gmail.com" className="text-indigo-600 underline">
-            navaroruiz2000@gmail.com
+          <a href="mailto:soporte@fogon.app" className="text-indigo-600 underline">
+            soporte@fogon.app
           </a>
           .
         </p>
@@ -139,8 +139,8 @@ export default function PrivacidadPage() {
         </ul>
         <p className="mt-3">
           Para ejercer cualquier derecho, contacte en{" "}
-          <a href="mailto:navaroruiz2000@gmail.com" className="text-indigo-600 underline">
-            navaroruiz2000@gmail.com
+          <a href="mailto:soporte@fogon.app" className="text-indigo-600 underline">
+            soporte@fogon.app
           </a>
           . Responderemos en un plazo máximo de 30 días.
         </p>
@@ -166,7 +166,7 @@ export default function PrivacidadPage() {
         <a href="/terminos" className="text-indigo-600 underline">
           Términos y Condiciones
         </a>
-        <a href="mailto:navaroruiz2000@gmail.com">navaroruiz2000@gmail.com</a>
+        <a href="mailto:soporte@fogon.app">soporte@fogon.app</a>
       </footer>
     </main>
   );

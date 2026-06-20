@@ -58,7 +58,17 @@ REVENUECAT_WEBHOOK_SECRET: str | None = os.getenv("REVENUECAT_WEBHOOK_SECRET")
 # para que los tokens de admin y los de usuarios del hogar no sean intercambiables.
 # Si ADMIN_JWT_SECRET_KEY no está definida, los endpoints /admin/* devuelven 503.
 ADMIN_JWT_SECRET_KEY: str | None = os.getenv("ADMIN_JWT_SECRET_KEY")
-ADMIN_JWT_EXPIRE_MINUTES: int = int(os.getenv("ADMIN_JWT_EXPIRE_MINUTES", "480"))
+# TTL corto (2h por defecto): el panel admin es superficie sensible; reduce la
+# ventana de uso si un token se compromete. Revocable vía blocklist (logout).
+ADMIN_JWT_EXPIRE_MINUTES: int = int(os.getenv("ADMIN_JWT_EXPIRE_MINUTES", "120"))
 # Token de un solo uso para crear el primer admin (bootstrap). Desactivado si no
 # está definido (501). Después del primer admin se recomienda borrar esta variable.
 ADMIN_BOOTSTRAP_TOKEN: str | None = os.getenv("ADMIN_BOOTSTRAP_TOKEN")
+
+# Cookie de sesión del panel admin. El token viaja en una cookie HttpOnly (no
+# accesible a JS → mitiga exfiltración por XSS). admin-web (Vercel) y la API
+# (Railway) son dominios distintos → en producción la cookie es cross-site y
+# requiere SameSite=None + Secure. En desarrollo (http localhost) se usa Lax.
+ADMIN_COOKIE_NAME = "admin_token"
+ADMIN_COOKIE_SECURE: bool = IS_PRODUCTION
+ADMIN_COOKIE_SAMESITE: str = "none" if IS_PRODUCTION else "lax"

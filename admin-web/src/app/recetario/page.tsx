@@ -6,7 +6,7 @@ import Link from "next/link";
 import AdminNav from "@/components/AdminNav";
 import RecetaForm from "@/components/RecetaForm";
 import { adminApi, ApiError, RecetaMaestra } from "@/lib/api";
-import { isAuthenticated } from "@/lib/auth";
+import { hasSessionHint } from "@/lib/auth";
 
 export default function RecetarioPage() {
   const router = useRouter();
@@ -28,7 +28,7 @@ export default function RecetarioPage() {
   }
 
   useEffect(() => {
-    if (!isAuthenticated()) {
+    if (!hasSessionHint()) {
       router.push("/login");
       return;
     }

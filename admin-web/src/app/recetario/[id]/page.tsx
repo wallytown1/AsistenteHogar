@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import AdminNav from "@/components/AdminNav";
 import RecetaForm from "@/components/RecetaForm";
 import { adminApi, ApiError, RecetaMaestra } from "@/lib/api";
-import { isAuthenticated } from "@/lib/auth";
+import { hasSessionHint } from "@/lib/auth";
 import Link from "next/link";
 
 export default function RecetaDetailPage() {
@@ -17,7 +17,7 @@ export default function RecetaDetailPage() {
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
-    if (!isAuthenticated()) {
+    if (!hasSessionHint()) {
       router.push("/login");
       return;
     }

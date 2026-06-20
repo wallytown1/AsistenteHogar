@@ -1,4 +1,9 @@
-fastapi>=0.110.0
+fastapi>=0.136.0
+# starlette fijado a la versión parcheada: resuelve PYSEC-2026-161 y
+# CVE-2026-48818/48817/54283/54282. FastAPI 0.136 requiere starlette>=0.46.0,
+# así que es compatible. (Es dependencia transitiva de fastapi; se pina aquí
+# para forzar el fix de seguridad en instalaciones limpias.)
+starlette>=1.3.1
 uvicorn>=0.28.0
 pydantic>=2.6.0
 sqlalchemy>=2.0.28
@@ -12,4 +17,3 @@ pyjwt>=2.8.0
 bcrypt>=4.1.2
 email-validator>=2.1.0
 redis[hiredis]>=5.0.0
-schemathesis>=3.27,<4

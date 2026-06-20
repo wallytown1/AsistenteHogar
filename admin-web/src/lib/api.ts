@@ -1,4 +1,4 @@
-import { getToken } from "./auth";
+import { clearSessionHint } from "./auth";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
@@ -12,15 +12,23 @@ export class ApiError extends Error {
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const token = getToken();
   const headers: HeadersInit = {
     "Content-Type": "application/json",
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    // Defensa CSRF: cabecera personalizada que un sitio atacante no puede enviar
+    // cross-origin sin un preflight CORS que el backend rechaza.
+    "X-Admin-Request": "1",
     ...init?.headers,
   };
 
-  const res = await fetch(`${API_URL}/api/v1${path}`, { ...init, headers });
+  // credentials:include → el navegador envía la cookie HttpOnly de sesión admin
+  // (puesta por el backend en su dominio) en cada petición cross-origin.
+  const res = await fetch(`${API_URL}/api/v1${path}`, {
+    ...init,
+    headers,
+    credentials: "include",
+  });
   if (!res.ok) {
+    if (res.status === 401) clearSessionHint();
     const body = await res.json().catch(() => ({}));
     throw new ApiError(res.status, body.detail ?? res.statusText);
   }
@@ -76,6 +84,8 @@ export interface RecetaMaestra {
 export const adminApi = {
   login: (email: string, password: string) =>
     api.post<AdminTokenResponse>("/admin/auth/login", { email, password }),
+
+  logout: () => api.post<{ success: boolean }>("/admin/auth/logout", {}),
 
   getPrompts: () => api.get<PromptTemplate[]>("/admin/prompts"),
   getPrompt: (clave: string) => api.get<PromptTemplate>(`/admin/prompts/${clave}`),

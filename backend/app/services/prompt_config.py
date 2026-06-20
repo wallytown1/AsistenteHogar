@@ -1,5 +1,6 @@
 import hashlib
 
+from app.models.models import PromptTemplate
 from app.repositories.prompt_template import PromptTemplateRepository
 from app.services import llm as llm_module
 
@@ -48,3 +49,29 @@ class PromptConfigService:
         cache_key = _hash_key("prompt", clave)
         # Sobrescribir con TTL=1 equivale a expirar inmediatamente
         await llm_module._cache_set(cache_key, "", 1)
+
+    # --- API pública para el panel admin (no exponer el repo) ---
+
+    async def list_templates(self) -> list[PromptTemplate]:
+        """Devuelve todos los templates (uso del panel admin)."""
+        return await self._repo.list_all()
+
+    async def get_template(self, clave: str) -> PromptTemplate | None:
+        """Devuelve un template por clave, o None si no existe."""
+        return await self._repo.get_by_clave(clave)
+
+    async def upsert_template(
+        self,
+        clave: str,
+        system_instruction: str | None,
+        activo: bool | None,
+    ) -> PromptTemplate:
+        """Crea/actualiza un template, persiste e invalida la caché de esa clave."""
+        template = await self._repo.upsert(
+            clave=clave,
+            system_instruction=system_instruction,
+            activo=activo,
+        )
+        await self._repo._session.commit()
+        await self.invalidate(clave)
+        return template

@@ -42,10 +42,6 @@ export const colors = {
   homeSoft: '#F6EDE3',
   pantry: '#8B5E3C', // despensa = marrón arcilla (unificado con la marca)
   pantrySoft: '#F6EDE3',
-  calendar: '#8B5E3C',
-  calendarSoft: '#F6EDE3',
-  tasks: '#C8783A', // tareas = ámbar terracota (urgencia cálida)
-  tasksSoft: '#FAF0E6',
 
   // Misc
   white: '#FFFFFF',

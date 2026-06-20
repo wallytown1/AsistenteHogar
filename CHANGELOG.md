@@ -6,6 +6,56 @@ Formato: `[FECHA] [ÁREA] [TIPO] Descripción`
 
 ---
 
+## [2026-06-21] — Auditoría de seguridad: remediación completa
+
+Auditoría profunda (3 agentes: backend, frontend/admin, deps/secretos). Veredicto: postura
+sólida; hallazgos accionables concentrados en el panel admin. Remediación en 6 fases.
+
+### Seguridad admin (backend)
+
+- **ADD** `POST /api/v1/admin/auth/logout` — revoca el `jti` del token en el blocklist y borra la
+  cookie. **MOD** `create_admin_token` añade claim `jti`; `get_current_admin` verifica revocación
+  (paridad con el JWT de familia). **MOD** `ADMIN_JWT_EXPIRE_MINUTES` 480 → **120** (2 h).
+- **ADD** Sesión admin por **cookie HttpOnly** (`admin_token`): login/bootstrap la ponen
+  (`Secure; SameSite=None` en prod por ser cross-site Vercel↔Railway); `get_current_admin` lee
+  cookie o `Authorization: Bearer`. Mitiga exfiltración del token por XSS.
+- **ADD** Defensa **CSRF** `require_admin_csrf` (cabecera `X-Admin-Request: 1`) en las mutaciones de
+  prompts y recetario → **403** sin ella.
+- **FIX** Encapsulación: `routers/admin_prompts.py` ya no accede a `svc._repo` (métodos públicos
+  `list_templates`/`get_template`/`upsert_template` en `PromptConfigService`).
+
+### Admin-web (Next.js)
+
+- **MOD** Token fuera de `localStorage`: el cliente usa la cookie HttpOnly (`credentials: 'include'`)
+  + cabecera CSRF; `lib/auth.ts` solo guarda una "pista" de UX no sensible.
+- **ADD** `src/middleware.ts` — protección de `/prompts` y `/recetario` en el edge.
+- **MOD** Logout llama a `POST /admin/auth/logout` (revoca el token server-side) antes de redirigir.
+
+### Hardening
+
+- **ADD** `_sanitize_user_text` en `llm.py` — acota longitud y neutraliza delimitadores de prompt
+  injection antes de Gemini (defensa en profundidad sobre `responseSchema` + temp 0).
+- **MOD** `purchasesStore.ts` — `console.*` envueltos en `logDev` (solo `__DEV__`).
+
+### Dependencias (CVEs)
+
+- **FIX** `requirements.txt` fija **`starlette>=1.3.1`** → resuelve PYSEC-2026-161 y
+  CVE-2026-48818/48817/54283/54282 (FastAPI 0.136 lo admite). `schemathesis` (test-only, constreñía
+  starlette<1) movido a **`requirements-dev.txt`**. `pip-audit -r requirements.txt`: **0 vulns**.
+- **MOD** `ci.yml` sin ignorelist de pip-audit; schemathesis se instala en su propio paso.
+
+### Limpieza
+
+- **FIX** Tokens de color muertos (`calendar/calendarSoft/tasks/tasksSoft`) eliminados de `tokens.ts`
+  (módulos borrados en Pivote 2).
+- **MOD** Email de contacto en páginas legales y `SECURITY.md`: `navaroruiz2000@gmail.com` →
+  `soporte@fogon.app` (pendiente registrar dominio+buzón).
+
+Verificación: 9/9 smoke tests (admin 33/33), ruff + mypy, ts:check + lint (front + admin), build
+admin-web, pip-audit limpio.
+
+---
+
 ## [2026-06-20] — EAS: primer build de Android verde (APK preview)
 
 ### Frontend (deps)

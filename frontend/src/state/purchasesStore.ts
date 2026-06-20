@@ -8,6 +8,14 @@ import { Platform } from 'react-native';
 
 const RC_API_KEY = process.env.EXPO_PUBLIC_RC_KEY || '';
 
+// Logger que solo emite en desarrollo: evita filtrar detalles de errores de
+// RevenueCat (stack traces, respuestas del SDK) en la consola de builds de producción.
+function logDev(...args: unknown[]): void {
+  if (__DEV__) {
+    console.error(...args);
+  }
+}
+
 let customerInfoListener: CustomerInfoUpdateListener | null = null;
 
 interface PurchasesState {
@@ -41,7 +49,7 @@ export const usePurchasesStore = create<PurchasesState>((set, get) => ({
 
   configure: async () => {
     if (!RC_API_KEY) {
-      console.warn('Falta EXPO_PUBLIC_RC_KEY. RevenueCat no se inicializará.');
+      logDev('Falta EXPO_PUBLIC_RC_KEY. RevenueCat no se inicializará.');
       return;
     }
     if (get().isConfigured) return;
@@ -63,7 +71,7 @@ export const usePurchasesStore = create<PurchasesState>((set, get) => ({
         set({ isConfigured: true });
       }
     } catch (error) {
-      console.error('Error configurando RevenueCat:', error);
+      logDev('Error configurando RevenueCat:', error);
     }
   },
 
@@ -73,7 +81,7 @@ export const usePurchasesStore = create<PurchasesState>((set, get) => ({
       const { customerInfo } = await Purchases.logIn(appUserId);
       await get().checkEntitlements(customerInfo);
     } catch (error) {
-      console.error('Error haciendo logIn en RevenueCat:', error);
+      logDev('Error haciendo logIn en RevenueCat:', error);
     }
   },
 
@@ -83,7 +91,7 @@ export const usePurchasesStore = create<PurchasesState>((set, get) => ({
       const customerInfo = await Purchases.logOut();
       await get().checkEntitlements(customerInfo);
     } catch (error) {
-      console.error('Error haciendo logOut en RevenueCat:', error);
+      logDev('Error haciendo logOut en RevenueCat:', error);
     }
   },
 
@@ -93,7 +101,7 @@ export const usePurchasesStore = create<PurchasesState>((set, get) => ({
       const { isPremium, isFamilia } = _computeTiers(currentInfo);
       set({ customerInfo: currentInfo, isPremium, isFamilia });
     } catch (error) {
-      console.error('Error chequeando entitlements:', error);
+      logDev('Error chequeando entitlements:', error);
     }
   },
 
@@ -105,7 +113,7 @@ export const usePurchasesStore = create<PurchasesState>((set, get) => ({
         set({ packages: offerings.current.availablePackages });
       }
     } catch (error) {
-      console.error('Error cargando packages:', error);
+      logDev('Error cargando packages:', error);
     }
   },
 
@@ -117,7 +125,7 @@ export const usePurchasesStore = create<PurchasesState>((set, get) => ({
       return isPremium;
     } catch (error: any) {
       if (!error.userCancelled) {
-        console.error('Error comprando paquete:', error);
+        logDev('Error comprando paquete:', error);
       }
       return false;
     }
@@ -130,7 +138,7 @@ export const usePurchasesStore = create<PurchasesState>((set, get) => ({
       set({ customerInfo, isPremium, isFamilia });
       return isPremium;
     } catch (error) {
-      console.error('Error restaurando compras:', error);
+      logDev('Error restaurando compras:', error);
       return false;
     }
   },

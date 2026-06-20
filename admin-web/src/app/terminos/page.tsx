@@ -118,8 +118,8 @@ export default function TerminosPage() {
       <Section title="10. Contacto">
         <p>
           Para cualquier consulta sobre estos términos:{" "}
-          <a href="mailto:navaroruiz2000@gmail.com" className="text-indigo-600 underline">
-            navaroruiz2000@gmail.com
+          <a href="mailto:soporte@fogon.app" className="text-indigo-600 underline">
+            soporte@fogon.app
           </a>
         </p>
       </Section>
@@ -128,7 +128,7 @@ export default function TerminosPage() {
         <a href="/privacidad" className="text-indigo-600 underline">
           Política de Privacidad
         </a>
-        <a href="mailto:navaroruiz2000@gmail.com">navaroruiz2000@gmail.com</a>
+        <a href="mailto:soporte@fogon.app">soporte@fogon.app</a>
       </footer>
     </main>
   );

@@ -3,6 +3,7 @@ import datetime
 import hashlib
 import json
 import logging
+import re
 import time
 from typing import TYPE_CHECKING, Any
 
@@ -591,6 +592,24 @@ _MENSAJE_DESPENSA_NO_INTERPRETABLE = (
 )
 
 
+_MAX_USER_TEXT_LEN = 600
+
+
+def _sanitize_user_text(texto: str, max_len: int = _MAX_USER_TEXT_LEN) -> str:
+    """Saneo defensivo del texto libre del usuario antes de enviarlo a Gemini.
+
+    Acota la longitud y neutraliza secuencias de control habituales en intentos de
+    prompt injection (delimitadores de bloque ```, llaves de plantilla {{ }}, y
+    rachas largas de saltos de línea tipo 'IGNORA LO ANTERIOR\\n\\n...'). La salida
+    estructurada (responseSchema, temperatura 0) ya limita lo que el modelo puede
+    devolver; esto es defensa en profundidad, no la única barrera.
+    """
+    limpio = texto.strip()[:max_len]
+    limpio = limpio.replace("`", "'").replace("{{", "{ {").replace("}}", "} }")
+    limpio = re.sub(r"\n{3,}", "\n\n", limpio)
+    return limpio
+
+
 async def interpret_pantry_text(
     texto: str, fecha_referencia: datetime.date
 ) -> InterpretarDespensaResponse:
@@ -617,7 +636,7 @@ async def interpret_pantry_text(
 
     texto_llm = await _call_gemini(
         system_instruction,
-        texto.strip(),
+        _sanitize_user_text(texto),
         max_output_tokens=600,
         response_schema=_DESPENSA_RESPONSE_SCHEMA,
     )

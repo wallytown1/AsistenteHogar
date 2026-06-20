@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import AdminNav from "@/components/AdminNav";
 import PromptEditor from "@/components/PromptEditor";
 import { adminApi, ApiError, PromptTemplate } from "@/lib/api";
-import { isAuthenticated } from "@/lib/auth";
+import { hasSessionHint } from "@/lib/auth";
 
 export default function PromptsPage() {
   const router = useRouter();
@@ -14,7 +14,7 @@ export default function PromptsPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!isAuthenticated()) {
+    if (!hasSessionHint()) {
       router.push("/login");
       return;
     }

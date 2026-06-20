@@ -348,14 +348,25 @@ el servidor y no existe todavía ningún admin.
 **200** → `AdminTokenResponse` (token + info admin) · **401** token incorrecto · **409** ya existe un admin · **501** variable de entorno no configurada.
 
 #### `POST /api/v1/admin/auth/login`
-Inicia sesión con las credenciales del admin.
+Inicia sesión con las credenciales del admin. Además del token en el cuerpo (compatibilidad con
+clientes API / tests por `Authorization: Bearer`), pone una **cookie `admin_token` HttpOnly** (en
+producción `Secure; SameSite=None` por ser cross-site Vercel↔Railway) que el panel usa como sesión.
 
 **Body** (`AdminLoginRequest`): `{ "email": "...", "password": "..." }`
-**200** → `AdminTokenResponse` · **401** credenciales incorrectas · **503** `ADMIN_JWT_SECRET_KEY` no configurada.
+**200** → `AdminTokenResponse` (+ `Set-Cookie`) · **401** credenciales incorrectas · **503** `ADMIN_JWT_SECRET_KEY` no configurada.
+
+#### `POST /api/v1/admin/auth/logout` 🔑
+Cierra la sesión de admin: revoca el `jti` del token en el blocklist (un token revocado da 401 en
+cualquier ruta admin aunque no haya expirado) y borra la cookie HttpOnly.
+**200** → `LogoutResponse`.
 
 ---
 
 ### Prompts dinámicos 🔑
+
+> Las **mutaciones** admin (`PATCH /admin/prompts/*`, `POST|PATCH|DELETE /admin/recetario/*`) exigen
+> la cabecera CSRF `X-Admin-Request: 1` (defensa double-submit por cabecera personalizada, dado que
+> la sesión viaja en cookie). Sin ella → **403**.
 
 > La `system_instruction` editada por el admin **nunca** puede suprimir `_FILOSOFIA_MEDITERRANEA`;
 > el servidor la añade siempre al final (guard no-removible en `PromptConfigService`).

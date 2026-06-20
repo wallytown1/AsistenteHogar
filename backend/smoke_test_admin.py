@@ -102,6 +102,10 @@ with TestClient(app) as client:
     )
     check("4. Login admin ->200", r.status_code == 200, f"(status={r.status_code})")
     admin_token = r.json().get("access_token", admin_token)
+    # El login (y el bootstrap) setean la cookie HttpOnly en el TestClient, que la
+    # reenvía automáticamente. La limpiamos para que los tests de aislamiento por
+    # Bearer (6, 7) sigan siendo válidos; la auth por cookie se prueba al final.
+    client.cookies.clear()
 
     # ── 5. Login admin contraseña incorrecta ->401 ───────────────────────────
     r = client.post(
@@ -110,7 +114,8 @@ with TestClient(app) as client:
     )
     check("5. Login admin contraseña incorrecta ->401", r.status_code == 401, f"(status={r.status_code})")
 
-    admin_h = {"Authorization": f"Bearer {admin_token}"}
+    # admin_h incluye la cabecera CSRF (X-Admin-Request) requerida en las mutaciones.
+    admin_h = {"Authorization": f"Bearer {admin_token}", "X-Admin-Request": "1"}
     familia_h = {"Authorization": f"Bearer {familia_token}"}
 
     # ── 6. GET /admin/prompts sin auth ->401 ─────────────────────────────────
@@ -238,9 +243,47 @@ with TestClient(app) as client:
     r = client.get("/api/v1/pantry", headers=admin_h)
     check("21. Token admin en /pantry ->401", r.status_code == 401, f"(status={r.status_code})")
 
+    # ── 22. CSRF: mutación con Bearer pero SIN cabecera X-Admin-Request ->403 ──
+    r = client.patch(
+        "/api/v1/admin/prompts/recetas",
+        json={"system_instruction": "intento sin cabecera CSRF"},
+        headers={"Authorization": f"Bearer {admin_token}"},  # falta X-Admin-Request
+    )
+    check("22. PATCH sin cabecera CSRF ->403", r.status_code == 403, f"(status={r.status_code})")
+
+    # ── 23. Login setea cookie HttpOnly ──────────────────────────────────────
+    client.cookies.clear()
+    r = client.post(
+        "/api/v1/admin/auth/login",
+        json={"email": "admin@ejemplo.com", "password": "admin1234"},
+    )
+    check("23. Login admin (cookie) ->200", r.status_code == 200, f"(status={r.status_code})")
+    check("23b. Set-Cookie admin_token presente", "admin_token" in r.cookies)
+    logout_token = r.json().get("access_token", "")
+
+    # ── 24. Auth por cookie sola (sin cabecera Authorization) ->200 ───────────
+    r = client.get("/api/v1/admin/prompts")
+    check("24. GET prompts solo con cookie ->200", r.status_code == 200, f"(status={r.status_code})")
+
+    # ── 25. Logout admin ->200 ───────────────────────────────────────────────
+    r = client.post("/api/v1/admin/auth/logout")
+    check("25. Logout admin ->200", r.status_code == 200, f"(status={r.status_code})")
+
+    # ── 26. Tras logout la cookie se borra ->401 sin Bearer ──────────────────
+    r = client.get("/api/v1/admin/prompts")
+    check("26. GET prompts tras logout ->401", r.status_code == 401, f"(status={r.status_code})")
+
+    # ── 27. El JTI revocado da 401 también vía Bearer (blocklist) ─────────────
+    r = client.get(
+        "/api/v1/admin/prompts",
+        headers={"Authorization": f"Bearer {logout_token}", "X-Admin-Request": "1"},
+    )
+    check("27. Token revocado vía Bearer ->401", r.status_code == 401, f"(status={r.status_code})")
+    client.cookies.clear()
+
 
 # ── Resultado ─────────────────────────────────────────────────────────────────
-total = 26  # incluyendo sub-checks (b/c labels)
+total = 33  # incluyendo sub-checks (b/c labels)
 passed = total - len(fallos)
 print(f"\n{'='*50}")
 print(f"smoke_test_admin: {passed}/{total} checks pasaron")

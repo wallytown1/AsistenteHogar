@@ -27,6 +27,19 @@ Cubre modelo de autenticación, aislamiento multi-tenant, LLM, RGPD y riesgos ac
   (no 401): la superficie admin queda inaccesible por diseño.
 - Bootstrap de un solo uso: `ADMIN_BOOTSTRAP_TOKEN` — **501** si no está definida, **409** si ya
   existe algún admin. Se recomienda borrar la variable después del primer bootstrap.
+- **Sesión por cookie HttpOnly**: el login pone el JWT en una cookie `admin_token` HttpOnly
+  (inaccesible a JS → mitiga exfiltración por XSS). En producción es cross-site (panel en Vercel,
+  API en Railway) → `Secure; SameSite=None`. El token sigue admitiéndose por `Authorization: Bearer`
+  (clientes API / tests). TTL corto: **2 h** (`ADMIN_JWT_EXPIRE_MINUTES`, antes 8 h).
+- **Revocación / logout real**: el token admin incluye `jti`; `POST /admin/auth/logout` lo añade al
+  blocklist (`token_blocklist.py`, Redis/memoria) y borra la cookie. Un token revocado da 401 aunque
+  no haya expirado. `get_current_admin()` verifica el blocklist en cada petición.
+- **CSRF**: como la sesión viaja en cookie, las mutaciones admin exigen la cabecera personalizada
+  `X-Admin-Request: 1` (un sitio atacante no puede enviarla cross-origin sin un preflight que la
+  allow-list de CORS rechaza). Sin ella → **403**.
+- **Protección de rutas en el panel**: `admin-web/src/middleware.ts` redirige a `/login` en el edge
+  si falta la pista de sesión, antes de renderizar contenido protegido (la seguridad real es la
+  cookie HttpOnly de la API; la pista es solo UX).
 
 ### Contraseñas
 
@@ -203,13 +216,13 @@ Solo existen dos paths de hard delete autorizados (RGPD art. 17). Ningún otro c
 
 | # | Riesgo | Mitigación | Prioridad |
 |---|--------|-----------|-----------|
-| R1 | Sin revocación de tokens JWT (30 días de validez) | Hard delete del usuario invalida el `sub` lookup → 401 automático | Media — añadir JTI + blocklist en Fase 5 |
+| R1 | ~~Sin revocación de tokens JWT~~ **Resuelto** | JTI + blocklist (`token_blocklist.py`) en JWT de familia y de admin; `POST /auth/logout` y `POST /admin/auth/logout` revocan. Token revocado → 401 inmediato | Resuelto |
 | R2 | `REVENUECAT_SECRET_KEY` sin definir en Railway → gate premium desactivado | Rate limits por endpoint acotan el abuso | Alta — definir antes de cobrar a usuarios |
 | R3 | `GEMINI_API_KEY` en tier gratuito → posible uso de datos por Google | Datos de prueba solo; cambiar a billing antes de usuarios reales | Alta — ver §5.4 |
 | R4 | Fail-open en RevenueCat si su API cae | Rate limits + logging de errores | Baja — comportamiento intencional para no bloquear usuarios de pago |
 | R5 | Sin rate limit en `/admin/*` | JWT admin separado + no es ruta pública | Baja — añadir si el panel se expone en red abierta |
-| R6 | Token admin en `localStorage` (admin-web) | XSS en Next.js expondría el token; el panel no es público | Baja — migrar a `httpOnly cookie` si se despliega públicamente |
-| R7 | Prompt injection en texto libre (`/interpretar`, `/audio`) | `responseSchema` + temperatura 0 + impacto limitado al propio hogar | Baja — inherente al flujo NL |
+| R6 | ~~Token admin en `localStorage`~~ **Resuelto** | Migrado a cookie HttpOnly + CSRF por cabecera + revocación + TTL 2 h (ver §1). Riesgo residual: cookies de terceros (cross-site Vercel↔Railway) pueden bloquearse en Safari ITP / Chrome futuro → si ocurre, servir el panel bajo el dominio de la API | Baja — residual cross-domain |
+| R7 | Prompt injection en texto libre (`/interpretar`, `/audio`) | `_sanitize_user_text` (acota longitud + neutraliza delimitadores) + `responseSchema` + temperatura 0 + impacto limitado al propio hogar | Baja — inherente al flujo NL |
 | R8 | OWASP ZAP pendiente (Bloque 6) | Schemathesis cubre fuzzing de contrato; ZAP añadiría análisis dinámico | Baja — post-lanzamiento |
 | R9 | Apodos de miembros del hogar viajan a Gemini sin anonimizar (Fase 3) | Apodos son pseudónimos; el usuario los crea sabiendo que mejoran las sugerencias IA; `extra='forbid'` impide campos extra. Si se añaden nombres legales en el futuro, aplicar `AnonimizadorLLM` | Baja — inherente al flujo de personalización |
 
@@ -217,7 +230,7 @@ Solo existen dos paths de hard delete autorizados (RGPD art. 17). Ningún otro c
 
 ## 10. Contacto para reporte de vulnerabilidades
 
-**Email:** navaroruiz2000@gmail.com
+**Email:** soporte@fogon.app
 
 Por favor, describe el vector de ataque, el impacto estimado y los pasos para reproducirlo.
 No publiques la vulnerabilidad hasta recibir confirmación de lectura.

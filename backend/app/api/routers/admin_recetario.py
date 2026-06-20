@@ -3,7 +3,7 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_admin
+from app.api.deps import get_current_admin, require_admin_csrf
 from app.database import get_async_session
 from app.models.models import AdminUser
 from app.repositories.exceptions import ItemNotFoundError
@@ -41,6 +41,7 @@ async def create_receta(
     session: AsyncSession = Depends(get_async_session),
     repo: RecetaMaestraRepository = Depends(_repo),
     _admin: AdminUser = Depends(get_current_admin),
+    _csrf: None = Depends(require_admin_csrf),
 ) -> RecetaMaestraResponse:
     receta = await repo.create(
         nombre=body.nombre,
@@ -77,6 +78,7 @@ async def update_receta(
     session: AsyncSession = Depends(get_async_session),
     repo: RecetaMaestraRepository = Depends(_repo),
     _admin: AdminUser = Depends(get_current_admin),
+    _csrf: None = Depends(require_admin_csrf),
 ) -> RecetaMaestraResponse:
     campos = body.model_dump(exclude_unset=True)
     if not campos:
@@ -101,6 +103,7 @@ async def delete_receta(
     session: AsyncSession = Depends(get_async_session),
     repo: RecetaMaestraRepository = Depends(_repo),
     _admin: AdminUser = Depends(get_current_admin),
+    _csrf: None = Depends(require_admin_csrf),
 ) -> dict[str, bool]:
     try:
         await repo.delete(receta_id)
