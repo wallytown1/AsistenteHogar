@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, ScrollView, TextInput, StyleSheet, Pressable, Alert } from 'react-native';
 import { useListaCompra } from '../hooks/useListaCompra';
-import { ListaCompraItem } from '../types/types';
+import { ListaCompraItem, SugerenciaCompra } from '../types/types';
 import { colors, spacing, radius, typography } from '../theme/tokens';
 import {
   Screen,
@@ -72,8 +72,17 @@ function ItemRow({
 }
 
 export default function ShoppingListScreen() {
-  const { pendientes, comprados, isLoading, error, addItem, toggleItem, deleteItem, clearChecked } =
-    useListaCompra();
+  const {
+    pendientes,
+    comprados,
+    sugerencias,
+    isLoading,
+    error,
+    addItem,
+    toggleItem,
+    deleteItem,
+    clearChecked,
+  } = useListaCompra();
   const [texto, setTexto] = useState('');
   const [adding, setAdding] = useState(false);
 
@@ -89,6 +98,15 @@ export default function ShoppingListScreen() {
       Alert.alert('Error', 'No se pudo añadir el producto.');
     } finally {
       setAdding(false);
+    }
+  };
+
+  const handleAddSugerencia = async (s: SugerenciaCompra) => {
+    haptics.success();
+    try {
+      await addItem(s.nombre, s.cantidad_habitual ?? undefined, s.unidad ?? undefined);
+    } catch {
+      Alert.alert('Error', 'No se pudo añadir el producto.');
     }
   };
 
@@ -156,10 +174,35 @@ export default function ShoppingListScreen() {
       </View>
 
       <ScrollView
-        contentContainerStyle={[styles.scroll, empty && styles.scrollEmpty]}
+        contentContainerStyle={[
+          styles.scroll,
+          empty && sugerencias.length === 0 && styles.scrollEmpty,
+        ]}
         showsVerticalScrollIndicator={false}
       >
-        {empty ? (
+        {sugerencias.length > 0 && (
+          <>
+            <SectionHeader title="Te suele tocar" style={styles.section} />
+            <View style={styles.chips}>
+              {sugerencias.map((s) => (
+                <Pressable
+                  key={s.nombre}
+                  onPress={() => handleAddSugerencia(s)}
+                  style={styles.chip}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Añadir ${s.nombre} a la lista. ${s.motivo}`}
+                >
+                  <Icon name="add" size={15} color={colors.brand} />
+                  <AppText variant="captionStrong" color={colors.brand} style={styles.chipText}>
+                    {s.nombre}
+                  </AppText>
+                </Pressable>
+              ))}
+            </View>
+          </>
+        )}
+
+        {empty && sugerencias.length === 0 ? (
           <View style={styles.empty}>
             <Icon name="cart-outline" size={48} color={colors.inkFaint} />
             <AppText variant="body" color={colors.inkFaint} style={styles.emptyText}>
@@ -254,6 +297,25 @@ const styles = StyleSheet.create({
   },
   section: {
     marginTop: spacing.lg,
+  },
+  chips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: colors.brandSoft,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.pill,
+    paddingVertical: spacing.xs + 2,
+    paddingHorizontal: spacing.md,
+  },
+  chipText: {
+    textTransform: 'capitalize',
   },
   empty: {
     flex: 1,

@@ -65,6 +65,7 @@ python smoke_test_lista_compra.py   # lista de la compra CRUD + borrado masivo +
 python smoke_test_rechazar_ingrediente.py  # rechazar-ingrediente: schema, multi-tenant, auth (16 checks)
 python smoke_test_chef.py           # chef chat + valoración + memoria de gustos + aislamiento
 python smoke_test_movimientos.py    # ledger de movimientos + agregados de hábitos + aislamiento
+python smoke_test_lista_inteligente.py  # sugerencias de compra por cadencia del ledger
 
 # Manual GDPR purge pass (also runs automatically every 24h from the app lifespan)
 python -m app.jobs.purge
@@ -160,6 +161,7 @@ python smoke_test_lista_compra.py    # 27/27 must pass
 python smoke_test_rechazar_ingrediente.py  # 16/16 must pass
 python smoke_test_chef.py            # chef chat + valoración + memoria must pass
 python smoke_test_movimientos.py     # ledger de movimientos + hábitos must pass
+python smoke_test_lista_inteligente.py  # sugerencias de compra must pass
 
 # Frontend
 cd frontend && npm run ts:check           # 0 errors

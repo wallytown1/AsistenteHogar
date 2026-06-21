@@ -3,7 +3,11 @@ import uuid
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_user, get_hogar_id
+from app.api.deps import (
+    get_current_user,
+    get_hogar_id,
+    get_lista_compra_service,
+)
 from app.database import get_async_session
 from app.models.models import Usuario
 from app.repositories.lista_compra import ListaCompraRepository
@@ -11,7 +15,9 @@ from app.schemas.schemas import (
     ListaCompraItemCreate,
     ListaCompraItemResponse,
     ListaCompraItemUpdate,
+    SugerenciaCompra,
 )
+from app.services.lista_compra import ListaCompraService
 
 router = APIRouter(prefix="/lista-compra", tags=["Lista de la Compra"])
 
@@ -31,6 +37,17 @@ async def list_items(
     """Devuelve todos los ítems de la lista de la compra del hogar, pendientes primero."""
     items = await repo.list_by_hogar(hogar_id)
     return [ListaCompraItemResponse.model_validate(i) for i in items]
+
+
+@router.get("/sugerencias", response_model=list[SugerenciaCompra])
+async def sugerencias_compra(
+    hogar_id: uuid.UUID = Depends(get_hogar_id),
+    service: ListaCompraService = Depends(get_lista_compra_service),
+    _: Usuario = Depends(get_current_user),
+) -> list[SugerenciaCompra]:
+    """Sugerencias de reposición según la cadencia de compra del hogar (ledger), excluyendo
+    lo que ya está en la despensa o en la lista. Sin IA. Lista vacía si no hay histórico."""
+    return await service.sugerencias(hogar_id)
 
 
 @router.post(

@@ -1,25 +1,39 @@
 import { useState, useEffect, useCallback } from 'react';
-import { ListaCompraItem } from '../types/types';
+import { ListaCompraItem, SugerenciaCompra } from '../types/types';
 import { apiRequest } from '../api/api';
 
 export function useListaCompra() {
   const [items, setItems] = useState<ListaCompraItem[]>([]);
+  const [sugerencias, setSugerencias] = useState<SugerenciaCompra[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetch = useCallback(async (signal?: AbortSignal) => {
-    setIsLoading(true);
-    setError(null);
+  const fetchSugerencias = useCallback(async (signal?: AbortSignal) => {
     try {
-      const data = await apiRequest<ListaCompraItem[]>('/lista-compra', { signal });
-      setItems(data);
-    } catch (err: any) {
-      if (err.name === 'AbortError') return;
-      setError(err.message || 'Error al cargar la lista');
-    } finally {
-      if (!signal?.aborted) setIsLoading(false);
+      const data = await apiRequest<SugerenciaCompra[]>('/lista-compra/sugerencias', { signal });
+      setSugerencias(data);
+    } catch {
+      // silencioso — las sugerencias son un extra, no deben romper la pantalla
     }
   }, []);
+
+  const fetch = useCallback(
+    async (signal?: AbortSignal) => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const data = await apiRequest<ListaCompraItem[]>('/lista-compra', { signal });
+        setItems(data);
+        await fetchSugerencias(signal);
+      } catch (err: any) {
+        if (err.name === 'AbortError') return;
+        setError(err.message || 'Error al cargar la lista');
+      } finally {
+        if (!signal?.aborted) setIsLoading(false);
+      }
+    },
+    [fetchSugerencias]
+  );
 
   useEffect(() => {
     const ctrl = new AbortController();
@@ -33,6 +47,8 @@ export function useListaCompra() {
       json: { nombre, cantidad: cantidad ?? null, unidad: unidad ?? null },
     });
     setItems((prev) => [...prev, item]);
+    // Si la sugerida se añade, deja de sugerirse.
+    setSugerencias((prev) => prev.filter((s) => s.nombre !== nombre));
   };
 
   const toggleItem = async (id: string, is_checked: boolean) => {
@@ -60,6 +76,7 @@ export function useListaCompra() {
     items,
     pendientes,
     comprados,
+    sugerencias,
     isLoading,
     error,
     addItem,

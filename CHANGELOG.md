@@ -6,6 +6,21 @@ Formato: `[FECHA] [ÁREA] [TIPO] Descripción`
 
 ---
 
+## [2026-06-22] — Inteligencia de stock (Fase 2A): lista de la compra inteligente
+
+Primer consumidor del ledger orientado al usuario: la lista de la compra **sugiere lo que te suele
+tocar** según tu cadencia de compra, sin coste de IA (100% SQL sobre `movimientos_despensa`).
+
+- **ADD** `GET /api/v1/lista-compra/sugerencias` → devuelve alimentos que probablemente toca reponer:
+  para cada alimento con ≥2 compras, si han pasado al menos sus días de cadencia media desde la última
+  compra Y no está ya en la despensa ni en la lista, se sugiere con su motivo y cantidad habitual.
+- **ADD** `ListaCompraService.sugerencias` (combina hábitos del ledger + stock actual + lista actual) +
+  schema `SugerenciaCompra`. Disponible en todos los tiers (sin Gemini).
+- **ADD** Frontend: sección "Te suele tocar" en `ShoppingListScreen` con añadir de un toque.
+- **ADD** `smoke_test_lista_inteligente.py` (cadencia + exclusiones + aislamiento) y en CI.
+
+---
+
 ## [2026-06-21] — Inteligencia de stock (Fase 1): ledger de movimientos
 
 Cimiento de datos para optimizar las sugerencias sabiendo **qué suele comprar/consumir el hogar**.

@@ -332,6 +332,20 @@ Devuelve todos los ítems de la lista del hogar (no eliminados). Orden: pendient
 
 **200** → `list[ListaCompraItemResponse]`
 
+### `GET /api/v1/lista-compra/sugerencias` 🔒
+Sugerencias inteligentes de reposición a partir del **ledger de movimientos** (`movimientos_despensa`):
+para cada alimento con ≥2 compras, si han pasado al menos sus días de cadencia media desde la última
+compra y NO está ya en la despensa ni en la lista, se sugiere. 100% SQL (sin IA), todos los tiers.
+
+**200** → `list[SugerenciaCompra]`:
+```json
+[
+  { "nombre": "leche", "cantidad_habitual": 2.0, "unidad": "litro",
+    "motivo": "Sueles comprarla cada ~5 días (hace 7)." }
+]
+```
+Lista vacía si no hay histórico suficiente.
+
 ### `POST /api/v1/lista-compra` 🔒
 Añade un ítem a la lista.
 

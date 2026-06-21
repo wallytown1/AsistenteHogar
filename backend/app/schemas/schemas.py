@@ -655,6 +655,15 @@ class ListaCompraItemResponse(BaseSchema):
     updated_at: datetime
 
 
+class SugerenciaCompra(BaseSchema):
+    """Sugerencia de reposición derivada de la cadencia de compra del hogar (ledger)."""
+
+    nombre: str
+    cantidad_habitual: float | None = None
+    unidad: str | None = None
+    motivo: str
+
+
 # --- HÁBITOS DE COMPRA / CONSUMO (derivados del ledger de movimientos) ---
 
 

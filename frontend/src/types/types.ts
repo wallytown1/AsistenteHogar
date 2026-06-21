@@ -46,6 +46,13 @@ export interface RecetaHistorial {
   created_at: string;
 }
 
+export interface SugerenciaCompra {
+  nombre: string;
+  cantidad_habitual: number | null;
+  unidad: string | null;
+  motivo: string;
+}
+
 export type ChefRol = 'usuario' | 'chef';
 
 export interface ChefMensaje {

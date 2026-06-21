@@ -24,6 +24,7 @@ from app.services.admin_auth import AdminAuthService
 from app.services.auth import AuthService
 from app.services.dashboard import DashboardService
 from app.services.historial import RecetaHistorialService
+from app.services.lista_compra import ListaCompraService
 from app.services.memoria import MemoriaService
 from app.services.onboarding import OnboardingService
 from app.services.pantry import PantryService
@@ -325,3 +326,14 @@ async def get_lista_compra_repo(
 ) -> ListaCompraRepository:
     """Provee el repositorio de la lista de la compra del hogar."""
     return ListaCompraRepository(session)
+
+
+async def get_lista_compra_service(
+    session: AsyncSession = Depends(get_async_session),
+) -> ListaCompraService:
+    """Provee ListaCompraService (sugerencias inteligentes a partir del ledger)."""
+    return ListaCompraService(
+        MovimientoDespensaRepository(session),
+        PantryRepository(session),
+        ListaCompraRepository(session),
+    )
