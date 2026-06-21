@@ -33,13 +33,30 @@ export interface FotoNeveraResponse {
   mensaje: string | null;
 }
 
+export type Valoracion = 'me_encanto' | 'gusto' | 'no_me_gusto';
+
 export interface RecetaHistorial {
   id: string;
   hogar_id: string;
   nombre_receta: string;
   accion: 'cocinada' | 'rechazada';
+  valoracion: Valoracion | null;
+  categoria: string | null;
   cocinada_en: string;
   created_at: string;
+}
+
+export type ChefRol = 'usuario' | 'chef';
+
+export interface ChefMensaje {
+  rol: ChefRol;
+  texto: string;
+}
+
+export interface ChefChatResponse {
+  respuesta: string;
+  generado_por_ia: boolean;
+  mensaje: string | null;
 }
 
 export interface RecetaSugerida {

@@ -23,8 +23,9 @@ class PromptConfigService:
         2. DB (template activo)
         3. Fallback hardcodeado
 
-        En todos los casos, _FILOSOFIA_MEDITERRANEA se añade al final — no puede
-        ser eliminada por ninguna edición del admin.
+        En todos los casos, _PERSONA_CHEF se antepone (voz cálida y cercana) y
+        _FILOSOFIA_MEDITERRANEA se añade al final — ninguna de las dos puede ser
+        eliminada por una edición del admin (la parte editable es la del medio).
         """
         cache_key = _hash_key("prompt", clave)
 
@@ -39,8 +40,14 @@ class PromptConfigService:
             else fallback
         )
 
-        # Guard no-negociable: la filosofía mediterránea siempre se añade
-        result = base + "\n\n" + llm_module._FILOSOFIA_MEDITERRANEA
+        # Guards no-negociables: persona cálida delante, filosofía mediterránea detrás.
+        result = (
+            llm_module._PERSONA_CHEF
+            + "\n\n"
+            + base
+            + "\n\n"
+            + llm_module._FILOSOFIA_MEDITERRANEA
+        )
 
         await llm_module._cache_set(cache_key, result, PROMPT_CACHE_TTL)
         return result

@@ -1,9 +1,9 @@
 import React, { useEffect, memo } from 'react';
 import { FlatList, View } from 'react-native';
-import { RecetaHistorial } from '../types/types';
+import { RecetaHistorial, Valoracion } from '../types/types';
 import { useRecetaHistorial } from '../hooks/useRecetaHistorial';
 import { colors, spacing, radius } from '../theme/tokens';
-import { Screen, Card, AppText, EmptyState, LoadingView } from '../components/ui';
+import { Screen, Card, AppText, Icon, EmptyState, LoadingView } from '../components/ui';
 
 function formatFecha(iso: string): string {
   return new Date(iso).toLocaleDateString('es-ES', {
@@ -12,6 +12,15 @@ function formatFecha(iso: string): string {
     year: 'numeric',
   });
 }
+
+const VALORACION_META: Record<
+  Valoracion,
+  { icon: 'heart' | 'thumbs-up' | 'thumbs-down'; color: string }
+> = {
+  me_encanto: { icon: 'heart', color: colors.brand },
+  gusto: { icon: 'thumbs-up', color: colors.success },
+  no_me_gusto: { icon: 'thumbs-down', color: colors.inkFaint },
+};
 
 const HistorialRow = memo(function HistorialRow({
   item,
@@ -45,6 +54,13 @@ const HistorialRow = memo(function HistorialRow({
       <AppText variant="captionStrong" style={{ flex: 1 }} numberOfLines={2}>
         {item.nombre_receta}
       </AppText>
+      {item.valoracion && (
+        <Icon
+          name={VALORACION_META[item.valoracion].icon}
+          size={15}
+          color={VALORACION_META[item.valoracion].color}
+        />
+      )}
       <View
         style={{
           paddingHorizontal: spacing.sm + 2,

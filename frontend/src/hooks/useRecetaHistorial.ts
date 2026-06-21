@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { apiRequest } from '../api/api';
-import { RecetaHistorial } from '../types/types';
+import { RecetaHistorial, Valoracion } from '../types/types';
 
 export function useRecetaHistorial() {
   const [loadingReceta, setLoadingReceta] = useState<string | null>(null);
@@ -9,13 +9,15 @@ export function useRecetaHistorial() {
 
   const registrarAccion = async (
     nombre_receta: string,
-    accion: 'cocinada' | 'rechazada'
+    accion: 'cocinada' | 'rechazada',
+    valoracion?: Valoracion,
+    categoria?: string
   ): Promise<RecetaHistorial | null> => {
     setLoadingReceta(`${nombre_receta}:${accion}`);
     try {
       return await apiRequest<RecetaHistorial>('/pantry/recetas/historial', {
         method: 'POST',
-        json: { nombre_receta, accion },
+        json: { nombre_receta, accion, valoracion, categoria },
       });
     } catch {
       return null;

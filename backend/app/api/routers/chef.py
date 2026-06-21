@@ -1,0 +1,66 @@
+import uuid
+
+from fastapi import APIRouter, Depends
+
+from app.api.deps import (
+    get_hogar_id,
+    get_memoria_service,
+    get_onboarding_service,
+    get_pantry_service,
+    get_perfiles_repo,
+    get_recetario_repo,
+    requiere_premium,
+)
+from app.core.rate_limit import chef_chat_rate_limiter
+from app.repositories.perfiles_individual import PerfilIndividualRepository
+from app.repositories.receta_maestra import RecetaMaestraRepository
+from app.schemas.schemas import (
+    ChefChatRequest,
+    ChefChatResponse,
+    PerfilIndividualResponse,
+    RecetaMaestraResponse,
+)
+from app.services.llm import chef_chat
+from app.services.memoria import MemoriaService
+from app.services.onboarding import OnboardingService
+from app.services.pantry import PantryService
+
+router = APIRouter(tags=["Chef"])
+
+
+@router.post(
+    "/chef/chat",
+    response_model=ChefChatResponse,
+    dependencies=[Depends(requiere_premium), Depends(chef_chat_rate_limiter)],
+)
+async def chef_chat_endpoint(
+    body: ChefChatRequest,
+    hogar_id: uuid.UUID = Depends(get_hogar_id),
+    pantry_service: PantryService = Depends(get_pantry_service),
+    onboarding_service: OnboardingService = Depends(get_onboarding_service),
+    perfiles_repo: PerfilIndividualRepository = Depends(get_perfiles_repo),
+    recetario_repo: RecetaMaestraRepository = Depends(get_recetario_repo),
+    memoria_service: MemoriaService = Depends(get_memoria_service),
+) -> ChefChatResponse:
+    """Conversa con el chef del hogar. Responde fundamentado en la despensa real, la
+    memoria de gustos y los perfiles del hogar, con la persona cálida del asistente.
+
+    Privacidad: el servidor NO persiste el texto del chat; el cliente reenvía los
+    turnos recientes en cada petición. La continuidad de largo plazo vive en la
+    memoria de gustos destilada (solo datos gastronómicos)."""
+    metrics = await pantry_service.get_stock_metrics(hogar_id)
+    perfil = await onboarding_service.get_perfil(hogar_id)
+    _perfiles = await perfiles_repo.list_by_hogar(hogar_id)
+    perfiles = [PerfilIndividualResponse.model_validate(p) for p in _perfiles] or None
+    _recetario = await recetario_repo.list_all(activa_only=True)
+    recetario = [RecetaMaestraResponse.model_validate(r) for r in _recetario] or None
+    memoria = await memoria_service.obtener(hogar_id)
+    return await chef_chat(
+        body.mensajes,
+        metrics.items,
+        metrics.alertas_caducidad,
+        perfil=perfil,
+        memoria=memoria,
+        perfiles_individuales=perfiles,
+        recetario=recetario,
+    )

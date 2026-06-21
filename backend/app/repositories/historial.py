@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.models import RecetaHistorial
@@ -19,6 +19,8 @@ class RecetaHistorialRepository:
             hogar_id=hogar_id,
             nombre_receta=schema.nombre_receta,
             accion=schema.accion,
+            valoracion=schema.valoracion,
+            categoria=schema.categoria,
         )
         self.session.add(entrada)
         await self.session.commit()
@@ -37,3 +39,9 @@ class RecetaHistorialRepository:
         )
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
+
+    async def contar(self, hogar_id: uuid.UUID) -> int:
+        """Total de acciones registradas por el hogar (para detectar memoria obsoleta)."""
+        stmt = select(func.count()).where(RecetaHistorial.hogar_id == hogar_id)
+        result = await self.session.execute(stmt)
+        return int(result.scalar_one())

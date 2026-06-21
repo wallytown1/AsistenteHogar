@@ -115,6 +115,12 @@ class Hogar(Base):
     lista_compra: Mapped[list["ListaCompraItem"]] = relationship(
         "ListaCompraItem", back_populates="hogar", cascade="all, delete-orphan"
     )
+    memoria_gustos: Mapped["MemoriaGustos | None"] = relationship(
+        "MemoriaGustos",
+        back_populates="hogar",
+        cascade="all, delete-orphan",
+        uselist=False,
+    )
 
 
 class Usuario(Base):
@@ -265,6 +271,13 @@ class RecetaHistorial(Base):
     accion: Mapped[str] = mapped_column(
         String(20), nullable=False
     )  # 'cocinada' | 'rechazada'
+    # Señal de feedback explícita (opcional): refuerza el aprendizaje de gustos.
+    valoracion: Mapped[str | None] = mapped_column(
+        String(20), nullable=True
+    )  # 'me_encanto' | 'gusto' | 'no_me_gusto' | None
+    # Categoría/tipo de plato para aprender qué ESTILO de comida gusta, no solo
+    # recetas concretas (p. ej. 'guiso', 'arroz', 'pescado', 'legumbre').
+    categoria: Mapped[str | None] = mapped_column(String(50), nullable=True)
     cocinada_en: Mapped[datetime] = mapped_column(
         TZDateTime, nullable=False, server_default=utcnow()
     )
@@ -312,6 +325,42 @@ class PerfilIndividual(Base):
     hogar: Mapped["Hogar"] = relationship(
         "Hogar", back_populates="perfiles_individuales"
     )
+
+
+class MemoriaGustos(Base):
+    """Memoria de gustos destilada del hogar: un resumen en lenguaje natural de las
+    preferencias aprendidas con el uso (gustos del onboarding + perfiles + historial
+    valorado). Uno por hogar (hogar_id único, upsert). Solo datos gastronómicos — NUNCA
+    datos de salud (RGPD art. 9). Se inyecta en los prompts del LLM para que el asistente
+    'recuerde' al hogar manteniendo el prompt acotado (tamaño fijo vs historial creciente)."""
+
+    __tablename__ = "memoria_gustos"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID_TYPE, primary_key=True, default=uuid.uuid4
+    )
+    hogar_id: Mapped[uuid.UUID] = mapped_column(
+        UUID_TYPE,
+        ForeignKey("hogares.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
+        index=True,
+    )
+    resumen: Mapped[str] = mapped_column(String(2000), nullable=False, default="")
+    # Nº de eventos de historial ya incorporados al resumen: permite detectar cuándo
+    # la memoria está obsoleta (hay nuevas señales sin destilar) y recalcular.
+    eventos_fuente: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    created_at: Mapped[datetime] = mapped_column(
+        TZDateTime, nullable=False, server_default=utcnow()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        TZDateTime,
+        nullable=False,
+        server_default=utcnow(),
+        onupdate=lambda: datetime.now(UTC),
+    )
+
+    hogar: Mapped["Hogar"] = relationship("Hogar", back_populates="memoria_gustos")
 
 
 class ListaCompraItem(Base):

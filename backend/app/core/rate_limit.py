@@ -151,3 +151,6 @@ plan_comidas_rate_limiter = RateLimiter(
 foto_nevera_rate_limiter = RateLimiter(
     max_requests=10, window_seconds=3600
 )  # 10 / hora (Vision es más costosa)
+chef_chat_rate_limiter = RateLimiter(
+    max_requests=30, window_seconds=300
+)  # 30 / 5 min (conversación: varios turnos seguidos)

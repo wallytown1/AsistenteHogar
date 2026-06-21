@@ -351,6 +351,7 @@ class SugerenciasResponse(BaseSchema):
 # --- HISTORIAL DE RECETAS (APRENDIZAJE DE COMPORTAMIENTO) ---
 
 _ACCIONES_VALIDAS = {"cocinada", "rechazada"}
+_VALORACIONES_VALIDAS = {"me_encanto", "gusto", "no_me_gusto"}
 
 
 class RecetaHistorialCreate(BaseSchema):
@@ -358,6 +359,15 @@ class RecetaHistorialCreate(BaseSchema):
         ..., min_length=1, max_length=200, description="Nombre de la receta"
     )
     accion: str = Field(..., description="Acción realizada: 'cocinada' o 'rechazada'")
+    valoracion: str | None = Field(
+        None,
+        description="Valoración opcional: 'me_encanto', 'gusto' o 'no_me_gusto'",
+    )
+    categoria: str | None = Field(
+        None,
+        max_length=50,
+        description="Tipo/estilo de plato (p. ej. 'guiso', 'arroz', 'pescado')",
+    )
 
     @field_validator("accion")
     @classmethod
@@ -366,12 +376,23 @@ class RecetaHistorialCreate(BaseSchema):
             raise ValueError("La acción debe ser 'cocinada' o 'rechazada'")
         return v
 
+    @field_validator("valoracion")
+    @classmethod
+    def validar_valoracion(cls, v: str | None) -> str | None:
+        if v is not None and v not in _VALORACIONES_VALIDAS:
+            raise ValueError(
+                "La valoración debe ser 'me_encanto', 'gusto' o 'no_me_gusto'"
+            )
+        return v
+
 
 class RecetaHistorialResponse(BaseSchema):
     id: UUID
     hogar_id: UUID
     nombre_receta: str
     accion: str
+    valoracion: str | None = None
+    categoria: str | None = None
     cocinada_en: datetime
     created_at: datetime
 
@@ -632,3 +653,47 @@ class ListaCompraItemResponse(BaseSchema):
     is_checked: bool
     created_at: datetime
     updated_at: datetime
+
+
+# --- MEMORIA DE GUSTOS (personalización destilada) ---
+
+
+class MemoriaGustosResponse(BaseSchema):
+    resumen: str
+    updated_at: datetime
+
+
+# --- CHEF CONVERSACIONAL ---
+
+_ROLES_CHAT_VALIDOS = {"usuario", "chef"}
+
+
+class ChefMensaje(BaseSchema):
+    rol: str = Field(..., description="Quién emite el mensaje: 'usuario' o 'chef'")
+    texto: str = Field(..., min_length=1, max_length=1000)
+
+    @field_validator("rol")
+    @classmethod
+    def validar_rol(cls, v: str) -> str:
+        if v not in _ROLES_CHAT_VALIDOS:
+            raise ValueError("El rol debe ser 'usuario' o 'chef'")
+        return v
+
+
+class ChefChatRequest(BaseSchema):
+    # Turnos recientes de la conversación, el último debe ser del usuario. El servidor
+    # NO persiste el texto crudo del chat (RGPD): el cliente reenvía el contexto reciente.
+    mensajes: list[ChefMensaje] = Field(..., min_length=1, max_length=20)
+
+    @field_validator("mensajes")
+    @classmethod
+    def ultimo_es_usuario(cls, v: list[ChefMensaje]) -> list[ChefMensaje]:
+        if v[-1].rol != "usuario":
+            raise ValueError("El último mensaje debe ser del usuario")
+        return v
+
+
+class ChefChatResponse(BaseSchema):
+    respuesta: str
+    generado_por_ia: bool
+    mensaje: str | None = None

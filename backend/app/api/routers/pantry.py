@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Path, status
 from app.api.deps import (
     get_historial_service,
     get_hogar_id,
+    get_memoria_service,
     get_onboarding_service,
     get_pantry_service,
     get_perfiles_repo,
@@ -54,6 +55,7 @@ from app.services.llm import (
     process_receipt_ocr,
     suggest_food_metadata,
 )
+from app.services.memoria import MemoriaService
 from app.services.onboarding import OnboardingService
 from app.services.pantry import PantryService
 from app.services.prompt_config import PromptConfigService
@@ -105,10 +107,11 @@ async def get_recetas_sugeridas(
     prompt_config: PromptConfigService = Depends(get_prompt_config_service),
     perfiles_repo: PerfilIndividualRepository = Depends(get_perfiles_repo),
     recetario_repo: RecetaMaestraRepository = Depends(get_recetario_repo),
+    memoria_service: MemoriaService = Depends(get_memoria_service),
 ) -> RecetasSugeridasResponse:
     """Sugiere recetas con IA a partir del inventario real de la despensa del Hogar,
     priorizando los alimentos próximos a caducar y personalizando según el perfil del
-    hogar, perfiles individuales e historial de comportamiento. IA pasiva: solo sugiere."""
+    hogar, perfiles individuales, memoria de gustos e historial. IA pasiva: solo sugiere."""
     metrics = await pantry_service.get_stock_metrics(hogar_id)
     perfil = await onboarding_service.get_perfil(hogar_id)
     historial = await historial_service.get_historial(hogar_id)
@@ -116,6 +119,7 @@ async def get_recetas_sugeridas(
     perfiles = [PerfilIndividualResponse.model_validate(p) for p in _perfiles] or None
     _recetario = await recetario_repo.list_all(activa_only=True)
     recetario = [RecetaMaestraResponse.model_validate(r) for r in _recetario] or None
+    memoria = await memoria_service.obtener(hogar_id)
     return await generate_recipe_suggestions(
         metrics.items,
         metrics.alertas_caducidad,
@@ -124,6 +128,7 @@ async def get_recetas_sugeridas(
         prompt_config,
         perfiles_individuales=perfiles,
         recetario=recetario,
+        memoria=memoria,
     )
 
 
@@ -139,9 +144,10 @@ async def get_plan_comidas(
     prompt_config: PromptConfigService = Depends(get_prompt_config_service),
     perfiles_repo: PerfilIndividualRepository = Depends(get_perfiles_repo),
     recetario_repo: RecetaMaestraRepository = Depends(get_recetario_repo),
+    memoria_service: MemoriaService = Depends(get_memoria_service),
 ) -> PlanComidasResponse:
     """Genera un plan de comidas semanal con IA a partir de la despensa real,
-    priorizando lo que caduca pronto y personalizando según perfiles del hogar.
+    priorizando lo que caduca pronto y personalizando según perfiles y memoria del hogar.
     IA pasiva: solo sugiere."""
     metrics = await pantry_service.get_stock_metrics(hogar_id)
     perfil = await onboarding_service.get_perfil(hogar_id)
@@ -149,6 +155,7 @@ async def get_plan_comidas(
     perfiles = [PerfilIndividualResponse.model_validate(p) for p in _perfiles] or None
     _recetario = await recetario_repo.list_all(activa_only=True)
     recetario = [RecetaMaestraResponse.model_validate(r) for r in _recetario] or None
+    memoria = await memoria_service.obtener(hogar_id)
     return await generate_meal_plan(
         metrics.items,
         metrics.alertas_caducidad,
@@ -156,6 +163,7 @@ async def get_plan_comidas(
         prompt_config,
         perfiles_individuales=perfiles,
         recetario=recetario,
+        memoria=memoria,
     )
 
 

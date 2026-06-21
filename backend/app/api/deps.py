@@ -12,6 +12,7 @@ from app.models.models import AdminUser, Usuario
 from app.repositories.admin_user import AdminUserRepository
 from app.repositories.historial import RecetaHistorialRepository
 from app.repositories.lista_compra import ListaCompraRepository
+from app.repositories.memoria import MemoriaGustosRepository
 from app.repositories.pantry import PantryRepository
 from app.repositories.perfil import PerfilHogarRepository
 from app.repositories.perfiles_individual import PerfilIndividualRepository
@@ -22,6 +23,7 @@ from app.services.admin_auth import AdminAuthService
 from app.services.auth import AuthService
 from app.services.dashboard import DashboardService
 from app.services.historial import RecetaHistorialService
+from app.services.memoria import MemoriaService
 from app.services.onboarding import OnboardingService
 from app.services.pantry import PantryService
 from app.services.prompt_config import PromptConfigService
@@ -158,11 +160,32 @@ async def get_onboarding_service(
     return OnboardingService(PerfilHogarRepository(session))
 
 
+def _build_memoria_service(session: AsyncSession) -> MemoriaService:
+    """Construye MemoriaService con sus 4 repositorios sobre la misma sesión."""
+    return MemoriaService(
+        MemoriaGustosRepository(session),
+        PerfilHogarRepository(session),
+        PerfilIndividualRepository(session),
+        RecetaHistorialRepository(session),
+    )
+
+
+async def get_memoria_service(
+    session: AsyncSession = Depends(get_async_session),
+) -> MemoriaService:
+    """Provee MemoriaService (lectura de memoria + recálculo cuando está obsoleta)."""
+    return _build_memoria_service(session)
+
+
 async def get_historial_service(
     session: AsyncSession = Depends(get_async_session),
 ) -> RecetaHistorialService:
-    """Provee una instancia de RecetaHistorialService inyectando su repositorio asíncrono."""
-    return RecetaHistorialService(RecetaHistorialRepository(session))
+    """Provee RecetaHistorialService. Inyecta MemoriaService para que el feedback del
+    hogar dispare el refresco de la memoria de gustos."""
+    return RecetaHistorialService(
+        RecetaHistorialRepository(session),
+        _build_memoria_service(session),
+    )
 
 
 async def get_perfiles_repo(

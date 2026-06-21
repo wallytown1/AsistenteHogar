@@ -215,7 +215,13 @@ Los docs interactivos (`/docs`, `/redoc`, `/openapi.json`) están deshabilitados
 | `perfiles_individuales` | Pseudónimos (apodos) | Purga + cascade; apodos pueden identificar indirectamente |
 | `lista_compra` | No | Artículos de compra |
 | `perfil_hogar` | No | Gustos culinarios, nº comensales |
+| `memoria_gustos` | No (resumen gastronómico) | Derivada; cascade en DELETE /auth/cuenta. No soft-delete (regenerable) |
 | `registros_borrado` | No | Solo conteos agregados |
+
+**Chef conversacional (`POST /chef/chat`):** el servidor **no persiste el texto del chat** — el
+cliente reenvía los turnos recientes en cada petición y la continuidad de largo plazo vive en
+`memoria_gustos` (resumen destilado, solo gustos gastronómicos). Minimiza el dato personal almacenado
+(RGPD art. 5.1.c). Cada mensaje de usuario pasa por `_sanitize_user_text` antes de Gemini (ver R7, §5.1).
 
 Solo existen dos paths de hard delete autorizados (RGPD art. 17). Ningún otro código puede emitir
 `DELETE` físicos.

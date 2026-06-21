@@ -6,6 +6,39 @@ Formato: `[FECHA] [ÁREA] [TIPO] Descripción`
 
 ---
 
+## [2026-06-21] — Chef amigo que te conoce: personalización profunda + chat
+
+Mejora del LLM para que el asistente se sienta como un amigo chef cercano que conoce tus gustos
+y aprende con el uso. **Sin fine-tuning**: todo es persona + memoria + contexto en inferencia.
+
+### Persona unificada
+- **ADD** `_PERSONA_CHEF` en `llm.py` — voz cálida y cercana del chef ("Marce"), inyectada de forma
+  consistente en briefing, recetas, plan y chat. Antepuesta en `PromptConfigService.get_system_instruction`
+  (afinable desde el panel admin) y en las ramas fallback; la filosofía mediterránea sigue como guard final.
+
+### Memoria de gustos (lo que hace que "te conozca")
+- **ADD** Tabla `memoria_gustos` (1 por hogar) + migración `d4f6a8b02c15`. Resumen NL destilado de los
+  gustos y hábitos aprendidos, inyectado en sugerencias/plan/chat (`_bloque_memoria_gustos`). Acota el
+  prompt (tamaño fijo) frente al historial creciente.
+- **ADD** `distill_taste_memory` (`llm.py`) + `MemoriaService`/`MemoriaGustosRepository`. Se recalcula
+  best-effort cuando hay feedback nuevo sin destilar (umbral 5 eventos / 7 días), disparado al registrar
+  acción en el historial. Solo datos gastronómicos (RGPD).
+
+### Feedback más rico
+- **MOD** `recetas_historial`: nuevas columnas `valoracion` (`me_encanto`/`gusto`/`no_me_gusto`) y
+  `categoria`. `_bloque_historial` pondera por valoración (lo que encantó refuerza el estilo; lo rechazado
+  o "no me gustó" se excluye). UI: valoración al marcar cocinada (`RecipeDetailScreen`) + badge en `HistorialScreen`.
+
+### Chef conversacional
+- **ADD** `POST /api/v1/chef/chat` (premium + rate limit 30/5 min) — conversa con el chef, fundamentado en
+  despensa + memoria + perfiles. `_call_gemini` ahora soporta multi-turno; input saneado anti prompt-injection.
+  **Privacidad**: el servidor NO persiste el texto del chat (el cliente reenvía turnos recientes; la
+  continuidad vive en la memoria destilada).
+- **ADD** Frontend: pestaña **Chef** (`ChefChatScreen` + `useChefChat`) con `AIDisclaimerBanner`.
+- **ADD** `smoke_test_chef.py` (chat + valoración + memoria + aislamiento) y en CI.
+
+---
+
 ## [2026-06-21] — Segundo repaso de seguridad e integridad
 
 Repaso post-cambios (3 agentes Explore + investigación web sobre errores comunes del código IA:

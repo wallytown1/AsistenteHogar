@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRoute, useNavigation, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
-import { RechazarIngredienteResponse, RecetaSugerida } from '../types/types';
+import { RechazarIngredienteResponse, RecetaSugerida, Valoracion } from '../types/types';
 import { useRecetaHistorial } from '../hooks/useRecetaHistorial';
 import { usePerfiles } from '../hooks/usePerfiles';
 import { apiRequest } from '../api/api';
@@ -22,10 +22,20 @@ export default function RecipeDetailScreen() {
   const { registrarAccion, isLoading } = useRecetaHistorial();
   const { perfiles } = usePerfiles();
 
-  const handleCocinada = async () => {
-    haptics.success();
-    await registrarAccion(receta.titulo, 'cocinada');
+  const guardarCocinada = async (valoracion: Valoracion) => {
+    await registrarAccion(receta.titulo, 'cocinada', valoracion);
     navigation.goBack();
+  };
+
+  const handleCocinada = () => {
+    haptics.success();
+    // Capturamos la valoración en el momento natural: alimenta la memoria de gustos
+    // para que el chef te conozca mejor con el uso.
+    Alert.alert('¿Qué te ha parecido?', 'Tu opinión ayuda a Marce a conocerte mejor.', [
+      { text: '¡Me encantó!', onPress: () => guardarCocinada('me_encanto') },
+      { text: 'Estuvo bien', onPress: () => guardarCocinada('gusto') },
+      { text: 'No tanto', onPress: () => guardarCocinada('no_me_gusto') },
+    ]);
   };
 
   const enviarRechazo = async (perfilId: string) => {

@@ -63,6 +63,7 @@ python smoke_test_admin.py      # admin bootstrap, login, prompts CRUD, recetari
 python smoke_test_perfiles.py       # perfiles individuales CRUD + isolation + limit (10/hogar)
 python smoke_test_lista_compra.py   # lista de la compra CRUD + borrado masivo + isolation (27 checks)
 python smoke_test_rechazar_ingrediente.py  # rechazar-ingrediente: schema, multi-tenant, auth (16 checks)
+python smoke_test_chef.py           # chef chat + valoración + memoria de gustos + aislamiento
 
 # Manual GDPR purge pass (also runs automatically every 24h from the app lifespan)
 python -m app.jobs.purge
@@ -156,6 +157,7 @@ python smoke_test_admin.py       # must pass
 python smoke_test_perfiles.py        # must pass
 python smoke_test_lista_compra.py    # 27/27 must pass
 python smoke_test_rechazar_ingrediente.py  # 16/16 must pass
+python smoke_test_chef.py            # chef chat + valoración + memoria must pass
 
 # Frontend
 cd frontend && npm run ts:check           # 0 errors
@@ -184,9 +186,20 @@ Dependency injection is done via FastAPI `Depends()` chains defined in `api/deps
 
 ### LLM integration (`services/llm.py`)
 
-Seven Gemini functions, all via the shared `_call_gemini` helper (temperature=0, thinkingBudget=0):
+Gemini functions, all via the shared `_call_gemini` helper (temperature=0, thinkingBudget=0;
+`_call_gemini` admite multi-turno vía `contents` para el chat):
 `generate_morning_briefing`, `generate_recipe_suggestions`, `interpret_pantry_text` (multi-item),
-`analyze_fridge_photo` (Vision), `suggest_food_metadata`, `generate_meal_plan`, `interpret_audio_text`.
+`analyze_fridge_photo` (Vision), `suggest_food_metadata`, `generate_meal_plan`, `interpret_audio_text`,
+`distill_taste_memory` (resume gustos del hogar → `memoria_gustos`), `chef_chat` (conversacional).
+
+**Persona unificada (`_PERSONA_CHEF`):** voz cálida del chef ("Marce"), inyectada en briefing/recetas/
+plan/chat. Antepuesta en `PromptConfigService.get_system_instruction` (afinable desde el panel admin) y
+en las ramas fallback; `_FILOSOFIA_MEDITERRANEA` sigue como guard final no-removible.
+
+**Memoria de gustos:** `_bloque_memoria_gustos` inyecta un resumen NL destilado (tabla `memoria_gustos`,
+1/hogar) en sugerencias/plan/chat → el asistente "recuerda" al hogar con prompt acotado. `MemoriaService`
+la recalcula best-effort al recibir feedback nuevo (valoración en `recetas_historial`). No fine-tuning:
+toda la personalización es prompt + memoria en inferencia.
 The `interpret_*` / `analyze_*` functions use Gemini structured output (`responseSchema`) and return a
 proposal the user must confirm before any destructive write. Low-risk writes (stock depletion, profile
 micro-adjustments via function calling) may happen automatically with visible undo. Results that are

@@ -289,6 +289,40 @@ Sin API key, devuelve respuesta vacía (`ingredientes_anadidos=[]`, `generado_po
 Si la IA no identifica ingredientes: `ingredientes_anadidos=[]`, `generado_por_ia=false`, `mensaje="No se identificaron ingredientes problemáticos."`. No escribe en BD.
 **404** perfil inexistente o de otro hogar · **422** validación.
 
+> **Historial con valoración:** `POST /api/v1/pantry/recetas/historial` acepta además
+> `valoracion` (`me_encanto`|`gusto`|`no_me_gusto`, opcional) y `categoria` (opcional). La valoración
+> alimenta la memoria de gustos y pondera el aprendizaje (lo que encantó refuerza el estilo; lo
+> rechazado o "no me gustó" se excluye).
+
+---
+
+## Chef conversacional 🔒
+
+### `POST /api/v1/chef/chat` 🔒 `[PREMIUM+]`
+Conversa con el chef del hogar ("Marce"). Responde con voz cálida y cercana, fundamentado en la
+despensa real + memoria de gustos destilada + perfiles del hogar. Rate limit 30/5 min.
+
+**Privacidad:** el servidor **NO persiste el texto del chat**. El cliente reenvía los turnos
+recientes en cada petición; la continuidad de largo plazo vive en la memoria de gustos (solo datos
+gastronómicos). Cada mensaje de usuario se sanea (anti prompt-injection) antes de ir a Gemini.
+
+**Body** (`ChefChatRequest`) — el último mensaje debe ser del usuario:
+```json
+{
+  "mensajes": [
+    { "rol": "usuario", "texto": "tengo huevos y patatas" },
+    { "rol": "chef", "texto": "podríamos hacer una tortilla" },
+    { "rol": "usuario", "texto": "algo más rápido?" }
+  ]
+}
+```
+**200** → `ChefChatResponse`:
+```json
+{ "respuesta": "Te propongo unos huevos rotos...", "generado_por_ia": true, "mensaje": null }
+```
+Sin `GEMINI_API_KEY`: `respuesta=""`, `generado_por_ia=false`, `mensaje` de contingencia.
+**422** validación (mensajes vacíos, último no-usuario, rol inválido, texto > 1000 chars) · **403** sin tier premium · **429** rate limit.
+
 ---
 
 ## Lista de la Compra 🔒

@@ -16,11 +16,14 @@ from app.core.config import GEMINI_API_KEY, GEMINI_MODEL
 from app.core.redis_client import get_redis
 from app.schemas.schemas import (
     AlimentoInterpretado,
+    ChefChatResponse,
+    ChefMensaje,
     DashboardUnifiedContext,
     DiaPlanComidas,
     FotoNeveraResponse,
     InterpretarDespensaResponse,
     InventarioAlimentoResponse,
+    MemoriaGustosResponse,
     PerfilHogarResponse,
     PerfilIndividualResponse,
     PlanComidasResponse,
@@ -146,16 +149,19 @@ _MAX_ATTEMPTS = 2  # 1 reintento ante fallos transitorios
 
 async def _call_gemini(
     system_instruction: str,
-    user_prompt: str,
+    user_prompt: str = "",
     max_output_tokens: int = 400,
     response_schema: dict[str, Any] | None = None,
     timeout: float = 15.0,
     image_base64: str | None = None,
+    contents: list[dict[str, Any]] | None = None,
 ) -> str | None:
     """Llamada a la API de Gemini con reintento acotado ante fallos transitorios.
     Devuelve el texto generado o None si falla definitivamente.
     thinkingBudget=0 desactiva el razonamiento interno del modelo: innecesario para
-    estas tareas y reduce latencia y coste."""
+    estas tareas y reduce latencia y coste.
+    Si se pasa `contents` (lista de turnos con rol), se usa para conversaciones
+    multi-turno; si no, se construye un único turno a partir de `user_prompt`."""
     generation_config: dict[str, Any] = {
         "temperature": 0.0,
         "maxOutputTokens": max_output_tokens,
@@ -165,21 +171,23 @@ async def _call_gemini(
         generation_config["responseMimeType"] = "application/json"
         generation_config["responseSchema"] = response_schema
 
-    parts: list[dict[str, Any]] = [{"text": user_prompt}]
-    if image_base64:
-        parts.append(
-            {
-                "inlineData": {
-                    # Se asume JPEG genérico; la API de Gemini es flexible,
-                    # pero idealmente el frontend enviará JPEGs.
-                    "mimeType": "image/jpeg",
-                    "data": image_base64,
+    if contents is None:
+        parts: list[dict[str, Any]] = [{"text": user_prompt}]
+        if image_base64:
+            parts.append(
+                {
+                    "inlineData": {
+                        # Se asume JPEG genérico; la API de Gemini es flexible,
+                        # pero idealmente el frontend enviará JPEGs.
+                        "mimeType": "image/jpeg",
+                        "data": image_base64,
+                    }
                 }
-            }
-        )
+            )
+        contents = [{"parts": parts}]
 
     payload = {
-        "contents": [{"parts": parts}],
+        "contents": contents,
         "generationConfig": generation_config,
         "systemInstruction": {"parts": [{"text": system_instruction}]},
     }
@@ -322,13 +330,13 @@ async def generate_morning_briefing(
         return cached, True
 
     system_instruction = (
-        "Eres el chef asistente de este hogar en España. "
-        "Tu tarea consiste en dar los buenos días de manera sumamente natural, amena y cálida. "
-        "Debes redactar un mensaje conversacional (no uses listas, ni viñetas, ni asteriscos). "
-        "Habla en primera persona del singular, con un tono elegante pero muy cercano.\n"
-        "Estructura tu mensaje en 2 párrafos cortos y fluidos separados por saltos de línea:\n"
+        _PERSONA_CHEF + "\n\n"
+        "TAREA: da los buenos días al hogar con un mensaje conversacional (sin listas, "
+        "viñetas ni asteriscos), en 2 párrafos cortos y fluidos separados por saltos de línea:\n"
         "1. Un saludo matutino cálido y apetitoso que invite a cocinar algo casero hoy.\n"
-        "2. Una recomendación amable sobre qué alimentos de la despensa aprovechar pronto porque están a punto de caducar, sugiriendo de forma natural algún plato tradicional español para aprovecharlos.\n\n"
+        "2. Una recomendación amable sobre qué alimentos de la despensa aprovechar pronto "
+        "porque están a punto de caducar, sugiriendo de forma natural algún plato tradicional "
+        "español para aprovecharlos.\n\n"
         "Restricciones críticas de seguridad e IA:\n"
         "- Sé extremadamente veraz y fiel a los datos proporcionados. Prohibido inventar alimentos.\n"
         "- Cocina mediterránea española tradicional y de aprovechamiento; nada de fusiones impropias.\n"
@@ -378,6 +386,22 @@ _FILOSOFIA_MEDITERRANEA = (
 )
 
 
+# Persona del asistente: voz cálida y cercana, consistente en TODOS los flujos
+# (briefing, recetas, plan, chat). Igual de innegociable que la filosofía: define
+# QUIÉN es el chef y CÓMO habla. El nombre "Marce" es el valor por defecto y puede
+# ajustarse desde el panel admin editando los prompts. No eliminar la identidad cálida.
+_PERSONA_CHEF = (
+    "IDENTIDAD Y TONO (cómo hablas SIEMPRE):\n"
+    "- Eres Marce, el chef de confianza y amigo de este hogar. Hablas en primera "
+    "persona, con cercanía y calidez, como un amigo que lleva años cocinando con ellos.\n"
+    "- Tutea siempre. Si conoces el apodo del hogar o de la persona, úsalo con naturalidad.\n"
+    "- Apóyate en lo que sabes de sus gustos, hábitos y de lo que han cocinado antes para "
+    "que sientan que les conoces de verdad (p. ej. 'como te gustan los guisos de cuchara…', "
+    "'el otro día te encantó la fabada…'). Si no tienes ese dato, NO lo inventes.\n"
+    "- Tono natural, apetitoso y alentador; nunca acartonado ni robótico. Frases humanas y cercanas.\n"
+)
+
+
 def _bloque_perfil(perfil: PerfilHogarResponse | None) -> str:
     """Construye el bloque de personalización del prompt a partir del perfil del hogar.
     Cadena vacía si no hay perfil (el hogar no completó el onboarding). Se incluye en
@@ -398,23 +422,47 @@ def _bloque_perfil(perfil: PerfilHogarResponse | None) -> str:
     return "Perfil del hogar:\n" + "\n".join(lineas) + "\n"
 
 
+def _bloque_memoria_gustos(memoria: MemoriaGustosResponse | None) -> str:
+    """Inyecta la memoria de gustos destilada (resumen NL aprendido con el uso). Es la
+    pieza que hace que el chef 'recuerde' al hogar. Tamaño acotado (resumen fijo) frente
+    al historial creciente → controla el coste de tokens. Cadena vacía si no hay memoria."""
+    if memoria is None or not memoria.resumen.strip():
+        return ""
+    return (
+        "Lo que sabes de este hogar (úsalo con naturalidad para que sientan que les "
+        "conoces; NO inventes nada que no esté aquí):\n"
+        + memoria.resumen.strip()
+        + "\n"
+    )
+
+
 def _bloque_historial(historial: list[RecetaHistorialResponse] | None) -> str:
     """Construye el bloque de historial de comportamiento para el prompt.
-    Señales positivas (cocinadas) evitan repeticiones a corto plazo.
-    Señales negativas (rechazadas) excluyen esas recetas permanentemente."""
+    Señales: 'me_encanto' refuerza ese estilo; cocinadas evitan repetición a corto plazo;
+    rechazadas y 'no_me_gusto' se excluyen. La valoración pondera la señal."""
     if not historial:
         return ""
+    encantaron = [h.nombre_receta for h in historial if h.valoracion == "me_encanto"]
     cocinadas = [h.nombre_receta for h in historial if h.accion == "cocinada"]
-    rechazadas = [h.nombre_receta for h in historial if h.accion == "rechazada"]
+    rechazadas = [
+        h.nombre_receta
+        for h in historial
+        if h.accion == "rechazada" or h.valoracion == "no_me_gusto"
+    ]
     lineas = []
+    if encantaron:
+        lineas.append(
+            "Recetas que le ENCANTARON (sugiere platos en esa misma línea/estilo): "
+            f"{', '.join(encantaron[:10])}."
+        )
     if cocinadas:
         lineas.append(
-            f"Recetas cocinadas recientemente (evita repetirlas a menos que hayan pasado varios días): "
+            "Recetas cocinadas recientemente (evita repetirlas a menos que hayan pasado varios días): "
             f"{', '.join(cocinadas[:10])}."
         )
     if rechazadas:
         lineas.append(
-            f"Recetas rechazadas por el hogar (NO sugerir bajo ningún concepto): "
+            "Recetas rechazadas o que NO le gustaron (NO sugerir bajo ningún concepto): "
             f"{', '.join(rechazadas[:10])}."
         )
     if not lineas:
@@ -462,6 +510,47 @@ def _bloque_recetario(recetario: list[RecetaMaestraResponse] | None) -> str:
     )
 
 
+_DISTILL_SYSTEM = (
+    "Eres un analista de preferencias gastronómicas. A partir de los datos del hogar "
+    "(perfil, miembros, historial de recetas cocinadas/valoradas/rechazadas), redacta un "
+    "RESUMEN breve en español (máximo 120 palabras, en 2ª persona, dirigido al hogar) de "
+    "sus gustos y hábitos de comida APRENDIDOS: estilos que disfruta, ingredientes/platos "
+    "favoritos, lo que evita o no le gusta, y patrones (p. ej. cocina rápida entre semana).\n"
+    "Reglas: básate SOLO en los datos dados; no inventes. Solo gustos gastronómicos, NUNCA "
+    "datos de salud. Texto plano, sin listas ni markdown. Si no hay datos suficientes, "
+    "devuelve una cadena vacía."
+)
+
+
+async def distill_taste_memory(
+    perfil: PerfilHogarResponse | None = None,
+    perfiles_individuales: list[PerfilIndividualResponse] | None = None,
+    historial: list[RecetaHistorialResponse] | None = None,
+) -> str | None:
+    """Destila los datos del hogar en un resumen NL corto de sus gustos aprendidos.
+    Es la base de la 'memoria' que hace que el chef parezca conocer al hogar. Llamada
+    Gemini barata (temp 0); devuelve None si no hay API key, fallo, o datos insuficientes."""
+    if not GEMINI_API_KEY:
+        return None
+
+    datos = (
+        _bloque_perfil(perfil)
+        + _bloque_perfiles_individuales(perfiles_individuales)
+        + _bloque_historial(historial)
+    )
+    if not datos.strip():
+        return None
+
+    texto = await _call_gemini(
+        _DISTILL_SYSTEM,
+        f"Datos del hogar:\n{datos}",
+        max_output_tokens=300,
+    )
+    if texto is None:
+        return None
+    return texto.strip() or None
+
+
 _DEFAULT_RECETAS = (
     "Eres el chef asistente de un hogar en España. A partir del inventario real de la "
     "despensa, sugiere entre 1 y 3 recetas caseras sencillas en español.\n"
@@ -483,6 +572,7 @@ async def generate_recipe_suggestions(
     prompt_config: "PromptConfigService | None" = None,
     perfiles_individuales: list[PerfilIndividualResponse] | None = None,
     recetario: list[RecetaMaestraResponse] | None = None,
+    memoria: MemoriaGustosResponse | None = None,
 ) -> RecetasSugeridasResponse:
     """Sugiere hasta 3 recetas a partir de la despensa del hogar, priorizando los
     alimentos a punto de caducar. IA pasiva: solo sugiere, nunca modifica datos."""
@@ -506,6 +596,7 @@ async def generate_recipe_suggestions(
     prompt_usuario = (
         f"Inventario disponible en la despensa: {inventario}\n"
         f"Alimentos que caducan pronto (priorízalos): {nombres_caducan or 'ninguno'}\n"
+        f"{_bloque_memoria_gustos(memoria)}"
         f"{_bloque_perfil(perfil)}"
         f"{_bloque_historial(historial)}"
         f"{_bloque_perfiles_individuales(perfiles_individuales)}"
@@ -522,7 +613,9 @@ async def generate_recipe_suggestions(
             "recetas", _DEFAULT_RECETAS
         )
     else:
-        system_instruction = _DEFAULT_RECETAS + "\n\n" + _FILOSOFIA_MEDITERRANEA
+        system_instruction = (
+            _PERSONA_CHEF + "\n\n" + _DEFAULT_RECETAS + "\n\n" + _FILOSOFIA_MEDITERRANEA
+        )
 
     texto = await _call_gemini(
         system_instruction,
@@ -814,6 +907,7 @@ async def generate_meal_plan(
     prompt_config: "PromptConfigService | None" = None,
     perfiles_individuales: list[PerfilIndividualResponse] | None = None,
     recetario: list[RecetaMaestraResponse] | None = None,
+    memoria: MemoriaGustosResponse | None = None,
 ) -> PlanComidasResponse:
     """Genera un plan de comidas semanal (comida + cena) aprovechando la despensa,
     priorizando lo que caduca pronto. IA pasiva: solo sugiere. Cacheado 2 h."""
@@ -836,6 +930,7 @@ async def generate_meal_plan(
     prompt_usuario = (
         f"Inventario disponible en la despensa: {inventario}\n"
         f"Alimentos que caducan pronto (priorízalos en los primeros días): {nombres_caducan or 'ninguno'}\n"
+        f"{_bloque_memoria_gustos(memoria)}"
         f"{_bloque_perfil(perfil)}"
         f"{_bloque_perfiles_individuales(perfiles_individuales)}"
         f"{_bloque_recetario(recetario)}"
@@ -851,7 +946,9 @@ async def generate_meal_plan(
             "plan_comidas", _DEFAULT_PLAN
         )
     else:
-        system_instruction = _DEFAULT_PLAN + "\n\n" + _FILOSOFIA_MEDITERRANEA
+        system_instruction = (
+            _PERSONA_CHEF + "\n\n" + _DEFAULT_PLAN + "\n\n" + _FILOSOFIA_MEDITERRANEA
+        )
 
     texto = await _call_gemini(
         system_instruction,
@@ -1126,3 +1223,85 @@ async def identify_rejected_ingredients(
         ]
     except (json.JSONDecodeError, ValueError):
         return []
+
+
+# --- CHEF CONVERSACIONAL (CHAT) ------------------------------------------------
+
+_CHEF_CHAT_SYSTEM = (
+    "TAREA: estás conversando por chat con el hogar. Responde de forma breve, cálida y "
+    "útil a lo que te pregunten sobre qué cocinar, ideas con su despensa, dudas de cocina "
+    "o ajustes rápidos. Apóyate en lo que sabes del hogar y en su despensa actual.\n"
+    "Reglas: respuestas cortas (2 a 5 frases), texto plano SIN markdown (ni *, ni -, ni #). "
+    "Sugiere platos concretos cuando ayude. Si te piden algo ajeno a la cocina o la comida, "
+    "redirige con cariño al terreno gastronómico. No inventes datos del hogar que no tengas."
+)
+
+
+async def chef_chat(
+    mensajes: list[ChefMensaje],
+    items: list[InventarioAlimentoResponse],
+    alertas_caducidad: list[InventarioAlimentoResponse],
+    perfil: PerfilHogarResponse | None = None,
+    memoria: MemoriaGustosResponse | None = None,
+    perfiles_individuales: list[PerfilIndividualResponse] | None = None,
+    recetario: list[RecetaMaestraResponse] | None = None,
+) -> ChefChatResponse:
+    """Responde a la conversación del hogar con la persona del chef, fundamentado en la
+    despensa actual + memoria de gustos + perfiles. Multi-turno: el cliente envía los
+    turnos recientes; el servidor NO persiste el texto crudo del chat (RGPD)."""
+    if not GEMINI_API_KEY:
+        return ChefChatResponse(
+            respuesta="",
+            generado_por_ia=False,
+            mensaje="El chef no está disponible en este momento.",
+        )
+
+    nombres_caducan = sorted({a.nombre for a in alertas_caducidad})
+    inventario = sorted(f"{i.nombre} ({i.cantidad} {i.unidad})" for i in items)
+    contexto = (
+        f"Despensa actual del hogar: {inventario or 'vacía'}\n"
+        f"Caducan pronto: {nombres_caducan or 'nada'}\n"
+        f"{_bloque_memoria_gustos(memoria)}"
+        f"{_bloque_perfil(perfil)}"
+        f"{_bloque_perfiles_individuales(perfiles_individuales)}"
+        f"{_bloque_recetario(recetario)}"
+    )
+
+    system_instruction = (
+        _PERSONA_CHEF
+        + "\n\n"
+        + _CHEF_CHAT_SYSTEM
+        + "\n\n"
+        + "CONTEXTO DEL HOGAR (úsalo con naturalidad, no lo recites literalmente):\n"
+        + contexto
+        + "\n"
+        + _FILOSOFIA_MEDITERRANEA
+    )
+
+    # Multi-turno: sanea SOLO los mensajes del usuario antes de enviarlos a Gemini.
+    contents: list[dict[str, Any]] = [
+        {
+            "role": "user" if m.rol == "usuario" else "model",
+            "parts": [
+                {
+                    "text": _sanitize_user_text(m.texto, max_len=1000)
+                    if m.rol == "usuario"
+                    else m.texto
+                }
+            ],
+        }
+        for m in mensajes
+    ]
+
+    texto = await _call_gemini(
+        system_instruction,
+        max_output_tokens=500,
+        contents=contents,
+    )
+    if texto is None:
+        return ChefChatResponse(
+            respuesta="",
+            generado_por_ia=False,
+            mensaje="No he podido responder ahora mismo. Inténtalo de nuevo en un momento.",
+        )
+    return ChefChatResponse(respuesta=texto, generado_por_ia=True)
