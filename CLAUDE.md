@@ -277,9 +277,12 @@ The AI (Gemini) **suggests by default; confirmación explícita requerida para a
 | `REDIS_URL` | No | — | Shared cache + rate-limit store. Without it, in-memory only (single worker). Required in production with multiple workers. |
 | `REVENUECAT_SECRET_KEY` | No | — | Server-side premium gate. Without it, premium gate is disabled and AI endpoints are open (dev/test mode). |
 | `REVENUECAT_ENTITLEMENT` | No | `premium` | RevenueCat entitlement ID to check |
+| `REVENUECAT_FAMILIA_ENTITLEMENT` | No | `familia` | RevenueCat entitlement ID for the higher "familia" tier |
+| `REVENUECAT_WEBHOOK_SECRET` | No | — | Shared secret for `POST /api/v1/webhooks/revenuecat` (RC panel → Webhooks). Endpoint returns 501 if empty. |
 | `ADMIN_JWT_SECRET_KEY` | No | — | Signs admin JWT tokens. Without it, all `/admin/*` routes return 503. Generate same as `JWT_SECRET_KEY`. |
-| `ADMIN_JWT_EXPIRE_MINUTES` | No | `480` (8 h) | Admin JWT validity |
+| `ADMIN_JWT_EXPIRE_MINUTES` | No | `120` (2 h) | Admin JWT validity |
 | `ADMIN_BOOTSTRAP_TOKEN` | No | — | One-time token for `POST /api/v1/admin/auth/bootstrap`. Disabled (501) if empty. |
+| `RUN_MIGRATIONS_ON_STARTUP` | No | — | If `true`, runs `alembic upgrade head` in a subprocess at startup (used by Railway/CI). Locally, run migrations manually. |
 
 Generate secrets: `python -c "import secrets; print(secrets.token_hex(48))"`
 

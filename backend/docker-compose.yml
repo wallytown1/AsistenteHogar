@@ -4,8 +4,10 @@ services:
     container_name: asistente_hogar_db
     restart: always
     environment:
+      # Credenciales SOLO para desarrollo local con Docker. NUNCA en producción:
+      # la DATABASE_URL real (con su contraseña) vive en el panel de Railway.
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres_secure_pass_2026
+      POSTGRES_PASSWORD: postgres_dev
       POSTGRES_DB: asistente_hogar
     ports:
       - "5432:5432"

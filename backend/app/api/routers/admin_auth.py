@@ -1,3 +1,5 @@
+import hmac
+
 import jwt
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.security import HTTPAuthorizationCredentials
@@ -82,7 +84,8 @@ async def admin_bootstrap(
             status_code=status.HTTP_501_NOT_IMPLEMENTED,
             detail="El bootstrap de administrador no está habilitado en este servidor.",
         )
-    if body.bootstrap_token != core_config.ADMIN_BOOTSTRAP_TOKEN:
+    # Comparación en tiempo constante para no filtrar el token por timing.
+    if not hmac.compare_digest(body.bootstrap_token, core_config.ADMIN_BOOTSTRAP_TOKEN):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Bootstrap token inválido.",

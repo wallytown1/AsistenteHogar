@@ -26,7 +26,8 @@ Cubre modelo de autenticación, aislamiento multi-tenant, LLM, RGPD y riesgos ac
 - Si `ADMIN_JWT_SECRET_KEY` no está configurada, todos los endpoints `/admin/*` devuelven **503**
   (no 401): la superficie admin queda inaccesible por diseño.
 - Bootstrap de un solo uso: `ADMIN_BOOTSTRAP_TOKEN` — **501** si no está definida, **409** si ya
-  existe algún admin. Se recomienda borrar la variable después del primer bootstrap.
+  existe algún admin. Se recomienda borrar la variable después del primer bootstrap. La validación
+  del token usa `hmac.compare_digest` (tiempo constante) para no filtrar el secreto por timing.
 - **Sesión por cookie HttpOnly**: el login pone el JWT en una cookie `admin_token` HttpOnly
   (inaccesible a JS → mitiga exfiltración por XSS). En producción es cross-site (panel en Vercel,
   API en Railway) → `Secure; SameSite=None`. El token sigue admitiéndose por `Authorization: Bearer`
@@ -116,6 +117,11 @@ Los endpoints que aceptan texto libre del usuario son:
 - `POST /pantry/ocr-ticket` — imagen en base64 (no texto libre)
 - `POST /pantry/foto-nevera` — imagen en base64
 
+El webhook de RevenueCat (`POST /webhooks/revenuecat`) verifica el secreto compartido
+(`Authorization: Bearer <REVENUECAT_WEBHOOK_SECRET>`) con `hmac.compare_digest` (tiempo constante);
+**501** si el secreto no está configurado, **401** si no coincide. La acción es idempotente
+(invalida la caché de tier), por lo que no requiere protección anti-replay.
+
 **Mitigación:** Gemini se llama con `responseSchema` (structured output) en todos los endpoints
 de interpretación. El modelo solo puede devolver el esquema JSON definido; texto fuera de
 estructura es ignorado. La temperatura es 0 en todas las llamadas. Esto no elimina el riesgo
@@ -183,6 +189,10 @@ Los docs interactivos (`/docs`, `/redoc`, `/openapi.json`) están deshabilitados
 - `gitleaks` ejecutado sobre 55 commits en F-QA2 Bloque 1 — **0 secretos reales detectados**.
   12 falsos positivos (contraseñas de prueba en smoke tests) con allowlist en `.gitleaks.toml`.
 - Las variables de entorno reales viven en el panel de Railway (no en el repositorio).
+- **Escaneo de CVEs en CI:** `pip-audit` (backend, sin ignorelist) + `npm audit --audit-level=high`
+  sobre **frontend y admin-web** (este último añadido en el segundo repaso; antes quedaba sin cubrir).
+  El panel admin corre **Next.js 15.5.19** (subido desde 14.2.29 para resolver 4 advisories *high*
+  sin parche en 14.2.x); las moderate restantes son de `postcss` (build-time, no runtime).
 
 ---
 

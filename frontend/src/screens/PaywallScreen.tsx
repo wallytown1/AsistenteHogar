@@ -3,7 +3,6 @@ import { View, StyleSheet, ScrollView, ActivityIndicator, Alert } from 'react-na
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { PurchasesPackage, PACKAGE_TYPE } from 'react-native-purchases';
-import { Screen } from '../components/ui/Screen';
 import { AppText } from '../components/ui/AppText';
 import { Button } from '../components/ui/Button';
 import { IconButton } from '../components/ui/IconButton';

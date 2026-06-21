@@ -186,8 +186,14 @@ jobs:
 
       # Solo bloquea ante vulnerabilidades high/critical. Las 19 moderate
       # actuales están en el toolchain de Expo/RN (build, no runtime).
-      - name: npm audit (high/critical)
+      - name: npm audit frontend (high/critical)
         working-directory: frontend
+        run: npm audit --audit-level=high
+
+      # El panel admin también se audita (antes quedaba sin cobertura). Las
+      # moderate restantes son de postcss (build-time de Next), no runtime.
+      - name: npm audit admin-web (high/critical)
+        working-directory: admin-web
         run: npm audit --audit-level=high
 
       - name: gitleaks (secretos en el historial)

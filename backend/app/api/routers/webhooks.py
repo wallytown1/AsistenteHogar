@@ -10,6 +10,7 @@ Bearer <REVENUECAT_WEBHOOK_SECRET>. Sin secreto configurado el endpoint devuelve
 501 (desactivado en desarrollo/tests).
 """
 
+import hmac
 import logging
 
 from fastapi import APIRouter, HTTPException, Request, status
@@ -44,7 +45,9 @@ async def revenuecat_webhook(request: Request) -> dict[str, object]:
 
     auth_header = request.headers.get("Authorization", "")
     expected = f"Bearer {REVENUECAT_WEBHOOK_SECRET}"
-    if auth_header != expected:
+    # Comparación en tiempo constante: un `!=` normal corta en el primer byte
+    # distinto y filtra la longitud/contenido del secreto por canal lateral de timing.
+    if not hmac.compare_digest(auth_header, expected):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Firma de webhook inválida.",

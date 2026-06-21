@@ -6,6 +6,27 @@ Formato: `[FECHA] [ÁREA] [TIPO] Descripción`
 
 ---
 
+## [2026-06-21] — Segundo repaso de seguridad e integridad
+
+Repaso post-cambios (3 agentes Explore + investigación web sobre errores comunes del código IA:
+broken access control/IDOR, secretos x2, dead code, comparaciones no constantes, deps con CVEs).
+Núcleo verificado **limpio** (multi-tenant, sin SQLi/eval/SSRF, sin secretos reales en árbol/historial,
+Pivote 2 completo, contratos API sincronizados). Hallazgos accionables remediados:
+
+- **FIX** (seguridad) Comparación de secretos en **tiempo constante** con `hmac.compare_digest`:
+  webhook RevenueCat (`webhooks.py`) y bootstrap admin (`admin_auth.py`) — evita side-channel de timing.
+- **MOD** (admin-web) **Next.js 14.2.29 → 15.5.19** — limpia 4 advisories *high* (DoS image-opt, SSRF
+  WebSocket, cache poisoning RSC, bypass middleware i18n) sin parche en la línea 14.2.x. React sigue
+  en 18 (Next 15.5 lo soporta). `build` + `ts:check` verdes sin breaking changes.
+- **ADD** (CI) `npm audit --audit-level=high` también sobre **admin-web** (antes sin cobertura).
+- **FIX** (dev) `docker-compose.yml` — contraseña de Postgres a placeholder `postgres_dev` + nota "solo dev".
+- **FIX** (docs) Sincronización: `CLAUDE.md` `ADMIN_JWT_EXPIRE_MINUTES` 480 → 120; añadidas env vars
+  `REVENUECAT_FAMILIA_ENTITLEMENT`, `REVENUECAT_WEBHOOK_SECRET`, `RUN_MIGRATIONS_ON_STARTUP` a la tabla
+  y a `.env.example`.
+- **FIX** (frontend) Eliminado import sin usar (`Screen` en `PaywallScreen.tsx`) — 0 warnings de ESLint.
+
+---
+
 ## [2026-06-21] — Auditoría de seguridad: remediación completa
 
 Auditoría profunda (3 agentes: backend, frontend/admin, deps/secretos). Veredicto: postura
