@@ -80,6 +80,10 @@ jobs:
           ADMIN_JWT_SECRET_KEY: ci-dummy-admin-secret-not-used-in-production
         run: |
           pip install -r requirements-dev.txt
+          # --workers=1 (no 2): en modo ASGI in-process con SQLAlchemy async, el
+          # multi-worker cierra el event loop mientras el pool de conexiones aún
+          # hace rollback en el teardown → "RuntimeError: Event loop is closed"
+          # y exit≠0 aunque ningún endpoint devuelva 5xx. Un worker lo evita.
           schemathesis run \
             --app=app.main:app \
             /openapi.json \
@@ -88,7 +92,7 @@ jobs:
             --experimental=openapi-3.1 \
             --hypothesis-max-examples=25 \
             --hypothesis-deadline=5000 \
-            --workers=2
+            --workers=1
 
   # ---------------------------------------------------------------------------
   # Frontend: TypeScript (tsc) + ESLint
