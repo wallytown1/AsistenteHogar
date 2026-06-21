@@ -60,46 +60,63 @@ jobs:
           python smoke_test_lista_compra.py
           python smoke_test_rechazar_ingrediente.py
 
-      # Schemathesis: fuzzing del esquema OpenAPI contra la app ASGI en memoria.
-      # No se levanta servidor real; schemathesis inyecta requests directamente.
+      # Schemathesis: fuzzing del esquema OpenAPI contra un servidor uvicorn REAL.
+      #
+      # No se usa el modo ASGI in-process (--app): con SQLAlchemy async ese modo
+      # comparte el engine entre el loop del test y el de la app; al cerrar
+      # schemathesis cada caso, el pool intenta resetear conexiones sobre un loop
+      # ya cerrado → "RuntimeError: Event loop is closed" y exit≠0 aunque el check
+      # not_a_server_error pase (1057/1057). Un servidor uvicorn tiene un único
+      # loop estable y elimina el problema de raíz.
+      #
+      # schemathesis se aísla en su PROPIO venv: su rama 3.x arrastra starlette<1.x
+      # y, en el venv principal, degradaría el starlette>=1.3.1 con el que corre el
+      # servidor. Aislado, schemathesis solo actúa como cliente HTTP.
+      #
       # Check: ningún endpoint debe devolver 5xx (incluye req. sin autenticar → 401).
-      # --hypothesis-max-examples=25 mantiene el CI ágil (~30 s extra).
-      # PYTHONPATH=. es necesario para que Python encuentre app.main desde backend/.
-      # Se instala desde requirements-dev.txt en este paso (último): schemathesis 3.x
-      # arrastra starlette<1.x, así que su instalación va DESPUÉS de smoke+pre-commit
-      # (que corren con starlette 1.3.1) para no contaminar esos pasos.
       - name: Schemathesis (API schema fuzzing)
         timeout-minutes: 10
         env:
           PYTHONPATH: .
           DATABASE_URL: sqlite+aiosqlite:///./schemathesis_test.db
           # Sin ADMIN_JWT_SECRET_KEY las rutas /admin/* devuelven 503 (diseño
-          # intencional), lo que schemathesis interpreta como server_error y
-          # hypothesis intenta shrink indefinidamente. Con la clave dummy el
-          # backend arranca en modo admin activo y devuelve 401, que es correcto.
+          # intencional), que schemathesis interpreta como server_error. Con la
+          # clave dummy el backend arranca en modo admin activo y devuelve 401.
           ADMIN_JWT_SECRET_KEY: ci-dummy-admin-secret-not-used-in-production
           # bootstrap y el webhook de RC devuelven 501 ("no configurado") cuando
-          # su secreto no está presente, y el check not_a_server_error marca
-          # cualquier 5xx —incluido 501— como fallo. En producción estos secretos
-          # SÍ están definidos; con valores dummy el fuzzer ejercita la rama de
-          # auth real (401 ante token/firma inválidos) en vez de la de feature off.
+          # su secreto no está presente, y el check marca cualquier 5xx —incluido
+          # 501— como fallo. En producción estos secretos SÍ están definidos; con
+          # dummy el fuzzer ejercita la rama de auth real (401), no la de feature off.
           ADMIN_BOOTSTRAP_TOKEN: ci-dummy-bootstrap-token-not-used-in-production
           REVENUECAT_WEBHOOK_SECRET: ci-dummy-rc-webhook-secret-not-used-in-prod
         run: |
-          pip install -r requirements-dev.txt
-          # --workers=1 (no 2): en modo ASGI in-process con SQLAlchemy async, el
-          # multi-worker cierra el event loop mientras el pool de conexiones aún
-          # hace rollback en el teardown → "RuntimeError: Event loop is closed"
-          # y exit≠0 aunque ningún endpoint devuelva 5xx. Un worker lo evita.
-          schemathesis run \
-            --app=app.main:app \
-            /openapi.json \
+          # 1) Servidor uvicorn real (venv principal, starlette 1.3.1) en background.
+          uvicorn app.main:app --host 127.0.0.1 --port 8000 --log-level warning &
+          SERVER_PID=$!
+          # 2) Esperar a que /health responda (máx. ~30 s).
+          for i in $(seq 1 30); do
+            if curl -sf http://127.0.0.1:8000/health > /dev/null; then
+              echo "Servidor listo tras ${i}s"; break
+            fi
+            sleep 1
+          done
+          # 3) schemathesis en venv aislado (no contamina starlette del servidor).
+          python -m venv /tmp/sch-venv
+          /tmp/sch-venv/bin/pip install --quiet -r requirements-dev.txt
+          set +e
+          /tmp/sch-venv/bin/schemathesis run \
+            http://127.0.0.1:8000/openapi.json \
             --checks=not_a_server_error \
             --validate-schema=false \
             --experimental=openapi-3.1 \
             --hypothesis-max-examples=25 \
             --hypothesis-deadline=5000 \
-            --workers=1
+            --workers=2
+          RESULT=$?
+          set -e
+          # 4) Apagar el servidor y propagar el resultado del fuzzing.
+          kill "$SERVER_PID" 2>/dev/null || true
+          exit $RESULT
 
   # ---------------------------------------------------------------------------
   # Frontend: TypeScript (tsc) + ESLint
