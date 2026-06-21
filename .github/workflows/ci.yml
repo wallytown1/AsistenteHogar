@@ -79,6 +79,10 @@ jobs:
         env:
           PYTHONPATH: .
           DATABASE_URL: sqlite+aiosqlite:///./schemathesis_test.db
+          # El servidor uvicorn arranca con una BD vacía; sin esto los endpoints
+          # que tocan tablas (/auth/*) dan 500 "no such table: usuarios". La app
+          # ya soporta crear el esquema al arrancar vía alembic (subproceso).
+          RUN_MIGRATIONS_ON_STARTUP: "true"
           # Sin ADMIN_JWT_SECRET_KEY las rutas /admin/* devuelven 503 (diseño
           # intencional), que schemathesis interpreta como server_error. Con la
           # clave dummy el backend arranca en modo admin activo y devuelve 401.
