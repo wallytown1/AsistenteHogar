@@ -69,9 +69,15 @@ jobs:
       # arrastra starlette<1.x, así que su instalación va DESPUÉS de smoke+pre-commit
       # (que corren con starlette 1.3.1) para no contaminar esos pasos.
       - name: Schemathesis (API schema fuzzing)
+        timeout-minutes: 10
         env:
           PYTHONPATH: .
           DATABASE_URL: sqlite+aiosqlite:///./schemathesis_test.db
+          # Sin ADMIN_JWT_SECRET_KEY las rutas /admin/* devuelven 503 (diseño
+          # intencional), lo que schemathesis interpreta como server_error y
+          # hypothesis intenta shrink indefinidamente. Con la clave dummy el
+          # backend arranca en modo admin activo y devuelve 401, que es correcto.
+          ADMIN_JWT_SECRET_KEY: ci-dummy-admin-secret-not-used-in-production
         run: |
           pip install -r requirements-dev.txt
           schemathesis run \
@@ -81,6 +87,7 @@ jobs:
             --validate-schema=false \
             --experimental=openapi-3.1 \
             --hypothesis-max-examples=25 \
+            --hypothesis-deadline=5000 \
             --workers=2
 
   # ---------------------------------------------------------------------------
