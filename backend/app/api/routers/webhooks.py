@@ -47,7 +47,9 @@ async def revenuecat_webhook(request: Request) -> dict[str, object]:
     expected = f"Bearer {REVENUECAT_WEBHOOK_SECRET}"
     # Comparación en tiempo constante: un `!=` normal corta en el primer byte
     # distinto y filtra la longitud/contenido del secreto por canal lateral de timing.
-    if not hmac.compare_digest(auth_header, expected):
+    # Se codifica a bytes: compare_digest sobre str solo admite ASCII y lanzaría
+    # TypeError con una cabecera Authorization que traiga caracteres no-ASCII.
+    if not hmac.compare_digest(auth_header.encode("utf-8"), expected.encode("utf-8")):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Firma de webhook inválida.",
