@@ -78,6 +78,13 @@ jobs:
           # hypothesis intenta shrink indefinidamente. Con la clave dummy el
           # backend arranca en modo admin activo y devuelve 401, que es correcto.
           ADMIN_JWT_SECRET_KEY: ci-dummy-admin-secret-not-used-in-production
+          # bootstrap y el webhook de RC devuelven 501 ("no configurado") cuando
+          # su secreto no está presente, y el check not_a_server_error marca
+          # cualquier 5xx —incluido 501— como fallo. En producción estos secretos
+          # SÍ están definidos; con valores dummy el fuzzer ejercita la rama de
+          # auth real (401 ante token/firma inválidos) en vez de la de feature off.
+          ADMIN_BOOTSTRAP_TOKEN: ci-dummy-bootstrap-token-not-used-in-production
+          REVENUECAT_WEBHOOK_SECRET: ci-dummy-rc-webhook-secret-not-used-in-prod
         run: |
           pip install -r requirements-dev.txt
           # --workers=1 (no 2): en modo ASGI in-process con SQLAlchemy async, el
