@@ -121,6 +121,9 @@ class Hogar(Base):
         cascade="all, delete-orphan",
         uselist=False,
     )
+    movimientos: Mapped[list["MovimientoDespensa"]] = relationship(
+        "MovimientoDespensa", back_populates="hogar", cascade="all, delete-orphan"
+    )
 
 
 class Usuario(Base):
@@ -361,6 +364,40 @@ class MemoriaGustos(Base):
     )
 
     hogar: Mapped["Hogar"] = relationship("Hogar", back_populates="memoria_gustos")
+
+
+class MovimientoDespensa(Base):
+    """Ledger de movimientos de la despensa (entradas/salidas). Se rellena como efecto
+    secundario de las escrituras de stock (compra/consumo/caducado) para aprender los
+    hábitos de compra/consumo del hogar y afinar las sugerencias. Solo datos gastronómicos
+    (nombres de alimentos + cantidades + fechas), sin identificadores personales."""
+
+    __tablename__ = "movimientos_despensa"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID_TYPE, primary_key=True, default=uuid.uuid4
+    )
+    hogar_id: Mapped[uuid.UUID] = mapped_column(
+        UUID_TYPE,
+        ForeignKey("hogares.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    nombre: Mapped[str] = mapped_column(String(200), nullable=False, index=True)
+    # 'compra' | 'consumo' | 'caducado' | 'ajuste'
+    tipo: Mapped[str] = mapped_column(String(20), nullable=False)
+    cantidad: Mapped[float | None] = mapped_column(Numeric(10, 2), nullable=True)
+    unidad: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    # 'ticket' | 'manual' | 'cocina' | 'voz' | 'foto' | 'agotado' | 'edicion'
+    origen: Mapped[str] = mapped_column(String(20), nullable=False, default="manual")
+    fecha: Mapped[datetime] = mapped_column(
+        TZDateTime, nullable=False, server_default=utcnow(), index=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        TZDateTime, nullable=False, server_default=utcnow()
+    )
+
+    hogar: Mapped["Hogar"] = relationship("Hogar", back_populates="movimientos")
 
 
 class ListaCompraItem(Base):

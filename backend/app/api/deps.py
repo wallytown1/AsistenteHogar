@@ -13,6 +13,7 @@ from app.repositories.admin_user import AdminUserRepository
 from app.repositories.historial import RecetaHistorialRepository
 from app.repositories.lista_compra import ListaCompraRepository
 from app.repositories.memoria import MemoriaGustosRepository
+from app.repositories.movimientos import MovimientoDespensaRepository
 from app.repositories.pantry import PantryRepository
 from app.repositories.perfil import PerfilHogarRepository
 from app.repositories.perfiles_individual import PerfilIndividualRepository
@@ -141,9 +142,10 @@ async def get_auth_service(
 async def get_pantry_service(
     session: AsyncSession = Depends(get_async_session),
 ) -> PantryService:
-    """Provee una instancia de PantryService inyectando su repositorio asíncrono."""
+    """Provee PantryService con su repo de despensa y el ledger de movimientos
+    (para registrar compra/consumo y aprender los hábitos del hogar)."""
     pantry_repo = PantryRepository(session)
-    return PantryService(pantry_repo)
+    return PantryService(pantry_repo, MovimientoDespensaRepository(session))
 
 
 async def get_dashboard_service(
@@ -161,12 +163,14 @@ async def get_onboarding_service(
 
 
 def _build_memoria_service(session: AsyncSession) -> MemoriaService:
-    """Construye MemoriaService con sus 4 repositorios sobre la misma sesión."""
+    """Construye MemoriaService con sus repositorios sobre la misma sesión (incluye el
+    ledger de movimientos para incorporar los hábitos de compra/consumo a la memoria)."""
     return MemoriaService(
         MemoriaGustosRepository(session),
         PerfilHogarRepository(session),
         PerfilIndividualRepository(session),
         RecetaHistorialRepository(session),
+        MovimientoDespensaRepository(session),
     )
 
 

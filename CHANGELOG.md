@@ -6,6 +6,32 @@ Formato: `[FECHA] [ÁREA] [TIPO] Descripción`
 
 ---
 
+## [2026-06-21] — Inteligencia de stock (Fase 1): ledger de movimientos
+
+Cimiento de datos para optimizar las sugerencias sabiendo **qué suele comprar/consumir el hogar**.
+Hasta ahora solo se guardaba la foto actual de la despensa (`inventario_alimentos`); el consumo se
+perdía. Ahora se registra el histórico de movimientos como efecto secundario de acciones que ya
+ocurren (cero fricción extra).
+
+- **ADD** Tabla `movimientos_despensa` (ledger entradas/salidas) + migración. Campos: `nombre`
+  (normalizado), `tipo` (`compra`/`consumo`/`caducado`/`ajuste`), `cantidad`, `unidad`, `origen`
+  (`ticket`/`manual`/`cocina`/`voz`/`foto`/`agotado`/`edicion`), `fecha`.
+- **ADD** `MovimientoDespensaRepository`: `registrar` + agregados `habitos_compra` (veces, última
+  compra, intervalo medio, cantidad habitual por alimento) y `ritmo_consumo` vía SQL `GROUP BY`.
+- **MOD** `PantryService.add_item/update_item/remove_item` registran el movimiento correspondiente
+  (best-effort: un fallo de log NO rompe la operación). `add_item` acepta `origen`.
+- **MOD** Personalización: `distill_taste_memory` incorpora los hábitos de compra/consumo en la
+  memoria de gustos destilada → sugerencias/plan/chat priorizan lo que el hogar suele tener.
+- **ADD** `smoke_test_movimientos.py` (registro + agregados + aislamiento + cascade) y en CI.
+- **RGPD**: histórico más personal (hábitos) → cascade en borrado de cuenta + retención acotada;
+  al LLM solo van nombres/cantidades/fechas, nunca identificadores.
+
+> Filosofía acordada: ningún método revela el stock real; el stock es una *hipótesis* y la
+> reconciliación fiable ocurre en el punto de uso. Fases siguientes (no en esta tanda): confianza
+> que decae + confirmación en el chat, lista de la compra inteligente, y las 4 mejoras del chef.
+
+---
+
 ## [2026-06-21] — Chef amigo que te conoce: personalización profunda + chat
 
 Mejora del LLM para que el asistente se sienta como un amigo chef cercano que conoce tus gustos

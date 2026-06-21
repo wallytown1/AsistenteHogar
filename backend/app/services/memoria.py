@@ -4,6 +4,7 @@ from datetime import UTC, datetime, timedelta
 
 from app.repositories.historial import RecetaHistorialRepository
 from app.repositories.memoria import MemoriaGustosRepository
+from app.repositories.movimientos import MovimientoDespensaRepository
 from app.repositories.perfil import PerfilHogarRepository
 from app.repositories.perfiles_individual import PerfilIndividualRepository
 from app.schemas.schemas import (
@@ -31,11 +32,13 @@ class MemoriaService:
         perfil_repo: PerfilHogarRepository,
         perfiles_repo: PerfilIndividualRepository,
         historial_repo: RecetaHistorialRepository,
+        movimientos_repo: MovimientoDespensaRepository | None = None,
     ) -> None:
         self.memoria_repo = memoria_repo
         self.perfil_repo = perfil_repo
         self.perfiles_repo = perfiles_repo
         self.historial_repo = historial_repo
+        self.movimientos_repo = movimientos_repo
 
     async def obtener(self, hogar_id: uuid.UUID) -> MemoriaGustosResponse | None:
         """Lee la memoria del hogar (para inyectar en sugerencias/plan/chat). Rápido."""
@@ -66,7 +69,15 @@ class MemoriaService:
                 RecetaHistorialResponse.model_validate(h) for h in historial_orm
             ] or None
 
-            resumen = await distill_taste_memory(perfil, perfiles, historial)
+            habitos = None
+            consumo = None
+            if self.movimientos_repo is not None:
+                habitos = await self.movimientos_repo.habitos_compra(hogar_id) or None
+                consumo = await self.movimientos_repo.ritmo_consumo(hogar_id) or None
+
+            resumen = await distill_taste_memory(
+                perfil, perfiles, historial, habitos, consumo
+            )
             if resumen:
                 await self.memoria_repo.upsert(hogar_id, resumen, total)
         except Exception as e:  # — best-effort, no debe romper el caller

@@ -18,9 +18,11 @@ from app.schemas.schemas import (
     AlimentoInterpretado,
     ChefChatResponse,
     ChefMensaje,
+    ConsumoItem,
     DashboardUnifiedContext,
     DiaPlanComidas,
     FotoNeveraResponse,
+    HabitoCompraItem,
     InterpretarDespensaResponse,
     InventarioAlimentoResponse,
     MemoriaGustosResponse,
@@ -512,24 +514,50 @@ def _bloque_recetario(recetario: list[RecetaMaestraResponse] | None) -> str:
 
 _DISTILL_SYSTEM = (
     "Eres un analista de preferencias gastronómicas. A partir de los datos del hogar "
-    "(perfil, miembros, historial de recetas cocinadas/valoradas/rechazadas), redacta un "
-    "RESUMEN breve en español (máximo 120 palabras, en 2ª persona, dirigido al hogar) de "
-    "sus gustos y hábitos de comida APRENDIDOS: estilos que disfruta, ingredientes/platos "
-    "favoritos, lo que evita o no le gusta, y patrones (p. ej. cocina rápida entre semana).\n"
+    "(perfil, miembros, historial de recetas cocinadas/valoradas/rechazadas y hábitos de "
+    "compra/consumo), redacta un RESUMEN breve en español (máximo 120 palabras, en 2ª "
+    "persona, dirigido al hogar) de sus gustos y hábitos APRENDIDOS: estilos que disfruta, "
+    "ingredientes/platos favoritos, lo que evita o no le gusta, QUÉ SUELE COMPRAR y a qué "
+    "ritmo, y patrones (p. ej. cocina rápida entre semana).\n"
     "Reglas: básate SOLO en los datos dados; no inventes. Solo gustos gastronómicos, NUNCA "
     "datos de salud. Texto plano, sin listas ni markdown. Si no hay datos suficientes, "
     "devuelve una cadena vacía."
 )
 
 
+def _bloque_habitos(
+    habitos: list[HabitoCompraItem] | None,
+    consumo: list[ConsumoItem] | None,
+) -> str:
+    """Bloque compacto de hábitos de compra/consumo derivados del ledger de movimientos.
+    Permite a la destilación aprender QUÉ suele comprar el hogar y a qué ritmo."""
+    lineas = []
+    if habitos:
+        partes = []
+        for h in habitos[:15]:
+            extra = ""
+            if h.intervalo_medio_dias:
+                extra = f" (cada ~{h.intervalo_medio_dias:.0f} días)"
+            partes.append(f"{h.nombre} x{h.veces}{extra}")
+        lineas.append("Suele comprar: " + ", ".join(partes) + ".")
+    if consumo:
+        top = ", ".join(f"{c.nombre} x{c.veces}" for c in consumo[:15])
+        lineas.append("Suele consumir/gastar: " + top + ".")
+    if not lineas:
+        return ""
+    return "Hábitos de compra y consumo del hogar:\n" + "\n".join(lineas) + "\n"
+
+
 async def distill_taste_memory(
     perfil: PerfilHogarResponse | None = None,
     perfiles_individuales: list[PerfilIndividualResponse] | None = None,
     historial: list[RecetaHistorialResponse] | None = None,
+    habitos: list[HabitoCompraItem] | None = None,
+    consumo: list[ConsumoItem] | None = None,
 ) -> str | None:
-    """Destila los datos del hogar en un resumen NL corto de sus gustos aprendidos.
-    Es la base de la 'memoria' que hace que el chef parezca conocer al hogar. Llamada
-    Gemini barata (temp 0); devuelve None si no hay API key, fallo, o datos insuficientes."""
+    """Destila los datos del hogar en un resumen NL corto de sus gustos y hábitos
+    aprendidos. Es la base de la 'memoria' que hace que el chef parezca conocer al hogar.
+    Llamada Gemini barata (temp 0); None si no hay API key, fallo o datos insuficientes."""
     if not GEMINI_API_KEY:
         return None
 
@@ -537,6 +565,7 @@ async def distill_taste_memory(
         _bloque_perfil(perfil)
         + _bloque_perfiles_individuales(perfiles_individuales)
         + _bloque_historial(historial)
+        + _bloque_habitos(habitos, consumo)
     )
     if not datos.strip():
         return None

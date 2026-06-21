@@ -1,6 +1,8 @@
+import logging
 import uuid
 from datetime import UTC, datetime, timedelta
 
+from app.repositories.movimientos import MovimientoDespensaRepository
 from app.repositories.pantry import PantryRepository
 from app.schemas.schemas import (
     InventarioAlimentoCreate,
@@ -9,30 +11,83 @@ from app.schemas.schemas import (
     PantryStockMetrics,
 )
 
+logger = logging.getLogger("app.pantry")
+
 
 class PantryService:
-    def __init__(self, pantry_repo: PantryRepository):
+    def __init__(
+        self,
+        pantry_repo: PantryRepository,
+        movimientos_repo: MovimientoDespensaRepository | None = None,
+    ):
         self.pantry_repo = pantry_repo
+        self.movimientos_repo = movimientos_repo
+
+    async def _registrar_movimiento(
+        self,
+        hogar_id: uuid.UUID,
+        nombre: str,
+        tipo: str,
+        cantidad: float | None,
+        unidad: str | None,
+        origen: str,
+    ) -> None:
+        """Registra el movimiento en el ledger. Best-effort: un fallo aquí NUNCA debe
+        romper la operación de despensa (el ledger es para aprender hábitos, no crítico)."""
+        if self.movimientos_repo is None:
+            return
+        try:
+            await self.movimientos_repo.registrar(
+                hogar_id, nombre, tipo, cantidad, unidad, origen
+            )
+        except Exception as e:  # — best-effort
+            logger.warning(f"No se pudo registrar el movimiento de despensa: {e}")
 
     async def add_item(
-        self, hogar_id: uuid.UUID, schema: InventarioAlimentoCreate
+        self,
+        hogar_id: uuid.UUID,
+        schema: InventarioAlimentoCreate,
+        origen: str = "manual",
     ) -> InventarioAlimentoResponse:
-        """Crea un nuevo alimento en la despensa."""
+        """Crea un nuevo alimento en la despensa y lo registra como 'compra'."""
         item = await self.pantry_repo.create(hogar_id, schema)
+        await self._registrar_movimiento(
+            hogar_id, item.nombre, "compra", float(item.cantidad), item.unidad, origen
+        )
         return InventarioAlimentoResponse.model_validate(item)
 
     async def update_item(
         self, item_id: uuid.UUID, hogar_id: uuid.UUID, schema: InventarioAlimentoUpdate
     ) -> InventarioAlimentoResponse:
-        """Actualiza un alimento de la despensa."""
+        """Actualiza un alimento. Si cambia la cantidad, registra el delta como
+        'consumo' (bajada) o 'compra' (subida)."""
+        previo = await self.pantry_repo.get_by_id(item_id, hogar_id)
+        cantidad_previa = float(previo.cantidad)
         item = await self.pantry_repo.update(item_id, hogar_id, schema)
+        delta = float(item.cantidad) - cantidad_previa
+        if abs(delta) > 1e-9:
+            tipo = "consumo" if delta < 0 else "compra"
+            await self._registrar_movimiento(
+                hogar_id, item.nombre, tipo, abs(delta), item.unidad, "edicion"
+            )
         return InventarioAlimentoResponse.model_validate(item)
 
     async def remove_item(
         self, item_id: uuid.UUID, hogar_id: uuid.UUID
     ) -> InventarioAlimentoResponse:
-        """Elimina de forma lógica un alimento de la despensa."""
+        """Elimina (soft delete) un alimento. Lo registra como 'caducado' si ya había
+        caducado, o 'consumo' en caso contrario."""
         item = await self.pantry_repo.delete(item_id, hogar_id)
+        hoy = datetime.now(UTC).date()
+        caducado = item.fecha_caducidad is not None and item.fecha_caducidad < hoy
+        await self._registrar_movimiento(
+            hogar_id,
+            item.nombre,
+            "caducado" if caducado else "consumo",
+            float(item.cantidad),
+            item.unidad,
+            "manual",
+        )
         return InventarioAlimentoResponse.model_validate(item)
 
     async def get_stock_metrics(self, hogar_id: uuid.UUID) -> PantryStockMetrics:

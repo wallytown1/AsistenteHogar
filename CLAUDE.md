@@ -64,6 +64,7 @@ python smoke_test_perfiles.py       # perfiles individuales CRUD + isolation + l
 python smoke_test_lista_compra.py   # lista de la compra CRUD + borrado masivo + isolation (27 checks)
 python smoke_test_rechazar_ingrediente.py  # rechazar-ingrediente: schema, multi-tenant, auth (16 checks)
 python smoke_test_chef.py           # chef chat + valoración + memoria de gustos + aislamiento
+python smoke_test_movimientos.py    # ledger de movimientos + agregados de hábitos + aislamiento
 
 # Manual GDPR purge pass (also runs automatically every 24h from the app lifespan)
 python -m app.jobs.purge
@@ -158,6 +159,7 @@ python smoke_test_perfiles.py        # must pass
 python smoke_test_lista_compra.py    # 27/27 must pass
 python smoke_test_rechazar_ingrediente.py  # 16/16 must pass
 python smoke_test_chef.py            # chef chat + valoración + memoria must pass
+python smoke_test_movimientos.py     # ledger de movimientos + hábitos must pass
 
 # Frontend
 cd frontend && npm run ts:check           # 0 errors
@@ -200,6 +202,14 @@ en las ramas fallback; `_FILOSOFIA_MEDITERRANEA` sigue como guard final no-remov
 1/hogar) en sugerencias/plan/chat → el asistente "recuerda" al hogar con prompt acotado. `MemoriaService`
 la recalcula best-effort al recibir feedback nuevo (valoración en `recetas_historial`). No fine-tuning:
 toda la personalización es prompt + memoria en inferencia.
+
+**Hábitos de compra/consumo (ledger):** la tabla `movimientos_despensa` registra entradas/salidas de
+stock (compra/consumo/caducado) como efecto secundario de `PantryService.add_item/update_item/remove_item`.
+`MovimientoDespensaRepository.habitos_compra`/`ritmo_consumo` agregan por alimento (frecuencia, recencia,
+intervalo medio) vía SQL, y `distill_taste_memory` los incorpora a la memoria → las sugerencias priorizan
+lo que el hogar suele tener. El ledger crudo NUNCA va al prompt (solo el resumen destilado). El stock es
+una *hipótesis* (lo que probablemente tienes), no un inventario exacto; la reconciliación fiable se hará
+en el punto de uso (fase siguiente). Ver `ARCHITECTURE_MAP.md`/`CHANGELOG.md`.
 The `interpret_*` / `analyze_*` functions use Gemini structured output (`responseSchema`) and return a
 proposal the user must confirm before any destructive write. Low-risk writes (stock depletion, profile
 micro-adjustments via function calling) may happen automatically with visible undo. Results that are

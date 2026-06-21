@@ -655,6 +655,24 @@ class ListaCompraItemResponse(BaseSchema):
     updated_at: datetime
 
 
+# --- HÁBITOS DE COMPRA / CONSUMO (derivados del ledger de movimientos) ---
+
+
+class HabitoCompraItem(BaseSchema):
+    nombre: str
+    veces: int
+    ultima_compra: datetime | None = None
+    intervalo_medio_dias: float | None = None
+    cantidad_habitual: float | None = None
+
+
+class ConsumoItem(BaseSchema):
+    nombre: str
+    veces: int
+    cantidad_total: float | None = None
+    ultimo: datetime | None = None
+
+
 # --- MEMORIA DE GUSTOS (personalización destilada) ---
 
 

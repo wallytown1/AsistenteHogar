@@ -216,7 +216,14 @@ Los docs interactivos (`/docs`, `/redoc`, `/openapi.json`) están deshabilitados
 | `lista_compra` | No | Artículos de compra |
 | `perfil_hogar` | No | Gustos culinarios, nº comensales |
 | `memoria_gustos` | No (resumen gastronómico) | Derivada; cascade en DELETE /auth/cuenta. No soft-delete (regenerable) |
+| `movimientos_despensa` | No (hábitos de compra/consumo) | Ledger de entradas/salidas; cascade en DELETE /auth/cuenta. Retención acotada (recortar > 12 meses) |
 | `registros_borrado` | No | Solo conteos agregados |
+
+**Ledger de movimientos (`movimientos_despensa`):** registra entradas/salidas de stock (compra/consumo/
+caducado) para aprender los hábitos del hogar y afinar las sugerencias. Es **más personal** que el saldo
+actual (revela hábitos de compra), aunque sigue siendo no-sanitario y de hogar. Mitigaciones: cascade en
+`DELETE /auth/cuenta`, **retención acotada** (eventos crudos > 12 meses se recortan), y al LLM solo viajan
+nombres de alimentos + cantidades + fechas (vía la memoria destilada), nunca identificadores personales.
 
 **Chef conversacional (`POST /chef/chat`):** el servidor **no persiste el texto del chat** — el
 cliente reenvía los turnos recientes en cada petición y la continuidad de largo plazo vive en
