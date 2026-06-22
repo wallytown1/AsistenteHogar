@@ -19,21 +19,28 @@ depends_on: Union[str, Sequence[str], None] = None
 def upgrade() -> None:
     bind = op.get_bind()
     is_sqlite = bind.dialect.name == "sqlite"
-    default_now = (
-        sa.text("CURRENT_TIMESTAMP")
-        if is_sqlite
-        else sa.text("timezone('utc'::text, now())")
-    )
-    # server_default para que las filas existentes tomen "ahora" como última confirmación.
-    op.add_column(
-        "inventario_alimentos",
-        sa.Column(
-            "ultima_confirmacion",
-            sa.DateTime(timezone=True),
-            server_default=default_now,
-            nullable=False,
-        ),
-    )
+    if is_sqlite:
+        # SQLite does not allow non-constant defaults like CURRENT_TIMESTAMP in ALTER TABLE ADD COLUMN.
+        # We use a constant datetime string instead.
+        op.add_column(
+            "inventario_alimentos",
+            sa.Column(
+                "ultima_confirmacion",
+                sa.DateTime(timezone=True),
+                server_default="2026-06-22 00:00:00",
+                nullable=False,
+            ),
+        )
+    else:
+        op.add_column(
+            "inventario_alimentos",
+            sa.Column(
+                "ultima_confirmacion",
+                sa.DateTime(timezone=True),
+                server_default=sa.text("timezone('utc'::text, now())"),
+                nullable=False,
+            ),
+        )
 
 
 def downgrade() -> None:

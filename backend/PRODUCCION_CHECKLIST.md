@@ -92,7 +92,7 @@
 
 - [ ] **Backups de Postgres** activados en Railway (o export programado).
 - [ ] **Redis gestionado de Railway:** confirmar política de persistencia/eviction. El
-  `docker-compose.yml` (AOF, 128 MB, `allkeys-lru`) es **solo para desarrollo local**; el
+  `docker-compose.yml` (AOF, 128 MB, `allkeys-lru`) is **solo para desarrollo local**; el
   Redis de Railway se configura aparte. La app degrada a memoria si Redis cae (no se rompe).
 - [ ] Revisar `ACCESS_TOKEN_EXPIRE_MINUTES` (hoy 30 días, sin refresh token). Decidir si se
   reduce o se añade refresh para producción.

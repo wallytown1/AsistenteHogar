@@ -1,95 +1,165 @@
-# 01_CONTEXTO_Y_ARQUITECTURA_APP
+# Contexto y Arquitectura Global — AsistenteHogar
 
-Este documento especifica la arquitectura del sistema, el esquema de la base de datos relacional, el contrato de la API y la **arquitectura de cumplimiento legal** (RGPD, Ley de IA de la UE, políticas de App Store / Google Play) para el **Asistente del Hogar IA**. Es la fuente de verdad para los agentes Frontend, Backend y Base de Datos.
+Este documento especifica de manera integral la arquitectura del sistema, el mapa de directorios, el esquema de datos, el sistema de diseño visual y la arquitectura de cumplimiento legal (RGPD / AI Act) para el **Asistente del Hogar IA**. Es la fuente de verdad conceptual del proyecto.
 
-> **Versión:** 3.0 (2026-06-17) — pivote estratégico: función principal es la generación de recetas mediterráneas españolas basadas en stock real. Nuevos métodos de entrada (audio, foto nevera) y perfil de hogar (onboarding). Calendario y tareas pasan a función secundaria/complemento.
->
-> Versión anterior: 2.1 (2026-06-12) — fases F0–F-QA + arquitectura de compliance F-LEGAL.
+> **Versión:** 4.0 (2026-06-22) — **Pivote 2 implementado**: App exclusivamente orientada a comida, despensa y recetas mediterráneas. Se eliminaron por completas las tareas domésticas y la agenda/calendario.
 
 ---
 
-## 1. Estructura de Directorios del Monorepo
+## 1. Mapa de Sistema y Directorios
+
+El monorepo está organizado para separar de forma limpia la app móvil (Expo), el panel de administración (Next.js) y la API del servidor (FastAPI).
+
+### 1.1 Estructura del Monorepo
 
 ```text
 AsistenteHogar/
 ├── backend/
 │   ├── app/
 │   │   ├── api/
-│   │   │   ├── routers/           # auth, dashboard, pantry, calendar, tasks (FastAPI)
-│   │   │   └── deps.py            # Inyección: sesión DB, get_current_user, get_hogar_id (JWT)
-│   │   ├── core/                  # config, security (JWT/bcrypt), rate_limit, logging, utils
+│   │   │   ├── routers/           # auth, dashboard, pantry, perfiles, chef, lista_compra
+│   │   │   └── deps.py            # Inyección: DB sessions, get_current_user, requiere_premium/familia
+│   │   ├── core/                  # config, security (JWT/bcrypt), rate_limit, token_blocklist
 │   │   ├── models/                # Modelos SQLAlchemy 2.0 async (models.py)
-│   │   ├── repositories/          # Acceso a datos (Patrón Repositorio) + exceptions tipadas
-│   │   ├── schemas/               # Pydantic v2, extra='forbid' global (schemas.py)
-│   │   ├── services/              # Lógica de negocio + integración LLM (llm.py)
-│   │   │   └── privacy.py         # F-LEGAL: anonimización de prompts LLM (AnonimizadorLLM)
-│   │   ├── jobs/                  # F-LEGAL: purga física programada (purge.py, CLI + scheduler)
-│   │   ├── database.py            # Engine async + Base declarativa
-│   │   └── main.py                # Entrada FastAPI + exception handlers globales
+│   │   ├── repositories/          # Patrón Repositorio y exceptions tipadas
+│   │   ├── services/              # Lógica de negocio: llm.py, premium.py, memoria.py
+│   │   │   └── privacy.py         # AnonimizadorLLM (saneo y tokenización de prompts)
+│   │   ├── jobs/                  # scheduled jobs: purga física programada (purge.py)
+│   │   ├── database.py            # Async engine + Declarative Base
+│   │   └── main.py                # Entrada FastAPI y Lifespan (migrations + HTTP handlers)
 │   ├── alembic/versions/          # Migraciones Alembic
-│   ├── smoke_test_*.py            # Suite de pruebas de humo (111 checks, incl. smoke_test_legal.py)
-│   ├── docker-compose.yml         # PostgreSQL 16 (producción/local opcional)
-│   ├── requirements.txt
-│   └── .env.example
+│   ├── smoke_test_*.py            # Suite de pruebas de humo (13 test suites individuales)
+│   ├── Procfile                   # Comando de arranque (Railway)
+│   └── requirements.txt
 ├── frontend/
 │   ├── src/
-│   │   ├── api/                   # api.ts — cliente fetch con Bearer token + timeout 15s; TIMEOUT const
-│   │   ├── components/            # AIDisclaimerBanner.tsx (transparencia IA, AI Act art. 50)
-│   │   │   └── ui/                # librería de componentes (Card, Button, Screen, Fab, Badge...)
-│   │   ├── config/                # config.ts — lee EXPO_PUBLIC_API_URL
-│   │   ├── hooks/                 # useDashboard, usePantry, useCalendar, useTasks, useExpiryNotifications
-│   │   ├── lib/                   # haptics.ts, categoria.ts
-│   │   ├── navigation/            # AppNavigator.tsx (tabs + auth gate + onboarding gate)
-│   │   ├── screens/               # Auth, Dashboard, Pantry, Calendar, Tasks, Agenda, Onboarding, Settings, Paywall
-│   │   ├── state/                 # authStore.ts (Zustand + expo-secure-store), purchasesStore.ts
-│   │   ├── theme/                 # tokens.ts — color/tipografía/espaciado (StyleSheet, sin NativeWind)
-│   │   └── types/                 # types.ts — tipos compartidos del contrato API
-│   ├── .env.development           # EXPO_PUBLIC_API_URL (sin secretos; gitignored)
-│   ├── App.tsx
+│   │   ├── api/                   # api.ts (fetch client con JWT Bearer + timeouts)
+│   │   ├── components/            # ui/ (lote de componentes), AIDisclaimerBanner.tsx
+│   │   ├── hooks/                 # useDashboard, usePantry, useListaCompra, useChefChat
+│   │   ├── lib/                   # haptics.ts, notifications.ts, caducidad.ts, categoria.ts
+│   │   ├── navigation/            # AppNavigator.tsx (Stack + Bottom Tabs + Auth/Onboarding Gates)
+│   │   ├── screens/               # AuthScreen, DashboardScreen, PantryScreen, ChefChatScreen, etc.
+│   │   ├── state/                 # authStore.ts (Zustand + secure store), purchasesStore.ts
+│   │   ├── theme/                 # tokens.ts (Tierra Cálida design tokens, sin NativeWind)
+│   │   └── types/                 # types.ts (Tipos de contrato API y frontend)
+│   ├── app.json                   # Configuración de Expo y EAS
 │   └── package.json
-├── CLAUDE.md                      # Guía de trabajo del repo
-├── ENDPOINTS.md                   # Referencia completa de la API (contrato vigente)
-├── ESTADO_ACTUAL.md               # Historial de fases y estado
-└── 01_CONTEXTO_Y_ARQUITECTURA_APP.md  # Este documento
+├── admin-web/
+│   ├── src/
+│   │   ├── app/                   # Next.js App Router (login, prompts, recetario)
+│   │   ├── components/            # AdminNav, PromptEditor, RecetaForm
+│   │   └── lib/                   # api.ts (llamadas tipadas con cabecera CSRF)
+│   └── nixpacks.toml              # Build settings de Vercel
+├── ENDPOINTS.md                   # Referencia de API
+└── ESTADO_ACTUAL.md               # Roadmap e Historial
+```
+
+### 1.2 Mapa Conceptual de Componentes y Flujos
+
+```mermaid
+graph TB
+    subgraph Cliente["📱 App móvil (Expo / React Native)"]
+        Home["Inicio — briefing + alertas"]
+        Desp["Despensa — stock + foto nevera + ticket + voz"]
+        Chat["Chef — Chat con Marce (Zustand)"]
+        Ajustes["Ajustes — perfiles + config umbral"]
+    end
+
+    subgraph Admin["🖥️ Panel Admin (Next.js — admin-web/)"]
+        AdmRec["CRUD Recetario Maestro"]
+        AdmPrompt["Editor de Prompts / System Instructions"]
+        AdmAuth["Login super-admin (JWT admin HttpOnly)"]
+    end
+
+    subgraph API["⚙️ Backend FastAPI"]
+        RAuth["/auth (usuarios, JWT)"]
+        RAdmin["/admin/* (super-admin, cookies HttpOnly + CSRF)"]
+        RPantry["/pantry/* (stock, recetas, Vision, audio)"]
+        RDash["/dashboard (briefing despensa)"]
+        RPerfil["/onboarding (perfil hogar)"]
+        RPerfilInd["/perfiles (miembros individuales)"]
+        RHist["/pantry/recetas/historial (feedback)"]
+        RLista["/lista-compra (CRUD lista compra) ✅"]
+        RChef["/chef/chat (chat estructurado)"]
+        PromptSvc["PromptConfigService (BD + caché TTL 5m)"]
+        LLM["services/llm.py (Gemini 2.5 Flash)"]
+        Premium["premium.py (RevenueCat status)"]
+    end
+
+    subgraph DB["🗄️ PostgreSQL (Railway) / SQLite (Dev)"]
+        Thog["hogares / usuarios / admin_users"]
+        Tstock["inventario_alimentos"]
+        Tperfh["perfil_hogar (logística)"]
+        Tperfi["perfiles_individuales"]
+        Thist["recetas_historial"]
+        Trec["recetario_maestro (GLOBAL)"]
+        Tprompt["prompt_templates (GLOBAL)"]
+        Tborr["registros_borrado (RGPD)"]
+        Tlista["lista_compra (por hogar)"]
+        Tmem["memoria_gustos (destilada)"]
+        Tmov["movimientos_despensa (ledger)"]
+    end
+
+    Gemini["☁️ Gemini 2.5 Flash"]
+    RC["💳 RevenueCat (IAP)"]
+
+    Home & Desp & Chat & Ajustes -->|Bearer JWT familia| API
+    AdmRec & AdmPrompt -->|HttpOnly + CSRF| RAdmin
+    AdmAuth --> RAdmin
+    RAdmin --> Trec & Tprompt & Thog
+    RPantry & RDash & RChef --> LLM
+    LLM --> PromptSvc
+    PromptSvc --> Tprompt
+    LLM -->|recetario en context cache| Gemini
+    RPantry & RChef --> Premium
+    Premium --> RC
+    RPerfil --> Tperfh
+    RPerfilInd --> Tperfi
+    RPantry --> Tstock
+    RHist --> Thist
+    RLista --> Tlista
+    RDash --> Tstock
+    RChef --> Tmem & Tmov
 ```
 
 ---
 
 ## 2. Principios Arquitectónicos Innegociables
 
-1. **Multi-tenant por JWT:** `hogar_id` se deriva **siempre** del token validado (`get_hogar_id()` en `api/deps.py`). **Ningún endpoint acepta `hogar_id` en la URL, cabeceras o cuerpo.** Esto elimina por diseño la clase de vulnerabilidad IDOR/BOLA (OWASP API #1): un cliente no puede nombrar un hogar ajeno porque el identificador no existe en el contrato público.
-2. **IA pasiva:** el LLM solo sugiere; **nunca escribe en la base de datos**. Toda mutación requiere confirmación explícita del usuario (p. ej. `POST /calendar/interpretar` devuelve una propuesta; el cliente confirma con `POST /calendar`).
-3. **LLM determinista:** temperatura = 0 y `thinkingBudget = 0` en todas las llamadas a Gemini.
-4. **Validación estricta:** todos los schemas Pydantic heredan de `BaseSchema` con `extra='forbid'`. Campos no declarados → 422.
-5. **Capas:** Router → Service → Repository → Modelos. Los routers devuelven schemas Pydantic, nunca instancias ORM. Los repositories lanzan excepciones tipadas (`repositories/exceptions.py`) que los handlers globales de `main.py` mapean a códigos HTTP.
-6. **Minimización de datos hacia el LLM:** ningún nombre propio de la familia sale hacia la API de Gemini sin pasar por la capa de anonimización (§5.2).
+1.  **Multi-tenant por JWT**: El identificador `hogar_id` se deriva **siempre** del token JWT validado en `deps.py` (`get_hogar_id()`). Ningún endpoint acepta `hogar_id` en el cuerpo o cabeceras del cliente. Esto previene vulnerabilidades IDOR/BOLA por diseño.
+2.  **IA Pasiva / Confirmación Directa**: Los modelos de IA sugieren y proponen cambios (ej: `/pantry/interpretar` o `/pantry/foto-nevera`); la escritura real en base de datos la decide el usuario de forma explícita. Se permiten escrituras de bajo riesgo (descontar stock al cocinar) siempre que tengan un *Deshacer* visible en la interfaz.
+3.  **LLM Determinista**: Temperatura = 0 y `thinkingBudget = 0` para asegurar que las respuestas y structured outputs de Gemini sean predecibles.
+4.  **Validación Cerrada**: Todos los schemas de Pydantic heredan de `BaseSchema` con `extra='forbid'`, provocando un error `422 Unprocessable Entity` si se envían parámetros no declarados.
+5.  **Aislamiento de Capas**:
+    ```text
+    Router (FastAPI) → Service (Lógica) → Repository (SQLAlchemy) → Modelos ORM
+    ```
+    Los routers reciben y devuelven únicamente schemas Pydantic, nunca instancias de modelos ORM.
+6.  **Minimización de Datos (LLM)**: No se envían nombres propios a Gemini; se sustituyen mediante `AnonimizadorLLM` por tokens `Familiar_N`. Los perfiles individuales utilizan apodos/pseudónimos gastronómicos ("Mamá", "El peque"), nunca información médica o de identidad legal.
 
 ---
 
 ## 3. Esquema de Datos Relacional
 
-PostgreSQL 16 en producción; SQLite (aiosqlite) en desarrollo y tests. Todas las marcas temporales son `TIMESTAMPTZ` normalizadas a UTC (TypeDecorator `TZDateTime`). UUIDs como claves primarias en todas las tablas.
+PostgreSQL 16 es el motor de producción en Railway; SQLite (aiosqlite) se utiliza para desarrollo local y smoke tests. Todas las marcas de tiempo se almacenan con huso horario (`TIMESTAMPTZ` o `DateTime(timezone=True)`) y son tratadas como UTC mediante el decorador de tipo `TZDateTime`.
 
 ```mermaid
 erDiagram
     HOGARES ||--o{ USUARIOS : tiene
-    HOGARES ||--o{ INVENTARIO_ALIMENTOS : pertenece
-    HOGARES ||--o{ TAREAS_HOGAR : contiene
-    HOGARES ||--o{ EVENTOS_CALENDARIO : agenda
-    HOGARES ||--o| PERFIL_HOGAR : tiene
+    HOGARES ||--o{ INVENTARIO_ALIMENTOS : posee
+    HOGARES ||--|| PERFIL_HOGAR : "logística (1:1)"
+    HOGARES ||--o{ PERFILES_INDIVIDUALES : "paladar (0..10)"
+    HOGARES ||--o{ RECETAS_HISTORIAL : registra
+    HOGARES ||--o{ MOVIMIENTOS_DESPENSA : audita
+    HOGARES ||--o{ LISTA_COMPRA : apunta
+    HOGARES ||--|| MEMORIA_GUSTOS : "destilado (1:1)"
+    RECETARIO_MAESTRO }o--o{ RECETAS_HISTORIAL : "referencia (global)"
+    PROMPT_TEMPLATES }o..o{ HOGARES : "global (sin hogar_id)"
+    ADMIN_USERS }o..o{ PROMPT_TEMPLATES : "gestiona"
 
     HOGARES {
         uuid id PK
         varchar nombre
-        timestamptz created_at
-        timestamptz updated_at
-    }
-
-    PERFIL_HOGAR {
-        uuid id PK
-        uuid hogar_id FK_unico
-        json gustos_culinarios
-        integer num_comensales
         timestamptz created_at
         timestamptz updated_at
     }
@@ -113,36 +183,22 @@ erDiagram
         varchar unidad
         date fecha_caducidad
         varchar categoria
+        timestamptz ultima_confirmacion
         boolean is_deleted
         timestamptz created_at
         timestamptz updated_at
     }
 
-    TAREAS_HOGAR {
+    MOVIMIENTOS_DESPENSA {
         uuid id PK
         uuid hogar_id FK
         varchar nombre
-        varchar asignado_a
-        varchar frecuencia
-        varchar prioridad
-        timestamptz ultimo_completado
-        varchar estado
-        boolean is_deleted
+        varchar tipo
+        numeric cantidad
+        varchar unidad
+        varchar origen
+        timestamptz fecha
         timestamptz created_at
-        timestamptz updated_at
-    }
-
-    EVENTOS_CALENDARIO {
-        uuid id PK
-        uuid hogar_id FK
-        varchar titulo
-        text descripcion
-        timestamptz fecha_inicio
-        timestamptz fecha_fin
-        json participantes
-        boolean is_deleted
-        timestamptz created_at
-        timestamptz updated_at
     }
 
     REGISTROS_BORRADO {
@@ -154,183 +210,71 @@ erDiagram
     }
 ```
 
-### 3.1 Tablas existentes
-
-* **`hogares`** — unidad de tenencia. `id UUID PK`, `nombre VARCHAR(100)`, timestamps. Relaciones declaradas con `cascade="all, delete-orphan"` hacia usuarios, alimentos, tareas y eventos.
-* **`usuarios`** — cuentas de acceso. `id UUID PK`, `hogar_id FK → hogares.id ON DELETE CASCADE`, `email VARCHAR(255) UNIQUE INDEXED`, `nombre VARCHAR(100)`, `hashed_password VARCHAR(255)` (bcrypt), `is_active BOOLEAN`, timestamps.
-* **`inventario_alimentos`** — `hogar_id FK CASCADE INDEXED`, `nombre VARCHAR(150)`, `cantidad NUMERIC(10,2) > 0`, `unidad VARCHAR(30)`, `fecha_caducidad DATE NULL`, `categoria VARCHAR(50)`, `is_deleted BOOLEAN INDEXED`, timestamps.
-* **`tareas_hogar`** — `hogar_id FK CASCADE INDEXED`, `nombre VARCHAR(200)`, `asignado_a VARCHAR(100) NULL`, `frecuencia VARCHAR(50)`, `prioridad VARCHAR(20)` (`alta|media|baja`), `ultimo_completado TIMESTAMPTZ NULL`, `estado VARCHAR(30)` (`pendiente|completado`), `is_deleted BOOLEAN INDEXED`, timestamps.
-* **`eventos_calendario`** — `hogar_id FK CASCADE INDEXED`, `titulo VARCHAR(200)`, `descripcion TEXT NULL`, `fecha_inicio/fecha_fin TIMESTAMPTZ` (fin > inicio, validado en Pydantic), `participantes JSON NULL` (lista de strings), `is_deleted BOOLEAN INDEXED`, timestamps.
-
-### 3.2 Tabla: `registros_borrado` (auditoría de supresión)
-
-Evidencia de cumplimiento del art. 17 RGPD (derecho de supresión) y del art. 5.2 (responsabilidad proactiva) **sin contener ningún dato personal**:
-
-* **id**: `UUID PK`.
-* **tipo_evento**: `VARCHAR(30)` — `'purga_programada'` | `'eliminacion_cuenta'`.
-* **motivo**: `VARCHAR(100)` — p. ej. `'retencion_30_dias'`, `'solicitud_usuario'`.
-* **registros_afectados**: `INTEGER` — recuento agregado (no IDs, no nombres).
-* **ejecutado_en**: `TIMESTAMPTZ NOT NULL`.
-
-Deliberadamente **no** guarda `hogar_id`, emails ni IDs de filas borradas: un registro de auditoría que identificara al usuario suprimido violaría la propia supresión. Solo acredita *que* el mecanismo se ejecutó, *cuándo* y *cuánto* eliminó.
-
-### 3.3 Política de borrado (dos niveles)
-
-| Nivel | Mecanismo | Alcance | Disparador |
-|---|---|---|---|
-| **Borrado lógico** | `is_deleted = TRUE` | inventario, tareas, eventos | `DELETE` de la API de negocio (deshacer/papelera, integridad referencial a corto plazo) |
-| **Purga física** | `DELETE` SQL real | filas con `is_deleted = TRUE` y `updated_at` > 30 días | Job programado (§5.1) |
-| **Destrucción de cuenta** | borrado del `hogar` → cascade ORM | hogar + usuarios + todos los datos vinculados | `DELETE /api/v1/auth/cuenta` (§4.2) |
-
-> **Excepción documentada a la regla "sin hard deletes":** la purga programada y la destrucción de cuenta son los **dos únicos** caminos autorizados de borrado físico. Existen porque el RGPD exige supresión efectiva, no marcado lógico indefinido. Ningún otro código debe ejecutar `DELETE` físico.
+### 3.1 Resumen de Tablas e Integridad
+*   **`hogares`**: Unidad de aislamiento tenant. Los DELETE cascada del ORM se gestionan aquí.
+*   **`usuarios`**: Contraseñas hasheadas con bcrypt (longitud máx. 72 bytes por limitación de bcrypt).
+*   **`inventario_alimentos`**: El inventario del hogar. Incluye `ultima_confirmacion` para calcular la confianza del stock y la bandera `is_deleted` (borrado lógico).
+*   **`movimientos_despensa`**: Ledger histórico de entradas/salidas (compra, consumo, merma) que alimenta la inteligencia de stock.
+*   **`perfil_hogar`**: Configuración de onboarding básica (comensales, gustos generales).
+*   **`perfiles_individuales`**: Hasta 10 miembros por hogar. Guarda preferencias gastronómicas excluyendo datos de salud.
+*   **`memoria_gustos`**: Resumen NL destilado por la IA sobre lo que le gusta y consume al hogar.
+*   **`lista_compra`**: Lista del súper del hogar.
+*   **`registros_borrado`**: Registro de auditoría agregada del RGPD (sin nombres ni IDs).
+*   **`admin_users`, `prompt_templates`, `recetario_maestro`**: Entidades globales sin `hogar_id`, restringidas al Panel de Administración.
 
 ---
 
-## 4. Contrato de la API REST
+## 4. Sistema de Diseño Visual y Componentes UI
 
-Prefijo global `/api/v1`. Autenticación Bearer JWT (HS256, expiración 30 días). El contrato completo, con cuerpos y códigos por endpoint, vive en **`ENDPOINTS.md`**; aquí se resume la superficie y las decisiones de diseño.
+El frontend móvil está rediseñado en calidad nativa utilizando **únicamente StyleSheet y tokens de diseño**, tras la desinstalación completa de NativeWind/Tailwind.
 
-### 4.1 Superficie actual (implementada)
+### 4.1 Paleta "Tierra Cálida" (`src/theme/tokens.ts`)
 
-| Módulo | Endpoints | Notas |
+La estética está inspirada en un minimalismo cálido y editorial (tonos crema y marrones), donde el ingrediente y la comida toman protagonismo.
+
+| Token | Hex | Propósito |
 |---|---|---|
-| Auth | `POST /auth/registro`, `POST /auth/login`, `GET /auth/me` 🔒, `DELETE /auth/cuenta` 🔒 | Rate limit por IP; login anti-enumeración; eliminación con re-autenticación (§4.2) |
-| Dashboard | `GET /dashboard` 🔒 | Estado unificado de hoy + briefing IA (o fallback sin API key) |
-| **Despensa ★** | `GET /pantry`, `GET /pantry/recetas` ⭐, `GET /pantry/plan-comidas` ⭐, `GET /pantry/sugerencias` ⭐, `POST /pantry`, `PATCH /pantry/{id}`, `DELETE /pantry/{id}` 🔒 | **Función principal.** Recetas/plan = IA pasiva + filosofía mediterránea española |
-| Despensa (entrada) | `POST /pantry/interpretar` 🔒, `POST /pantry/sugerir-metadata` ⭐, `POST /pantry/ocr-ticket` ⭐ | Tres vías de fricción cero; OCR y NL son IA pasiva |
-| Calendario | `GET /calendar`, `POST /calendar`, `POST /calendar/interpretar` ⭐, `PATCH /calendar/{id}`, `DELETE /calendar/{id}` 🔒 | Función secundaria: complemento de planificación de menús |
-| Tareas | `GET /tasks`, `POST /tasks`, `POST /tasks/interpretar` ⭐, `PATCH /tasks/{id}`, `DELETE /tasks/{id}` 🔒 | Función secundaria |
-| Salud | `GET /health`, `GET /` | Sin auth |
+| `brand` | `#8B5E3C` | Marrón arcilla (botones primarios, FAB, tabs activos) |
+| `brandDark` | `#6B4429` | Tono para estado pressed (Pressed) |
+| `brandSoft` | `#F6EDE3` | Fondo de pastillas, banners y chips activos |
+| `bg` | `#FAF7F2` | Lino cálido (fondo de pantalla general) |
+| `card` | `#FFFDF8` | Crema elevado (superficies de tarjetas principales) |
+| `cardAlt` | `#F9F4EC` | Tono secundario para tarjetas de soporte |
+| `ink` | `#2C1C0E` | Marrón oscuro (texto principal de alta legibilidad) |
+| `inkMuted` | `#7A6045` | Texto secundario y leyendas |
+| `inkFaint` | `#AE9B87` | Placeholders y separadores suaves |
+| `border` | `#EAE0D3` | Bordes de tarjetas y líneas divisorias |
+| `success` | `#5C8B68` | Verde salvia (semáforo de stock fresco > 6 días) |
+| `warning` | `#C8783A` | Ámbar arcilla (semáforo de consumo pronto 4-6 días) |
+| `danger` | `#B84B2D` | Rojo terracota (semáforo urgente ≤ 3 días / caducado) |
 
-**Implementados (F-PIVOT):**
+### 4.2 Tipografía, Radios y Sombras
+*   **Tipografía**: Se apoya en las fuentes del sistema nativo (SF Pro en iOS, Roboto en Android) para evitar tiempos de carga y problemas de rendering. Escala:
+    *   `display` (28, Bold) / `title` (22, Bold) / `h2` (17, Bold) / `body` (15, Medium) / `caption` (13, Medium) / `label` (11, ExtraBold uppercase).
+*   **Radios**: Curvaturas suaves y sobredimensionadas (`sm: 12`, `md: 16`, `lg: 20`, `xl: 24`, `pill: 999`).
+*   **Sombras**: warm-tinted (`shadowColor: '#3D2B1A'` en iOS, `elevation` en Android).
 
-| Módulo | Endpoint | Descripción |
-|---|---|---|
-| Onboarding | `GET`/`POST /onboarding` 🔒 ✅ | Perfil del hogar (upsert): gustos culinarios + nº comensales. SOLO datos no sensibles; intolerancias/alergias (art. 9) pospuestas |
-
-**Planificados (F-PIVOT):**
-
-| Módulo | Endpoint | Descripción |
-|---|---|---|
-| Despensa (audio) | `POST /pantry/audio` 🔒 ⭐ ⏳ | Entrada por voz en NL; Gemini interpreta y devuelve propuesta de alimentos (IA pasiva) |
-| Despensa (foto) | `POST /pantry/foto-nevera` 🔒 ⭐ ⏳ | Gemini Vision detecta ingredientes visibles; propuesta con confirmación (IA pasiva, premium) |
-
-⭐ = premium · ⏳ = planificado, no implementado · ✅ = implementado
-
-Decisiones de contrato que sustituyen al diseño original (v1.0 de este documento):
-
-* **No hay `{hogar_id}` en ninguna ruta.** El diseño original (`/hogares/{hogar_id}/...`) exponía el identificador de tenant en la URL y obligaba a validar pertenencia en cada handler; era propenso a IDOR. El contrato vigente lo deriva del JWT.
-* **`PATCH` en lugar de `PUT`** para actualizaciones parciales (todos los campos opcionales; cuerpo vacío → 400).
-* **El briefing vive en `GET /dashboard`** (campo `briefing_texto`), no en un endpoint propio.
-* **Crear un evento solapado devuelve 201**, y los solapamientos se informan como `conflictos[]` en `GET /calendar` y `conflictos_agenda[]` en el dashboard. La agenda familiar admite solapamientos legítimos; la IA los señala, el usuario decide.
-
-Códigos de error comunes: `400` PATCH sin cuerpo · `401` token ausente/inválido · `404` recurso inexistente **o de otro hogar** (respuesta indistinguible, anti-enumeración cross-tenant) · `409` email duplicado · `422` validación · `429` rate limit.
-
-### 4.2 Destrucción de cuenta
-
-#### `DELETE /api/v1/auth/cuenta` 🔒
-
-Requisito de App Store 5.1.1(v) y Google Play (eliminación de cuenta dentro de la app) + art. 17 RGPD.
-
-* **Ruta bajo `/auth`, sin `{hogar_id}`** — el hogar a destruir se deriva del JWT, igual que el resto de la API. (El diseño alternativo `DELETE /hogares/{hogar_id}/usuarios/cuenta` se descartó por reintroducir IDOR.)
-* **Re-autenticación obligatoria:** el cuerpo exige la contraseña actual. Un JWT robado/olvidado en un dispositivo no debe bastar para destruir los datos de toda la familia.
-
-```json
-// Body (CuentaEliminarRequest, extra='forbid')
-{ "password": "contrasena_actual" }
-```
-
-* **Efecto:** borrado físico del `hogar` del token y de usuarios, inventario, tareas y eventos (incluidos los `is_deleted = true`). Se ejecuta vía cascade del ORM (`cascade="all, delete-orphan"`), no con `DELETE` SQL directo: SQLite no aplica `ON DELETE CASCADE` sin `PRAGMA foreign_keys` y el cascade en Python funciona igual en ambos motores. Inserta un registro agregado en `registros_borrado` (`tipo_evento = 'eliminacion_cuenta'`) en la misma transacción. Invalida la sesión (el token deja de resolver a un usuario existente → 401 en adelante).
-* **Respuestas:** `200` `{ "success": true, "message": "Cuenta y datos eliminados permanentemente" }` · `401` token inválido o contraseña incorrecta · `422` validación. Rate limit: 5 intentos/hora por IP (anti fuerza bruta de contraseña).
-* **Modelo de cuenta única familiar:** al existir un solo usuario por hogar en el modelo actual, eliminar la cuenta equivale a eliminar el hogar. Si en el futuro hay multiusuario por hogar, este endpoint deberá redefinirse (eliminar miembro vs. eliminar hogar).
+### 4.3 Componentes Comunes (`src/components/ui/`)
+-   `Screen`: Contenedor principal con safe-areas y soporte para pull-to-refresh nativo.
+-   `Card`: Superficie interactiva que implementa sombras cálidas.
+-   `Button`: Variantes (primary, secondary, ghost, danger) con Haptics y estados de carga integrados.
+-   `AppText`: Encapsulador de texto tipográfico del sistema.
+-   `StatCard` / `EmptyState` / `Badge` / `Fab`.
 
 ---
 
-## 5. Arquitectura de Cumplimiento Legal (F-LEGAL)
+## 5. Arquitectura de Cumplimiento Legal (RGPD & AI Act)
 
-### 5.1 Purga física programada (RGPD art. 5.1.e — limitación del plazo de conservación)
+### 5.1 Mecanismo de Borrado en Dos Niveles
+1.  **Borrado Lógico**: La acción ordinaria del usuario en la app marca `is_deleted = true` y actualiza `updated_at`. Esto asegura la integridad referencial inmediata y permite la opción de "Deshacer".
+2.  **Purga Física Programada (RGPD art. 5.1.e)**: Cada 24 horas, la tarea de ciclo de vida en `backend/app/jobs/purge.py` realiza un `DELETE` físico real para todas las filas marcadas como borradas hace más de 30 días.
+3.  **Destrucción de Cuenta**: `DELETE /api/v1/auth/cuenta` requiere la contraseña del usuario (re-autenticación) y utiliza cascade a nivel de base de datos para borrar físicamente todas las dependencias del hogar en una sola transacción, dejando registro agregado en `registros_borrado`.
 
-* **Módulo:** `backend/app/jobs/purge.py`.
-* **Lógica:** para cada tabla de negocio (`inventario_alimentos`, `tareas_hogar`, `eventos_calendario`): `DELETE WHERE is_deleted = TRUE AND updated_at < now() - 30 días`. Implementada como método `purge_expired()` en cada repository (única excepción autorizada de hard delete, §3.3), orquestada por un servicio `PurgeService`.
-* **Ejecución:** doble vía —
-  1. **Programada in-process:** tarea `asyncio` lanzada desde el evento `lifespan` de FastAPI, cada 24 h. En producción, el almacenamiento de sesión de caché y rate-limiting fue migrado a Redis (F5).
-  2. **Manual/CLI:** `python -m app.jobs.purge` para operaciones y verificación en tests.
-* **Auditoría:** cada ejecución inserta una fila agregada en `registros_borrado` (`tipo_evento = 'purga_programada'`, `registros_afectados = N`). Si N = 0 no se inserta fila (evita ruido).
-* **Logging:** resultado en el log estructurado existente (`logging_config.py`), sin datos personales.
+### 5.2 Capa de Privacidad: AnonimizadorLLM (`privacy.py`)
+Para evitar que se envíe información de identificación personal (PII) a la API de Gemini:
+-   `AnonimizadorLLM` tokeniza nombres conocidos del prompt y los sustituye por placeholders neutros (`Familiar_1`, `Familiar_2`).
+-   La clave de caché SHA-256 en Redis se genera a partir del prompt **ya anonimizado**.
+-   Al retornar la respuesta de la IA, los placeholders son reemplazados de vuelta por los nombres locales antes de que la respuesta llegue a la UI.
 
-### 5.2 Minimización y anonimización hacia el LLM (RGPD art. 5.1.c + EU AI Act)
-
-Los prompts de `generate_morning_briefing` e `interpret_event_text` pueden contener nombres propios de la familia (`asignado_a`, `participantes`, texto libre). Antes de salir hacia la API de Gemini:
-
-* **Módulo:** `backend/app/services/privacy.py` con una clase `AnonimizadorLLM`:
-  1. **Construye el diccionario de alias** a partir de los nombres *conocidos estructuralmente* (valores de `asignado_a` de las tareas y elementos de `participantes[]` de los eventos) — no intenta NER sobre texto libre, que sería frágil; los campos estructurados son la fuente de verdad de qué es un nombre. Deduplica sin distinguir mayúsculas ('Ana' y 'ana' son la misma persona).
-  2. **Sustituye** cada nombre por un token estable `Familiar_N` (orden determinista: alfabético; coincidencia con límites de palabra, los nombres más largos primero para que 'Ana' no rompa 'Ana María') en todo el material del prompt.
-  3. **Revierte** los tokens a los nombres reales en la respuesta del LLM antes de devolverla al cliente, con reemplazo tolerante a variaciones de espaciado (`Familiar_1`, `Familiar 1`).
-* **Orden con el caché (crítico):** la clave SHA-256 del caché TTL en `llm.py` se calcula **sobre el prompt ya anonimizado**, y el caché almacena la **respuesta anonimizada** (la reversión se aplica después del caché). Así dos hogares con datos iguales salvo nombres comparten semántica sin fugas cruzadas, y la entrada cacheada nunca contiene datos personales.
-* **Alcance:** se aplica en `generate_morning_briefing`, la única función cuyo prompt contiene nombres conocidos estructuralmente. `generate_recipe_suggestions` solo envía nombres de alimentos e `interpret_event_text` recibe texto libre sin fuente estructural de nombres (aplicar NER ahí sería frágil y daría falsa sensación de seguridad; está documentado en el propio código).
-* **Fallbacks estáticos** (sin `GEMINI_API_KEY`): no pasan por la red, no requieren anonimización.
-
-### 5.3 Transparencia de IA (EU AI Act art. 50 — contenido generado por IA)
-
-* **Componente:** `frontend/src/components/AIDisclaimerBanner.tsx` (NativeWind), texto fijo: *«Este resumen ha sido generado por IA y puede contener imprecisiones.»*
-* **Ubicaciones:** junto al `briefing_texto` en `DashboardScreen`, junto a las recetas IA en `PantryScreen`, y como línea del diálogo de confirmación de la propuesta de evento en `CalendarScreen` («🤖 Propuesta generada por IA — revísala antes de confirmar.»).
-* **Condición:** solo se muestra cuando el contenido proviene realmente del LLM: el backend expone `generado_por_ia` en recetas y `briefing_generado_por_ia` en `DashboardUnifiedContext`, de modo que el fallback estático nunca se etiqueta como IA.
-
-### 5.4 Flujo de eliminación de cuenta en el cliente
-
-* **Pantalla:** `frontend/src/screens/SettingsScreen.tsx` (pestaña "Ajustes" ⚙️), con datos de la cuenta, cierre de sesión y sección "Zona de peligro" con el botón destructivo **«Eliminar cuenta permanentemente»**.
-* **Confirmación inline en dos pasos** (no `Alert` nativo: en react-native-web los botones de `Alert.alert` no funcionan, y el backend exige la contraseña, así que el campo debe estar en pantalla): el botón revela un panel de advertencia con campo de contraseña + «Confirmar eliminación definitiva» + «Cancelar».
-* **Acción Zustand** `deleteAccount(password)` en `authStore.ts`:
-  1. `DELETE /api/v1/auth/cuenta` con la contraseña.
-  2. Si 200: limpia el estado global y `expo-secure-store` (best-effort, mismo patrón try/catch que `logout`); el gate de `AppNavigator` detecta sesión nula y muestra `AuthScreen` (Login).
-  3. Si 401 (contraseña incorrecta): propaga el error, la pantalla lo muestra y **no** se cierra la sesión (el cliente API no auto-desloguea en 401 de rutas `/auth/*`).
-
----
-
-## 6. Integración LLM (estado actual)
-
-`backend/app/services/llm.py` — siete funciones sobre Gemini (`GEMINI_MODEL`, default `gemini-2.5-flash`).
-Las funciones de recetas son la columna vertebral del producto:
-
-| Función | Uso | Caché TTL | Filosofía |
-|---|---|---|---|
-| `generate_recipe_suggestions` | `GET /pantry/recetas` ★ | 60 min | **Mediterránea española** (instrucción de sistema obligatoria) |
-| `generate_meal_plan` | `GET /pantry/plan-comidas` ★ | 2 h | **Mediterránea española** (instrucción de sistema obligatoria) |
-| `generate_morning_briefing` | `GET /dashboard` → `briefing_texto` | 30 min | — |
-| `interpret_pantry_text` | `POST /pantry/interpretar` | — | Multi-item, caducidades relativas |
-| `suggest_food_metadata` | `POST /pantry/sugerir-metadata` | — | Categoría + caducidad estimada |
-| `interpret_event_text` | `POST /calendar/interpretar` | — | — |
-| `interpret_task_text` | `POST /tasks/interpretar` | — | — |
-
-★ = función principal del producto
-
-**Instrucción de sistema obligatoria** para `generate_recipe_suggestions` y `generate_meal_plan`:
-> "Eres un chef especializado en cocina mediterránea española tradicional y de aprovechamiento.
-> Prioriza sofritos, ingredientes frescos y de temporada. Evita cualquier fusión cultural incorrecta.
-> Usa solo lo que hay en el inventario del usuario. Propón recetas que un hogar español reconocería."
-
-Temperatura 0, `thinkingBudget` 0. Claves de caché = SHA-256 de los datos del prompt (en el briefing, del prompt **ya anonimizado**, §5.2). La caché está respaldada por Redis distribuido con los TTLs correspondientes en la tabla. `generate_morning_briefing` devuelve `(texto, generado_por_ia)` para alimentar el aviso de transparencia. Sin `GEMINI_API_KEY` las tres devuelven fallbacks estáticos y la app sigue funcionando.
-
----
-
-## 7. Frontend (estado actual)
-
-* **Estado de sesión:** Zustand (`src/state/authStore.ts`) — token JWT, usuario, hogar. Persistencia cifrada en `expo-secure-store` con try/catch best-effort (en web la sesión vive solo en memoria). `hydrate()` restaura sesión al arrancar.
-* **Cliente API:** `src/api/api.ts` — añade `Authorization: Bearer <token>`, timeout por defecto `AbortSignal.timeout(15000)`, distingue `TimeoutError` de errores de red.
-* **Hooks de datos:** `use{Dashboard,Pantry,Calendar,Tasks}.ts` — `AbortController` con cleanup en `useEffect`, `refetch` como wrapper sin argumentos, actualizaciones optimistas con rollback en tareas.
-* **Config:** `EXPO_PUBLIC_API_URL` en `frontend/.env.development` (variables embebidas en build: cambiarla exige `npx expo start --clear`). **Nunca** colocar secretos del backend bajo `frontend/` (ambos `.env` están gitignored).
-
----
-
-## 8. Historial de decisiones de arquitectura
-
-| Decisión | Estado | Motivo |
-|---|---|---|
-| `{hogar_id}` en URL (v1.0) | ❌ Sustituida | IDOR; el tenant sale del JWT (`get_hogar_id`) |
-| `PUT` para actualizaciones (v1.0) | ❌ Sustituida | `PATCH` parcial con Pydantic opcional |
-| `409 CONFLICTO_SOLAPAMIENTO` en POST eventos (v1.0) | ❌ Sustituida | Los solapamientos son legítimos en agenda familiar; se informan, no se bloquean |
-| Soft delete universal | ✅ Vigente con excepción | Purga programada + destrucción de cuenta son los únicos hard deletes (§3.3) |
-| Caché/rate-limit in-memory | ❌ Sustituida | Migrado a Redis (F5) para diseño stateless y escalabilidad |
-| IA pasiva | ✅ Vigente | El usuario confirma toda escritura |
-| App de gestión del hogar generalista | ❌ Pivote (2026-06-17) | Foco en recetas mediterráneas españolas basadas en stock; calendario/tareas pasan a secundario |
-| Prompts de recetas sin filosofía gastronómica | ❌ Pivote (2026-06-17) | Instrucción de sistema mediterránea española obligatoria en `generate_recipe_suggestions` y `generate_meal_plan` |
+### 5.3 Transparencia de IA (EU AI Act art. 50)
+Cualquier fragmento de texto o plan de la app generado por un modelo LLM debe incluir en la interfaz el componente `<AIDisclaimerBanner />` (*«Este resumen ha sido generado por IA y puede contener imprecisiones.»*). El banner se renderiza de forma condicional basándose en los flags `generado_por_ia` de los payloads REST, evitando etiquetar como IA las respuestas estáticas de fallback.
