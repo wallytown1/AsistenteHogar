@@ -1,4 +1,4 @@
-# CLAUDE.md
+# AGENTS.md
 
 > **How-To operativo**: comandos de consola, flujo git y directrices de calidad de este monorepo.
 > Para arquitectura/conceptos → `01_CONTEXTO_Y_ARQUITECTURA_APP.md`. Para estado/roadmap → `ESTADO_ACTUAL.md`.
@@ -266,7 +266,7 @@ Cada vez que crees, modifiques o consultes documentación en este repositorio, d
 1. ¿Es una EXPLICACIÓN (Conceptos, decisiones de diseño, arquitectura, justificación legal RGPD/AI Act)?
    👉 Enrútalo SIEMPRE a: `01_CONTEXTO_Y_ARQUITECTURA_APP.md` (Prohibido meter comandos prácticos aquí).
 2. ¿Es un HOW-TO (Comandos de consola, cómo correr tests, flujos prácticos de desarrollo)?
-   👉 Enrútalo SIEMPRE a: `CLAUDE.md`.
+   👉 Enrútalo SIEMPRE a: `AGENTS.md`.
 3. ¿Es el ESTADO TEMPORAL (Fases del proyecto, bugs actuales, roadmap de mejoras, historial)?
    👉 Enrútalo SIEMPRE a: `ESTADO_ACTUAL.md`.
 4. ¿Es una REFERENCIA ATÓMICA (Especificaciones técnicas de APIs/endpoints)?
@@ -278,7 +278,7 @@ Cada vez que crees, modifiques o consultes documentación en este repositorio, d
 6. ¿Es el CHANGELOG detallado (entradas fechadas por área/tipo)?
    👉 Enrútalo a: `CHANGELOG.md` (historial pre-2026-06-11 en `CHANGELOG_ARCHIVE.md`).
 
-> **Nota:** los ficheros bajo `.claude/skills/graphify/references/` son documentación interna de
+> **Nota:** los ficheros bajo `.Codex/skills/graphify/references/` son documentación interna de
 > la skill graphify (referenciada por path exacto desde `SKILL.md`). **No tocar ni consolidar.**
 
 [Restricción]: Queda prohibido crear nuevos archivos .md en la raíz del monorepo sin confirmación explícita del usuario.

@@ -5,7 +5,7 @@ import { AppText } from './ui/AppText';
 import { Icon } from './ui/Icon';
 
 interface AIDisclaimerBannerProps {
-  /** Texto alternativo para contextos distintos del briefing (p. ej. propuestas de evento) */
+  /** Texto alternativo para contextos distintos del briefing (p. ej. chat o recetas) */
   texto?: string;
 }
 

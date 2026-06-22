@@ -69,7 +69,7 @@ class UserRepository:
 
     async def delete_hogar_fisico(self, hogar_id: uuid.UUID) -> int:
         """Destrucción FÍSICA y definitiva del hogar y todos sus datos vinculados
-        (usuarios, inventario, tareas, eventos — incluidos los soft-deleted).
+        (usuarios, inventario, historial, perfiles y lista de compra, incluidos los soft-deleted).
 
         RGPD art. 17 + requisito de eliminación de cuenta de App Store/Google Play.
         Se borra vía ORM (cascade="all, delete-orphan") y no con DELETE directo:

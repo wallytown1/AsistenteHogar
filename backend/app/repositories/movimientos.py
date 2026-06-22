@@ -1,7 +1,8 @@
 import uuid
 from datetime import UTC, datetime, timedelta
+from typing import Any, cast
 
-from sqlalchemy import func, select
+from sqlalchemy import CursorResult, delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.models import MovimientoDespensa
@@ -123,3 +124,13 @@ class MovimientoDespensaRepository:
             )
             for row in result.all()
         ]
+
+    async def purge_old_movements(self, retention_months: int = 12) -> int:
+        """Borrado FÍSICO de los movimientos de despensa con antigüedad superior a
+        retention_months meses (RGPD art. 5.1.e).
+
+        Operación de mantenimiento cross-tenant. No hace commit."""
+        cutoff = datetime.now(UTC) - timedelta(days=retention_months * 30)
+        stmt = delete(MovimientoDespensa).where(MovimientoDespensa.fecha < cutoff)
+        result = await self.session.execute(stmt)
+        return cast("CursorResult[Any]", result).rowcount or 0

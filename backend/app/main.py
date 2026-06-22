@@ -93,6 +93,21 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             sys.exit(1)
         logger.info("Migraciones aplicadas correctamente.")
 
+    # Sembrar prompts de IA por defecto en el arranque
+    logger.info("Verificando y sembrando prompts de IA por defecto...")
+    try:
+        from app.database import async_session_maker
+        from app.repositories.prompt_template import PromptTemplateRepository
+        from app.services.prompt_config import PromptConfigService
+
+        async with async_session_maker() as session:
+            repo = PromptTemplateRepository(session)
+            prompt_svc = PromptConfigService(repo)
+            await prompt_svc.seed_default_templates()
+        logger.info("Sembrado de prompts finalizado con éxito.")
+    except Exception as e:
+        logger.error(f"Error al sembrar prompts en el arranque: {e}")
+
     logger.info("API lista para aceptar tráfico.")
 
     # Inicializar Redis (caché distribuida + rate-limit compartido).
@@ -191,7 +206,7 @@ async def regla_negocio_exception_handler(
     request: Request, exc: ReglaNegocioError
 ) -> JSONResponse:
     """Mapea ReglaNegocioError a HTTP 422 Unprocessable Entity, alineado con el contrato
-    de validación de los schemas (p. ej. PATCH de eventos con fechas inconsistentes)."""
+    de validación de los schemas (p. ej. PATCH de despensa con reglas de negocio inválidas)."""
     return JSONResponse(status_code=422, content={"detail": exc.message})
 
 

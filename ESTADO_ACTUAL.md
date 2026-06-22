@@ -16,6 +16,12 @@ Este documento centraliza el estado de los despliegues, las fases en curso, el r
 
 ## 2. Sesiones Recientes
 
+### ✅ Sesión 2026-06-22 (Parte 6) — Inicialización Automática de Prompts IA
+*   **Siembra Idempotente**: Implementado el método `seed_default_templates` en `PromptConfigService` para poblar automáticamente los prompts por defecto (`"recetas"` y `"plan_comidas"`) si están ausentes de la BD.
+*   **Lógica Concurrente Lifespan**: Integrado el sembrado en el hook `lifespan` de FastAPI durante el arranque. Diseñado para atrapar errores de integridad (`IntegrityError`) y prevenir caídas en despliegues con contenedores concurrentes (clusters de Railway).
+*   **Seed Manual**: Actualizado el script `seed_recetario.py` para incluir el sembrado síncrono de los prompts iniciales.
+*   **Suite de Humo**: Adaptado `smoke_test_admin.py` para sincronizar las aserciones de la versión del prompt (v1 sembrado ➔ v2/v3 tras modificaciones). Todas las 13 suites de smoke tests pasaron con éxito.
+
 ### ✅ Sesión 2026-06-22 — Inteligencia de stock (Fases 2A & 2B) + Fix SQLite Migración
 *   **Confianza de Stock (Fase 2B)**: Campo `ultima_confirmacion` en alimentos + flag `incierto` calculado en metrics si transcurren los días de cadencia media sin confirmarse. Endpoints `POST /pantry/{id}/agotar` y `/confirmar`.
 *   **Lista inteligente (Fase 2A)**: Sugerencias en `ShoppingListScreen` según el ledger de compras (100% SQL, sin coste IA).
@@ -41,6 +47,11 @@ Este documento centraliza el estado de los despliegues, las fases en curso, el r
 ### ✅ Sesión 2026-06-22 (Parte 4) — Voz al Chef
 *   **Voz al Chef**: Integrado `expo-audio` nativo para permitir mantener presionado el botón del micrófono y dictar por voz al Chef. El audio se procesa vía Base64 usando el modelo multimodal de Gemini (`/chef/transcribe`) enviándolo directamente al chat.
 
+### ✅ Sesión 2026-06-22 (Parte 7) — Purga Acotada e Integración del Anonimizador LLM
+*   **Purga Acotada de Movimientos**: Implementado el recorte físico automático del ledger de `movimientos_despensa` para registros con antigüedad mayor a 12 meses en el job de mantenimiento `purge.py`.
+*   **Anonimización Activa en LLM**: Integrado `AnonimizadorLLM` en todos los flujos de Gemini que manejan apodos o preferencias familiares (`distill_taste_memory`, `generate_recipe_suggestions`, `generate_meal_plan`, `chef_chat`). Los nombres reales/apodos son sustituidos por tokens `Familiar_N` en las peticiones y revertidos en las respuestas, garantizando el cumplimiento del RGPD (art. 5.1.c).
+*   **Verificación Completa**: Ampliado `smoke_test_legal.py` para validar de forma hermética la eliminación de movimientos antiguos y el mantenimiento de auditoría. La suite de pruebas de humo del backend pasó al 100%.
+
 ### ✅ Sesión 2026-06-22 (Parte 5) — Chef Proactivo (Fase 3 Completada)
 *   **Chef Proactivo**: Implementadas notificaciones push locales con IA. Al cargar el Dashboard, el LLM calcula silenciosamente una notificación de caducidad en la voz de Marce. El frontend la programa para el día siguiente usando `expo-notifications`, y si el usuario la toca (deep-link), abre automáticamente la pantalla de Chat con un saludo contextual.
 
@@ -54,7 +65,6 @@ Este documento centraliza el estado de los despliegues, las fases en curso, el r
 *   Builds nativos finales de producción y EAS Submit.
 
 ### ⏳ RGPD & Hardening Pendiente
-*   **Retención Acotada**: Programar en `jobs/purge.py` el recorte automático de registros históricos de `movimientos_despensa` con antigüedad mayor a 12 meses.
 *   **Gemini Billing**: Migrar la clave del backend de Railway a una API key con facturación activa para garantizar que Google no recopile los datos de los prompts familiares (RGPD art. 28).
 
 ---

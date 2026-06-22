@@ -1,9 +1,8 @@
-"""Prueba de humo de los módulos de negocio: despensa, calendario y tareas.
+"""Prueba de humo de los módulos de negocio activos.
 
 Cubre, sobre una base SQLite temporal e independiente:
-- CRUD básico de cada módulo (crear, leer, actualizar, borrado lógico).
-- Validaciones Pydantic v2 (cantidad > 0, fechas, prioridad/estado, extra='forbid').
-- Detección de conflictos de solapamiento en el calendario.
+- CRUD básico de despensa (crear, leer, actualizar, borrado lógico).
+- Validaciones Pydantic v2 (cantidad > 0, fechas, extra='forbid').
 - Aislamiento multi-tenant: un hogar nunca ve ni manipula datos de otro
   (restricción inamovible nº 1 del proyecto).
 

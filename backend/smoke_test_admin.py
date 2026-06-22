@@ -126,12 +126,13 @@ with TestClient(app) as client:
     r = client.get("/api/v1/admin/prompts", headers=familia_h)
     check("7. Token familiar en /admin/prompts ->401", r.status_code == 401, f"(status={r.status_code})")
 
-    # ── 8. GET /admin/prompts con admin ->lista vacía ────────────────────────
+    # ── 8. GET /admin/prompts con admin ->devuelve los 2 prompts sembrados ──
     r = client.get("/api/v1/admin/prompts", headers=admin_h)
-    check("8. GET prompts vacío ->200", r.status_code == 200, f"(status={r.status_code})")
+    check("8. GET prompts ->200", r.status_code == 200, f"(status={r.status_code})")
     check("8b. Prompts devuelve lista", isinstance(r.json(), list))
+    check("8c. Lista contiene 2 prompts sembrados", len(r.json()) == 2, f"(length={len(r.json())})")
 
-    # ── 9. PATCH prompt 'recetas' ->versión 1 ────────────────────────────────
+    # ── 9. PATCH prompt 'recetas' ->actualiza a versión 2 (ya sembrado con v1) ─
     r = client.patch(
         "/api/v1/admin/prompts/recetas",
         json={"system_instruction": "Eres un chef experto en cocina española tradicional."},
@@ -139,7 +140,7 @@ with TestClient(app) as client:
     )
     check("9. PATCH prompt 'recetas' ->200", r.status_code == 200, f"(status={r.status_code})")
     data = r.json()
-    check("9b. Versión inicial = 1", data.get("version") == 1, str(data.get("version")))
+    check("9b. Versión incrementada = 2", data.get("version") == 2, str(data.get("version")))
     check("9c. Clave correcta", data.get("clave") == "recetas")
 
     # ── 10. GET prompt 'recetas' ->coincide ──────────────────────────────────
@@ -147,20 +148,20 @@ with TestClient(app) as client:
     check("10. GET prompt 'recetas' ->200", r.status_code == 200, f"(status={r.status_code})")
     check("10b. Contenido guardado", "chef experto" in r.json().get("system_instruction", ""))
 
-    # ── 11. PATCH de nuevo ->versión 2 ───────────────────────────────────────
+    # ── 11. PATCH de nuevo ->versión 3 ───────────────────────────────────────
     r = client.patch(
         "/api/v1/admin/prompts/recetas",
         json={"system_instruction": "Chef actualizado de cocina mediterránea española."},
         headers=admin_h,
     )
-    check("11. Segundo PATCH ->versión 2", r.json().get("version") == 2, str(r.json().get("version")))
+    check("11. Segundo PATCH ->versión 3", r.json().get("version") == 3, str(r.json().get("version")))
 
     # ── 12. GET prompt inexistente ->404 ─────────────────────────────────────
     r = client.get("/api/v1/admin/prompts/noexiste", headers=admin_h)
     check("12. GET prompt inexistente ->404", r.status_code == 404, f"(status={r.status_code})")
 
-    # ── 13. _FILOSOFIA_MEDITERRANEA presente en system_instruction resultante ─
-    from app.services.llm import _FILOSOFIA_MEDITERRANEA
+    # ── 13. FILOSOFIA_MEDITERRANEA presente en system_instruction resultante ──
+    from app.services.llm import FILOSOFIA_MEDITERRANEA
 
     r = client.get("/api/v1/admin/prompts/recetas", headers=admin_h)
     raw_instruction = r.json().get("system_instruction", "")
@@ -179,8 +180,8 @@ with TestClient(app) as client:
 
     built_instruction = asyncio.run(_get_instruction())
     check(
-        "13. _FILOSOFIA_MEDITERRANEA siempre presente",
-        _FILOSOFIA_MEDITERRANEA[:40] in built_instruction,
+        "13. FILOSOFIA_MEDITERRANEA siempre presente",
+        FILOSOFIA_MEDITERRANEA[:40] in built_instruction,
         "philosophy not found",
     )
 

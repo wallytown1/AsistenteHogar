@@ -100,29 +100,57 @@ with TestClient(app) as client:
     for tabla, fila_id in ids_purga.items():
         cur = con.execute(f"UPDATE {tabla} SET updated_at = ? WHERE id = ?", (antigua, sid(fila_id)))
         check(f"Preparación: updated_at retrocedido en {tabla}", cur.rowcount == 1, f"(rowcount={cur.rowcount})")
+
+    # Insertar movimientos de despensa de prueba (uno reciente y uno antiguo >12 meses)
+    hogar_id_hex = con.execute("SELECT id FROM hogares LIMIT 1").fetchone()[0]
+    import uuid
+    mov_reciente_id = uuid.uuid4().hex
+    mov_antiguo_id = uuid.uuid4().hex
+    ahora_str = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S.%f")
+    hace_13_meses_str = (datetime.now(timezone.utc) - timedelta(days=395)).strftime("%Y-%m-%d %H:%M:%S.%f")
+
+    con.execute(
+        "INSERT INTO movimientos_despensa (id, hogar_id, nombre, tipo, origen, fecha, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (mov_reciente_id, hogar_id_hex, "manzanas", "compra", "manual", ahora_str, ahora_str)
+    )
+    con.execute(
+        "INSERT INTO movimientos_despensa (id, hogar_id, nombre, tipo, origen, fecha, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (mov_antiguo_id, hogar_id_hex, "plátanos viejos", "compra", "manual", hace_13_meses_str, hace_13_meses_str)
+    )
     con.commit()
     con.close()
 
     # Ejecutar la purga manualmente (misma vía que el CLI y el scheduler)
     purgados = asyncio.run(run_purge_once())
-    check("Purga: elimina exactamente el registro caducado", purgados == 1, f"(purgados={purgados})")
+    check("Purga: elimina el registro caducado de despensa + el movimiento antiguo", purgados == 2, f"(purgados={purgados})")
 
     con = sqlite3.connect(TEST_DB)
     restantes = sum(
         con.execute(f"SELECT COUNT(*) FROM {tabla} WHERE id = ?", (sid(fila_id),)).fetchone()[0]
         for tabla, fila_id in ids_purga.items()
     )
-    check("Purga: los registros caducados ya no existen físicamente", restantes == 0, f"(restantes={restantes})")
+    check("Purga: los registros caducados ya no existen físicamente en despensa", restantes == 0, f"(restantes={restantes})")
     reciente_existe = con.execute(
         "SELECT COUNT(*) FROM inventario_alimentos WHERE id = ?", (sid(id_reciente),)).fetchone()[0]
     check("Purga: el soft-delete reciente sobrevive (dentro del plazo)", reciente_existe == 1)
     activos = con.execute(
         "SELECT COUNT(*) FROM inventario_alimentos WHERE is_deleted = 0").fetchone()[0]
     check("Purga: los registros activos sobreviven", activos == 1, f"(activos={activos})")
+
+    # Verificar los movimientos
+    reciente_mov_existe = con.execute(
+        "SELECT COUNT(*) FROM movimientos_despensa WHERE id = ?", (mov_reciente_id,)).fetchone()[0]
+    check("Purga: el movimiento reciente sobrevive", reciente_mov_existe == 1)
+    antiguo_mov_existe = con.execute(
+        "SELECT COUNT(*) FROM movimientos_despensa WHERE id = ?", (mov_antiguo_id,)).fetchone()[0]
+    check("Purga: el movimiento antiguo (>12 meses) es eliminado", antiguo_mov_existe == 0)
+
     auditoria = con.execute(
         "SELECT tipo_evento, motivo, registros_afectados FROM registros_borrado").fetchall()
-    check("Purga: queda evidencia agregada en registros_borrado",
+    check("Purga: queda evidencia agregada en registros_borrado para despensa",
           ("purga_programada", "retencion_30_dias", 1) in auditoria, f"(auditoria={auditoria})")
+    check("Purga: queda evidencia agregada en registros_borrado para movimientos",
+          ("purga_programada", "retencion_12_meses_movimientos", 1) in auditoria, f"(auditoria={auditoria})")
     columnas = [c[1] for c in con.execute("PRAGMA table_info(registros_borrado)").fetchall()]
     check("Auditoría sin datos personales (sin hogar_id/email/nombre)",
           not any(c in columnas for c in ("hogar_id", "email", "nombre")), f"(columnas={columnas})")

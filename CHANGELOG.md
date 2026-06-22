@@ -6,6 +6,18 @@ Formato: `[FECHA] [ÁREA] [TIPO] Descripción`
 
 ---
 
+## [2026-06-22] — Hardening de RGPD y Seguridad
+
+Mejoras de seguridad y privacidad en el backend, incluyendo retención acotada de datos y anonimización de datos personales enviados al LLM de Gemini.
+
+### Backend
+- **ADD** `MovimientoDespensaRepository.purge_old_movements`: Borrado físico de los movimientos de despensa con antigüedad superior a 12 meses.
+- **MOD** `purge.py`: Modificado `PurgeService` para ejecutar la purga acotada de movimientos y añadir logs de auditoría sin datos personales en `registros_borrado`.
+- **MOD** `llm.py`: Integrado `AnonimizadorLLM` en `distill_taste_memory`, `generate_recipe_suggestions`, `generate_meal_plan` y `chef_chat` para reemplazar apodos y nombres de los familiares por tokens `Familiar_N` antes de las llamadas a Gemini y revertirlos en la respuesta, garantizando privacidad (RGPD art. 5.1.c).
+- **MOD** `smoke_test_legal.py`: Ampliados y actualizados los smoke tests para validar la purga e integridad de los movimientos de despensa de prueba.
+
+---
+
 ## [2026-06-22] — Fase 3: Chef Proactivo (Notificaciones IA)
 
 Implementado un sistema inteligente de notificaciones locales para evitar desperdicio de comida, utilizando la IA como motor conversacional para avisos push.

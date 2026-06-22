@@ -222,7 +222,7 @@ Los docs interactivos (`/docs`, `/redoc`, `/openapi.json`) están deshabilitados
 **Ledger de movimientos (`movimientos_despensa`):** registra entradas/salidas de stock (compra/consumo/
 caducado) para aprender los hábitos del hogar y afinar las sugerencias. Es **más personal** que el saldo
 actual (revela hábitos de compra), aunque sigue siendo no-sanitario y de hogar. Mitigaciones: cascade en
-`DELETE /auth/cuenta`, **retención acotada** (eventos crudos > 12 meses se recortan), y al LLM solo viajan
+`DELETE /auth/cuenta`, **retención acotada** (movimientos crudos > 12 meses se recortan), y al LLM solo viajan
 nombres de alimentos + cantidades + fechas (vía la memoria destilada), nunca identificadores personales.
 
 **Chef conversacional (`POST /chef/chat`):** el servidor **no persiste el texto del chat** — el

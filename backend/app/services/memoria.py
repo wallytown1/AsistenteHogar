@@ -22,7 +22,7 @@ class MemoriaService:
     """Gestiona la memoria de gustos destilada del hogar: la lee (rápido, para inyectar
     en los prompts) y la recalcula cuando está obsoleta (al recibir nuevo feedback)."""
 
-    UMBRAL_EVENTOS_NUEVOS = 5
+    UMBRAL_SENALES_NUEVAS = 5
     DIAS_FRESCURA = 7
     LIMITE_HISTORIAL_DISTILACION = 30
 
@@ -83,12 +83,12 @@ class MemoriaService:
         except Exception as e:  # — best-effort, no debe romper el caller
             logger.warning(f"No se pudo refrescar la memoria de gustos: {e}")
 
-    def _obsoleta(self, memoria: object | None, total_eventos: int) -> bool:
+    def _obsoleta(self, memoria: object | None, total_senales: int) -> bool:
         if memoria is None or not getattr(memoria, "resumen", "").strip():
             # Solo merece destilar si hay algún dato de comportamiento.
-            return total_eventos > 0
-        eventos_fuente = getattr(memoria, "eventos_fuente", 0)
-        if (total_eventos - eventos_fuente) >= self.UMBRAL_EVENTOS_NUEVOS:
+            return total_senales > 0
+        senales_fuente = getattr(memoria, "eventos_fuente", 0)
+        if (total_senales - senales_fuente) >= self.UMBRAL_SENALES_NUEVAS:
             return True
         umbral = datetime.now(UTC) - timedelta(days=self.DIAS_FRESCURA)
         updated_at = getattr(memoria, "updated_at", None)

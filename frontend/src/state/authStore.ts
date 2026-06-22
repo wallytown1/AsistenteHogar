@@ -81,7 +81,7 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   deleteAccount: async (password: string) => {
     // El backend re-autentica con la contraseña y borra físicamente el hogar
-    // (cascade a usuarios, despensa, tareas y eventos). Un 401 aquí significa
+    // (cascade a usuarios, despensa, historial, perfiles y lista de compra). Un 401 aquí significa
     // contraseña incorrecta: se propaga sin tocar la sesión local.
     await apiRequest<CuentaEliminadaResponse>('/auth/cuenta', {
       method: 'DELETE',

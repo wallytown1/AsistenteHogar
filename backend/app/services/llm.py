@@ -36,6 +36,7 @@ from app.schemas.schemas import (
     SugerenciaMetadataResponse,
     TicketOcrResponse,
 )
+from app.services.privacy import AnonimizadorLLM
 
 logger = logging.getLogger("app.llm")
 
@@ -369,7 +370,7 @@ async def generate_morning_briefing(
             pass
 
     system_instruction = (
-        _PERSONA_CHEF + "\n\n"
+        PERSONA_CHEF + "\n\n"
         "TAREA: da los buenos días al hogar con un mensaje conversacional (sin listas, "
         "viñetas ni asteriscos), en 2 párrafos cortos y fluidos separados por saltos de línea:\n"
         "1. Un saludo matutino cálido y apetitoso que invite a cocinar algo casero hoy.\n"
@@ -434,7 +435,7 @@ _RECETAS_RESPONSE_SCHEMA = {
 # Filosofía gastronómica: restricción NO-NEGOCIABLE de prompts (ver CLAUDE.md).
 # Debe inyectarse en generate_recipe_suggestions y generate_meal_plan, y sobrevivir
 # cualquier refactorización de los prompts. No eliminar ni suavizar.
-_FILOSOFIA_MEDITERRANEA = (
+FILOSOFIA_MEDITERRANEA = (
     "FILOSOFÍA GASTRONÓMICA (obligatoria e innegociable):\n"
     "- Cocina mediterránea española tradicional y de aprovechamiento.\n"
     "- Prioriza sofritos, ingredientes frescos y productos de temporada.\n"
@@ -451,7 +452,7 @@ _FILOSOFIA_MEDITERRANEA = (
 # (briefing, recetas, plan, chat). Igual de innegociable que la filosofía: define
 # QUIÉN es el chef y CÓMO habla. El nombre "Marce" es el valor por defecto y puede
 # ajustarse desde el panel admin editando los prompts. No eliminar la identidad cálida.
-_PERSONA_CHEF = (
+PERSONA_CHEF = (
     "IDENTIDAD Y TONO (cómo hablas SIEMPRE):\n"
     "- Eres Marce, el chef de confianza y amigo de este hogar. Hablas en primera "
     "persona, con cercanía y calidez, como un amigo que lleva años cocinando con ellos.\n"
@@ -629,17 +630,25 @@ async def distill_taste_memory(
     if not datos.strip():
         return None
 
+    # Anonimización activa
+    anon = AnonimizadorLLM(
+        [p.nombre for p in perfiles_individuales] if perfiles_individuales else []
+    )
+    datos_anonimos = anon.anonimizar(datos)
+
     texto = await _call_gemini(
         _DISTILL_SYSTEM,
-        f"Datos del hogar:\n{datos}",
+        f"Datos del hogar:\n{datos_anonimos}",
         max_output_tokens=300,
     )
     if texto is None:
         return None
-    return texto.strip() or None
+
+    texto_revertido = anon.revertir(texto)
+    return texto_revertido.strip() or None
 
 
-_DEFAULT_RECETAS = (
+DEFAULT_RECETAS = (
     "Eres el chef asistente de un hogar en España. A partir del inventario real de la "
     "despensa, sugiere entre 1 y 3 recetas caseras sencillas en español.\n"
     "Reglas estrictas:\n"
@@ -691,23 +700,32 @@ async def generate_recipe_suggestions(
         f"{_bloque_recetario(recetario)}"
     )
 
-    cache_key = _hash_key("recetas", prompt_usuario)
+    anon = AnonimizadorLLM(
+        [p.nombre for p in perfiles_individuales] if perfiles_individuales else []
+    )
+    prompt_anonimo = anon.anonimizar(prompt_usuario)
+
+    cache_key = _hash_key("recetas", prompt_anonimo)
     cached = await _cache_get(cache_key)
     if cached is not None:
-        return RecetasSugeridasResponse.model_validate(cached)
+        cached_dict = (
+            cached.model_dump(mode="json") if hasattr(cached, "model_dump") else cached
+        )
+        reverted = json.loads(anon.revertir(json.dumps(cached_dict)))
+        return RecetasSugeridasResponse.model_validate(reverted)
 
     if prompt_config is not None:
         system_instruction = await prompt_config.get_system_instruction(
-            "recetas", _DEFAULT_RECETAS
+            "recetas", DEFAULT_RECETAS
         )
     else:
         system_instruction = (
-            _PERSONA_CHEF + "\n\n" + _DEFAULT_RECETAS + "\n\n" + _FILOSOFIA_MEDITERRANEA
+            PERSONA_CHEF + "\n\n" + DEFAULT_RECETAS + "\n\n" + FILOSOFIA_MEDITERRANEA
         )
 
     texto = await _call_gemini(
         system_instruction,
-        prompt_usuario,
+        prompt_anonimo,
         max_output_tokens=1500,
         response_schema=_RECETAS_RESPONSE_SCHEMA,
     )
@@ -740,7 +758,9 @@ async def generate_recipe_suggestions(
         else "La despensa actual no da para una receta completa. ¡Añade más ingredientes!",
     )
     await _cache_set(cache_key, respuesta, RECETAS_CACHE_TTL)
-    return respuesta
+
+    reverted = json.loads(anon.revertir(json.dumps(respuesta.model_dump(mode="json"))))
+    return RecetasSugeridasResponse.model_validate(reverted)
 
 
 # --- Interpretación de despensa en lenguaje natural (multi-item) -----------------
@@ -977,7 +997,7 @@ _PLAN_RESPONSE_SCHEMA = {
 PLAN_CACHE_TTL = 2 * 60 * 60  # 2 horas
 
 
-_DEFAULT_PLAN = (
+DEFAULT_PLAN = (
     "Eres el planificador de comidas de un hogar en España. A partir del inventario real de la "
     "despensa, propón un plan semanal de 7 días (lunes a domingo) con comida y cena.\n"
     "Reglas estrictas:\n"
@@ -1024,26 +1044,36 @@ async def generate_meal_plan(
         f"{_bloque_recetario(recetario)}"
     )
 
-    cache_key = _hash_key("plancomidas", prompt_usuario)
+    anon = AnonimizadorLLM(
+        [p.nombre for p in perfiles_individuales] if perfiles_individuales else []
+    )
+    prompt_anonimo = anon.anonimizar(prompt_usuario)
+
+    cache_key = _hash_key("plancomidas", prompt_anonimo)
     cached = await _cache_get(cache_key)
     if cached is not None:
-        return PlanComidasResponse.model_validate(cached)
+        cached_dict = (
+            cached.model_dump(mode="json") if hasattr(cached, "model_dump") else cached
+        )
+        reverted = json.loads(anon.revertir(json.dumps(cached_dict)))
+        return PlanComidasResponse.model_validate(reverted)
 
     if prompt_config is not None:
         system_instruction = await prompt_config.get_system_instruction(
-            "plan_comidas", _DEFAULT_PLAN
+            "plan_comidas", DEFAULT_PLAN
         )
     else:
         system_instruction = (
-            _PERSONA_CHEF + "\n\n" + _DEFAULT_PLAN + "\n\n" + _FILOSOFIA_MEDITERRANEA
+            PERSONA_CHEF + "\n\n" + DEFAULT_PLAN + "\n\n" + FILOSOFIA_MEDITERRANEA
         )
 
     texto = await _call_gemini(
         system_instruction,
-        prompt_usuario,
+        prompt_anonimo,
         max_output_tokens=1200,
         response_schema=_PLAN_RESPONSE_SCHEMA,
     )
+
     if texto is None:
         return PlanComidasResponse(
             dias=[],
@@ -1068,7 +1098,9 @@ async def generate_meal_plan(
         mensaje=None if dias else "No se pudo generar un plan con la despensa actual.",
     )
     await _cache_set(cache_key, respuesta, PLAN_CACHE_TTL)
-    return respuesta
+
+    reverted = json.loads(anon.revertir(json.dumps(respuesta.model_dump(mode="json"))))
+    return PlanComidasResponse.model_validate(reverted)
 
 
 # --- OCR DE TICKETS DE COMPRA (IA) ---------------------------------------------
@@ -1397,26 +1429,31 @@ async def chef_chat(
         f"{_bloque_recetario(recetario)}"
     )
 
+    anon = AnonimizadorLLM(
+        [p.nombre for p in perfiles_individuales] if perfiles_individuales else []
+    )
+    contexto_anonimo = anon.anonimizar(contexto)
+
     system_instruction = (
-        _PERSONA_CHEF
+        PERSONA_CHEF
         + "\n\n"
         + _CHEF_CHAT_SYSTEM
         + "\n\n"
         + "CONTEXTO DEL HOGAR (úsalo con naturalidad, no lo recites literalmente):\n"
-        + contexto
+        + contexto_anonimo
         + "\n"
-        + _FILOSOFIA_MEDITERRANEA
+        + FILOSOFIA_MEDITERRANEA
     )
 
-    # Multi-turno: sanea SOLO los mensajes del usuario antes de enviarlos a Gemini.
+    # Multi-turno: sanea y anonimiza los mensajes.
     contents: list[dict[str, Any]] = [
         {
             "role": "user" if m.rol == "usuario" else "model",
             "parts": [
                 {
-                    "text": _sanitize_user_text(m.texto, max_len=1000)
+                    "text": anon.anonimizar(_sanitize_user_text(m.texto, max_len=1000))
                     if m.rol == "usuario"
-                    else m.texto
+                    else anon.anonimizar(m.texto)
                 }
             ],
         }
@@ -1436,7 +1473,8 @@ async def chef_chat(
         )
 
     try:
-        data = json.loads(texto)
+        texto_revertido = anon.revertir(texto)
+        data = json.loads(texto_revertido)
         respuesta_str = data.get("respuesta", "")
         platos_raw = data.get("platos", [])
         consumos_raw = data.get("consumo_estimado", [])

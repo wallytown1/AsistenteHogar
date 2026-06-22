@@ -318,5 +318,18 @@ async def seed() -> None:
     else:
         print("Recetario listo.")
 
+    print("\nSembrando prompts de IA por defecto...")
+    try:
+        from app.repositories.prompt_template import PromptTemplateRepository
+        from app.services.prompt_config import PromptConfigService
+
+        async with async_session_maker() as session:
+            repo = PromptTemplateRepository(session)
+            prompt_svc = PromptConfigService(repo)
+            await prompt_svc.seed_default_templates()
+        print("Prompts listos.")
+    except Exception as e:
+        print(f"Error al sembrar prompts: {e}")
+
 
 asyncio.run(seed())
