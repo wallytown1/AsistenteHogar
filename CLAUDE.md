@@ -340,13 +340,40 @@ Generate secrets: `python -c "import secrets; print(secrets.token_hex(48))"`
 **Fases de producto completadas:**
 - ✅ **Fase 2** — `prompt_templates` + `recetario_maestro` dinámicos + panel admin Next.js (`admin-web/`).
 - ✅ **Fase 3** — `perfiles_individuales`: preferencias culinarias por miembro (máx. 10/hogar, solo datos gastronómicos). CRUD completo + inyección en prompts LLM. Migración `a5b3c1d9e7f2`.
+- ✅ **Chef amigo** — persona unificada "Marce" (`_PERSONA_CHEF`), tabla `memoria_gustos` (resumen NL destilado
+  con Gemini, 1/hogar), `MemoriaService` + `distill_taste_memory` (incorpora hábitos de compra/consumo del
+  ledger), `POST /chef/chat` multi-turno (premium). Frontend: `ChefChatScreen` + tab Chef.
+- ✅ **Inteligencia de stock — Fase 1** — tabla `movimientos_despensa` (ledger entradas/salidas, migración
+  `e7a9c1b3d5f0`). `PantryService` instrumentado best-effort: add→`compra`, update→delta, remove→`consumo`/
+  `caducado`. Hábitos inyectados en memoria destilada (nunca el ledger crudo al LLM).
+- ✅ **Inteligencia de stock — Fase 2A** — `GET /lista-compra/sugerencias`: para cada alimento con ≥2 compras,
+  si han pasado sus días de cadencia media y no está en despensa ni en lista → se sugiere. 100% SQL, sin IA.
+  Frontend: sección "Te suele tocar" en `ShoppingListScreen`.
+- ✅ **Inteligencia de stock — Fase 2B** — campo `ultima_confirmacion` + flag `incierto` calculado en
+  `get_stock_metrics`. `POST /pantry/{id}/agotar` ("se acabó") y `POST /pantry/{id}/confirmar` ("sigo
+  teniéndolo"). Frontend: "¿Te queda?" con dos acciones de un toque en `PantryItemCard`.
 
-**Próxima fase pendiente:**
+**Próximas fases pendientes:**
+- ⏳ **Fase 3 — 4 mejoras del chef** (siguiente tanda, empezar por ítem 1):
+  1. **Chat accionable + cupo freemium**: structured output `platos: RecetaSugerida[]` → tarjetas tocables
+     (abren `RecipeDetailScreen`) + "añadir lo que falta a la compra". Chat free con `CHEF_FREE_DAILY_LIMIT`
+     (contador por hogar Redis+memoria); al superarlo → upsell `PaywallScreen`. Premium ilimitado.
+     También cierra restos de Fase 2: confirmación "¿te queda X?" en el chat + cocinar por voz/texto con
+     descuento de stock (movimiento `consumo` + Deshacer visible).
+  2. **Briefing personal**: inyectar `memoria_gustos` en `generate_morning_briefing` (DashboardService
+     recibe `MemoriaService`).
+  3. **Voz al chef** (grabación real): `expo-audio` + `POST /chef/transcribe` (Gemini audio→texto,
+     premium-only). Requiere build EAS para probar (dep nativa).
+  4. **Chef proactivo**: notificaciones de caducidad reescritas en voz de Marce + deep-link a tab Chef.
 - ⏳ **Fase 5** — RevenueCat 3 tiers + flujos A/B/C completos. Bloqueada: requiere `REVENUECAT_SECRET_KEY`.
+- ⏳ **RGPD pendiente**: retención acotada `movimientos_despensa` >12 meses en `jobs/purge.py` (anotado).
 
-**Fases recientemente completadas**: Fase 4 (`rechazar-ingrediente` + inyección `recetario_maestro`), F6 (EAS Build + `eas.json` + `eas init`), Notificaciones locales de caducidad, Lista de la compra, Animaciones UI + Onboarding con hero images.
+**Fases recientemente completadas**: Chef amigo (persona+memoria+chat), Inteligencia de stock Fase 1/2A/2B,
+Fase 4 (`rechazar-ingrediente`), F6 (EAS Build), Notificaciones locales, Lista de la compra.
 
-**Historial completo**: F0–F5, F-IA, F-IA-2, F-UI, F-LEGAL, F-AUDIT, F4 (Freemium/RevenueCat), F-AUDIT2 (server-side premium gate + Railway deploy), F-OCR, F-AGENDA, F-PIVOT #1–6, Pivote 2, Fase 2, Fase 3, Fase 4, F6, Notificaciones locales, Lista de la compra. Ver `CHANGELOG.md` para detalles.
+**Historial completo**: F0–F5, F-IA, F-IA-2, F-UI, F-LEGAL, F-AUDIT, F4 (Freemium/RevenueCat), F-AUDIT2,
+F-OCR, F-AGENDA, F-PIVOT #1–6, Pivote 2, Fase 2, Fase 3, Fase 4, F6, Notificaciones, Lista de la compra,
+Chef amigo, Stock Fase 1/2A/2B. Ver `CHANGELOG.md` para detalles.
 
 ## MCPs disponibles — reglas de uso automático
 
