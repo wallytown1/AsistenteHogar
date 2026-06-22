@@ -15,20 +15,52 @@ import { AppText, Icon } from '../components/ui';
 import AIDisclaimerBanner from '../components/AIDisclaimerBanner';
 import { useChefChat } from '../hooks/useChefChat';
 import { ChefMensaje } from '../types/types';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { haptics } from '../lib/haptics';
+import RecipeChatCard from '../components/chat/RecipeChatCard';
 
 function Burbuja({ mensaje }: { mensaje: ChefMensaje }) {
   const esUsuario = mensaje.rol === 'usuario';
+  const navigation = useNavigation<NativeStackNavigationProp<any>>();
+
   return (
     <View style={[styles.bubbleRow, { justifyContent: esUsuario ? 'flex-end' : 'flex-start' }]}>
-      <View style={[styles.bubble, esUsuario ? styles.bubbleUser : styles.bubbleChef]}>
-        <AppText
-          variant="body"
-          color={esUsuario ? colors.onBrand : colors.ink}
-          style={styles.bubbleText}
-        >
-          {mensaje.texto}
-        </AppText>
+      <View style={{ flex: 1, alignItems: esUsuario ? 'flex-end' : 'flex-start' }}>
+        <View style={[styles.bubble, esUsuario ? styles.bubbleUser : styles.bubbleChef]}>
+          <AppText
+            variant="body"
+            color={esUsuario ? colors.onBrand : colors.ink}
+            style={styles.bubbleText}
+          >
+            {mensaje.texto}
+          </AppText>
+        </View>
+
+        {!esUsuario && mensaje.platos && mensaje.platos.length > 0 && (
+          <View style={styles.platosContainer}>
+            {mensaje.platos.map((plato, idx) => (
+              <RecipeChatCard
+                key={idx}
+                receta={plato}
+                onPress={() => navigation.navigate('RecetaDetalle', { receta: plato })}
+              />
+            ))}
+          </View>
+        )}
+
+        {!esUsuario && mensaje.consumos_aplicados && mensaje.consumos_aplicados.length > 0 && (
+          <View style={styles.consumosContainer}>
+            {mensaje.consumos_aplicados.map((consumo, idx) => (
+              <View key={idx} style={styles.consumoTag}>
+                <Icon name="checkmark-circle" size={12} color={colors.success} />
+                <AppText variant="micro" color={colors.success} style={{ marginLeft: 4 }}>
+                  {consumo}
+                </AppText>
+              </View>
+            ))}
+          </View>
+        )}
       </View>
     </View>
   );
@@ -200,4 +232,23 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   sendBtnDisabled: { opacity: 0.4 },
+  platosContainer: {
+    marginTop: spacing.xs,
+    width: '100%',
+    paddingRight: '18%', // keep it aligned with max width of bubble
+  },
+  consumosContainer: {
+    marginTop: spacing.xs,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.xs,
+  },
+  consumoTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.successSoft,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+    borderRadius: radius.pill,
+  },
 });

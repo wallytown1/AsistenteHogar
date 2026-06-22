@@ -14,6 +14,15 @@ interface RequestOptions extends RequestInit {
   timeoutMs?: number;
 }
 
+export class ApiError extends Error {
+  status: number;
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+  }
+}
+
 /**
  * Cliente HTTP asíncrono genérico para realizar peticiones a la API del backend.
  * Inyecta automáticamente la cabecera Authorization con el token JWT de la sesión
@@ -78,7 +87,7 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
         await useAuthStore.getState().logout();
       }
 
-      throw new Error(errorMessage);
+      throw new ApiError(errorMessage, response.status);
     }
 
     if (response.status === 204) {

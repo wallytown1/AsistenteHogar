@@ -3,13 +3,13 @@ import uuid
 from fastapi import APIRouter, Depends
 
 from app.api.deps import (
+    check_freemium_chat_quota,
     get_hogar_id,
     get_memoria_service,
     get_onboarding_service,
     get_pantry_service,
     get_perfiles_repo,
     get_recetario_repo,
-    requiere_premium,
 )
 from app.core.rate_limit import chef_chat_rate_limiter
 from app.repositories.perfiles_individual import PerfilIndividualRepository
@@ -31,7 +31,7 @@ router = APIRouter(tags=["Chef"])
 @router.post(
     "/chef/chat",
     response_model=ChefChatResponse,
-    dependencies=[Depends(requiere_premium), Depends(chef_chat_rate_limiter)],
+    dependencies=[Depends(check_freemium_chat_quota), Depends(chef_chat_rate_limiter)],
 )
 async def chef_chat_endpoint(
     body: ChefChatRequest,
@@ -55,7 +55,7 @@ async def chef_chat_endpoint(
     _recetario = await recetario_repo.list_all(activa_only=True)
     recetario = [RecetaMaestraResponse.model_validate(r) for r in _recetario] or None
     memoria = await memoria_service.obtener(hogar_id)
-    return await chef_chat(
+    response = await chef_chat(
         body.mensajes,
         metrics.items,
         metrics.alertas_caducidad,
@@ -64,3 +64,42 @@ async def chef_chat_endpoint(
         perfiles_individuales=perfiles,
         recetario=recetario,
     )
+
+    if response.consumo_estimado:
+        aplicados = []
+        import logging
+
+        from app.schemas.schemas import InventarioAlimentoUpdate
+
+        logger = logging.getLogger("app.api.chef")
+        for consumo in response.consumo_estimado:
+            try:
+                # Validar uuid
+                try:
+                    c_id = uuid.UUID(str(consumo.item_id))
+                except ValueError:
+                    continue
+                # Verificamos si existe en metrices.items para evitar llamadas a DB si no es de este hogar
+                item_actual = next((i for i in metrics.items if i.id == c_id), None)
+                if item_actual:
+                    if consumo.cantidad >= item_actual.cantidad:
+                        await pantry_service.agotar_item(c_id, hogar_id)
+                        aplicados.append(f"Agotado: {item_actual.nombre}")
+                    else:
+                        nueva_cant = float(item_actual.cantidad) - consumo.cantidad
+                        if nueva_cant > 0:
+                            await pantry_service.update_item(
+                                c_id,
+                                hogar_id,
+                                InventarioAlimentoUpdate(cantidad=nueva_cant),
+                            )
+                            aplicados.append(
+                                f"Descontado {consumo.cantidad} {item_actual.unidad} de {item_actual.nombre}"
+                            )
+            except Exception as e:
+                logger.warning(f"Error aplicando consumo estimado: {e}")
+
+        if aplicados:
+            response.consumos_aplicados = aplicados
+
+    return response

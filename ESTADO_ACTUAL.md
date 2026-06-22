@@ -30,20 +30,21 @@ Este documento centraliza el estado de los despliegues, las fases en curso, el r
 *   **Suscripción**: Webhook de RevenueCat para invalidación automática de caché de tier.
 *   **HistorialScreen**: FlatList en frontend con badges de cocinada/rechazada y valoraciones.
 
+### ✅ Sesión 2026-06-22 (Parte 2) — Chat Accionable y Cupo Freemium
+*   **Chat Accionable**: El Chef "Marce" ahora devuelve sugerencias de platos estructuradas que se renderizan como `RecipeChatCard` interactivas dentro de la burbuja del chat.
+*   **Descuento Automático**: La IA extrae los ingredientes consumidos según el chat y el backend actualiza la despensa automáticamente, mostrando badges verdes de confirmación.
+*   **Cupo Freemium**: Límite de 5 mensajes diarios por hogar para cuentas gratuitas (`CHEF_FREE_DAILY_LIMIT`), validado mediante Redis (o fallback en memoria). Superado el límite, se devuelve un error 402 que navega automáticamente a la pasarela de pago (`PaywallScreen`).
+
 ---
 
 ## 3. Roadmap / Próximos Pasos (Backlog)
 
-### ⏳ Fase 3 — 4 Mejoras del Chef (Siguiente Tanda)
-1.  **Chat Accionable + Cupo Freemium** (Prioridad 1):
-    *   Soporte para structured output `platos: RecetaSugerida[]` en `/chef/chat` para renderizar tarjetas interactivas que naveguen a `RecipeDetailScreen` con botón de "Añadir ingredientes faltantes a la compra".
-    *   Límite de mensajes diarios en plan free (`CHEF_FREE_DAILY_LIMIT=5`) persistido en Redis/memoria por hogar. Al superarlo → HTTP 402 → `PaywallScreen`.
-    *   Descuento automático de stock estimado al cocinar por texto/voz con confirmación y *Deshacer* visible.
-2.  **Briefing Personal**:
+### ⏳ Fase 3 — Mejoras del Chef (Continuación)
+1.  **Briefing Personal**:
     *   Inyectar el contexto de `memoria_gustos` en `generate_morning_briefing` en el backend.
-3.  **Voz al Chef**:
+2.  **Voz al Chef**:
     *   Integración de audio dictado directamente al Chef: `expo-audio` + `POST /chef/transcribe` (Gemini audio→texto). requiere build nativo EAS.
-4.  **Chef Proactivo**:
+3.  **Chef Proactivo**:
     *   Notificaciones locales de caducidad personalizadas en la voz de Marce con deep-linking al Chat.
 
 ### ⏳ Fase 5 — Integración Comercial y Publicación

@@ -132,6 +132,65 @@ async def requiere_familia(
         )
 
 
+async def check_freemium_chat_quota(
+    request: Request,
+    current_user: Usuario = Depends(get_current_user),
+) -> None:
+    """Verifica si el usuario es premium o si no ha superado su límite diario gratuito.
+
+    Límite por hogar (no por usuario) para evitar abusos creando cuentas gratis en
+    el mismo hogar. Si es premium, paso libre. Si es free, tracking diario en Redis.
+    """
+    import logging
+    from datetime import date
+
+    from app.core import config as core_config
+    from app.core.redis_client import get_redis
+    from app.services.premium import is_premium
+
+    if await is_premium(str(current_user.id)):
+        return
+
+    redis = get_redis()
+    today = date.today().isoformat()
+    hogar_id_str = str(current_user.hogar_id)
+    key = f"chef_chat_usage:{hogar_id_str}:{today}"
+    limit = core_config.CHEF_FREE_DAILY_LIMIT
+
+    if redis is not None:
+        try:
+            count = await redis.get(key)
+            if count is not None and int(count) >= limit:
+                raise HTTPException(
+                    status_code=status.HTTP_402_PAYMENT_REQUIRED,
+                    detail="Límite diario superado. Suscríbete para continuar.",
+                )
+            await redis.incr(key)
+            if count is None:
+                await redis.expire(key, 86400 * 2)  # Expira en 48h
+            return
+        except HTTPException:
+            raise
+        except Exception as e:
+            logging.getLogger("app.api.deps").warning(
+                f"Error Redis en freemium quota: {e}"
+            )
+            # Fallback en memoria si Redis falla
+
+    # Fallback a memoria (estado de FastAPI)
+    if not hasattr(request.app.state, "chat_quota"):
+        request.app.state.chat_quota = {}
+    quota = request.app.state.chat_quota
+
+    current_count = quota.get(key, 0)
+    if current_count >= limit:
+        raise HTTPException(
+            status_code=status.HTTP_402_PAYMENT_REQUIRED,
+            detail="Límite diario superado. Suscríbete para continuar.",
+        )
+    quota[key] = current_count + 1
+
+
 async def get_auth_service(
     session: AsyncSession = Depends(get_async_session),
 ) -> AuthService:

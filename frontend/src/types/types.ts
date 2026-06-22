@@ -61,12 +61,16 @@ export type ChefRol = 'usuario' | 'chef';
 export interface ChefMensaje {
   rol: ChefRol;
   texto: string;
+  platos?: RecetaSugerida[];
+  consumos_aplicados?: string[];
 }
 
 export interface ChefChatResponse {
   respuesta: string;
   generado_por_ia: boolean;
   mensaje: string | null;
+  platos?: RecetaSugerida[];
+  consumos_aplicados?: string[];
 }
 
 export interface RecetaSugerida {

@@ -724,7 +724,23 @@ class ChefChatRequest(BaseSchema):
         return v
 
 
+class ConsumoEstimado(BaseSchema):
+    item_id: UUID = Field(..., description="ID exacto del alimento en la despensa")
+    cantidad: float = Field(..., description="Cantidad consumida estimada")
+    nombre: str = Field(..., description="Nombre del alimento")
+
+
 class ChefChatResponse(BaseSchema):
     respuesta: str
     generado_por_ia: bool
     mensaje: str | None = None
+    platos: list[RecetaSugerida] | None = Field(
+        None, description="Recetas sugeridas para mostrar en tarjetas interactivas"
+    )
+    consumo_estimado: list[ConsumoEstimado] | None = Field(
+        None, description="Lista de descuentos de stock calculados"
+    )
+    consumos_aplicados: list[str] | None = Field(
+        None,
+        description="Mensajes legibles sobre ingredientes descontados (ej: '200g de arroz')",
+    )

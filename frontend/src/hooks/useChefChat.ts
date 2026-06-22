@@ -1,4 +1,6 @@
 import { useState, useCallback } from 'react';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { apiRequest, TIMEOUT } from '../api/api';
 import { ChefMensaje, ChefChatResponse } from '../types/types';
 
@@ -12,6 +14,7 @@ const SALUDO_INICIAL: ChefMensaje = {
 const MAX_TURNOS_CONTEXTO = 12;
 
 export function useChefChat() {
+  const navigation = useNavigation<NativeStackNavigationProp<any>>();
   const [mensajes, setMensajes] = useState<ChefMensaje[]>([SALUDO_INICIAL]);
   const [enviando, setEnviando] = useState(false);
 
@@ -39,8 +42,22 @@ export function useChefChat() {
           res.respuesta?.trim() ||
           res.mensaje ||
           'No he podido responder ahora mismo. Inténtalo de nuevo en un momento.';
-        setMensajes((prev) => [...prev, { rol: 'chef', texto: respuesta }]);
-      } catch {
+        setMensajes((prev) => [
+          ...prev,
+          {
+            rol: 'chef',
+            texto: respuesta,
+            platos: res.platos,
+            consumos_aplicados: res.consumos_aplicados,
+          },
+        ]);
+      } catch (err: any) {
+        if (err.name === 'ApiError' && err.status === 402) {
+          navigation.navigate('Paywall');
+          // Retiramos el mensaje fallido del usuario de la lista visual
+          setMensajes((prev) => prev.slice(0, prev.length - 1));
+          return;
+        }
         setMensajes((prev) => [
           ...prev,
           {
@@ -52,7 +69,7 @@ export function useChefChat() {
         setEnviando(false);
       }
     },
-    [mensajes, enviando]
+    [mensajes, enviando, navigation]
   );
 
   return { mensajes, enviando, enviar };

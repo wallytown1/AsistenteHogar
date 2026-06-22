@@ -6,6 +6,23 @@ Formato: `[FECHA] [ÁREA] [TIPO] Descripción`
 
 ---
 
+## [2026-06-22] — Fase 3: Chat Accionable y Cupo Freemium
+
+El chat del chef ("Marce") ahora es interactivo y transaccional, con soporte freemium integrado.
+
+### Backend
+- **ADD** Configuración `CHEF_FREE_DAILY_LIMIT=5` (mensajes diarios por hogar para plan free).
+- **ADD** Dependencia `check_freemium_chat_quota` en `/chef/chat`: usa Redis (`chef_chat_usage:{hogar_id}:{date}`) para registrar consumo con fallback in-memory. Devuelve HTTP 402 si se supera el límite sin ser Premium/Familia.
+- **MOD** `_CHEF_CHAT_SCHEMA` en `llm.py`: el output ahora es JSON estructurado incluyendo `platos` (sugerencias de recetas) y `consumo_estimado` (ingredientes consumidos según lo narrado por el usuario).
+- **MOD** Router `/chef/chat`: intercepta `consumo_estimado`, descuenta automáticamente del inventario (agotar o restar) y devuelve `consumos_aplicados`.
+
+### Frontend
+- **ADD** Componente `RecipeChatCard.tsx`: tarjetas interactivas que renderizan recetas sugeridas directamente dentro de las burbujas del Chef. Navegan a `RecipeDetailScreen` al presionarlas.
+- **MOD** `ChefChatScreen.tsx`: rediseño de la burbuja (`Burbuja`) para renderizar un carrusel de platos y badges de confirmación verdes para consumos aplicados ("Descontado X de Y").
+- **MOD** `useChefChat.ts`: intercepta `ApiError` 402 y navega fluidamente a `PaywallScreen` para convertir usuarios free.
+
+---
+
 ## [2026-06-22] — Inteligencia de stock (Fase 2B): confianza que decae + "se acabó"
 
 El stock se trata como una **hipótesis** ("lo que probablemente tienes"): cada alimento se marca como

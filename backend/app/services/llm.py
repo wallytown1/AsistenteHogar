@@ -1256,13 +1256,53 @@ async def identify_rejected_ingredients(
 
 # --- CHEF CONVERSACIONAL (CHAT) ------------------------------------------------
 
+_CHEF_CHAT_SCHEMA = {
+    "type": "OBJECT",
+    "properties": {
+        "respuesta": {"type": "STRING"},
+        "platos": {
+            "type": "ARRAY",
+            "items": {
+                "type": "OBJECT",
+                "properties": {
+                    "titulo": {"type": "STRING"},
+                    "tiempo_min": {"type": "INTEGER"},
+                    "ingredientes_usados": {
+                        "type": "ARRAY",
+                        "items": {"type": "STRING"},
+                    },
+                    "pasos": {"type": "ARRAY", "items": {"type": "STRING"}},
+                },
+                "required": ["titulo", "tiempo_min", "ingredientes_usados", "pasos"],
+            },
+        },
+        "consumo_estimado": {
+            "type": "ARRAY",
+            "items": {
+                "type": "OBJECT",
+                "properties": {
+                    "item_id": {"type": "STRING"},
+                    "cantidad": {"type": "NUMBER"},
+                    "nombre": {"type": "STRING"},
+                },
+                "required": ["item_id", "cantidad", "nombre"],
+            },
+        },
+    },
+    "required": ["respuesta"],
+}
+
 _CHEF_CHAT_SYSTEM = (
     "TAREA: estás conversando por chat con el hogar. Responde de forma breve, cálida y "
     "útil a lo que te pregunten sobre qué cocinar, ideas con su despensa, dudas de cocina "
     "o ajustes rápidos. Apóyate en lo que sabes del hogar y en su despensa actual.\n"
     "Reglas: respuestas cortas (2 a 5 frases), texto plano SIN markdown (ni *, ni -, ni #). "
-    "Sugiere platos concretos cuando ayude. Si te piden algo ajeno a la cocina o la comida, "
-    "redirige con cariño al terreno gastronómico. No inventes datos del hogar que no tengas."
+    "Sugiere platos concretos cuando ayude rellenando el array 'platos'. "
+    "Si el usuario indica que ha cocinado o gastado algo de la despensa, añade los "
+    "ingredientes consumidos al array 'consumo_estimado' devolviendo el ID exacto y la cantidad "
+    "basándote en el inventario actual. "
+    "Si te piden algo ajeno a la cocina, redirige con cariño al terreno gastronómico. "
+    "No inventes datos del hogar que no tengas."
 )
 
 
@@ -1286,7 +1326,9 @@ async def chef_chat(
         )
 
     nombres_caducan = sorted({a.nombre for a in alertas_caducidad})
-    inventario = sorted(f"{i.nombre} ({i.cantidad} {i.unidad})" for i in items)
+    inventario = sorted(
+        f"{i.nombre} ({i.cantidad} {i.unidad}) [ID: {i.id}]" for i in items
+    )
     contexto = (
         f"Despensa actual del hogar: {inventario or 'vacía'}\n"
         f"Caducan pronto: {nombres_caducan or 'nada'}\n"
@@ -1324,13 +1366,44 @@ async def chef_chat(
 
     texto = await _call_gemini(
         system_instruction,
-        max_output_tokens=500,
+        max_output_tokens=1000,
         contents=contents,
+        response_schema=_CHEF_CHAT_SCHEMA,
     )
     if texto is None:
         return ChefChatResponse(
-            respuesta="",
+            respuesta="No he podido responder ahora mismo. Inténtalo de nuevo en un momento.",
             generado_por_ia=False,
-            mensaje="No he podido responder ahora mismo. Inténtalo de nuevo en un momento.",
         )
-    return ChefChatResponse(respuesta=texto, generado_por_ia=True)
+
+    try:
+        data = json.loads(texto)
+        respuesta_str = data.get("respuesta", "")
+        platos_raw = data.get("platos", [])
+        consumos_raw = data.get("consumo_estimado", [])
+
+        from app.schemas.schemas import ConsumoEstimado
+
+        platos = (
+            [RecetaSugerida.model_validate(p) for p in platos_raw]
+            if platos_raw
+            else None
+        )
+        consumo_estimado = (
+            [ConsumoEstimado.model_validate(c) for c in consumos_raw]
+            if consumos_raw
+            else None
+        )
+
+        return ChefChatResponse(
+            respuesta=respuesta_str,
+            generado_por_ia=True,
+            platos=platos,
+            consumo_estimado=consumo_estimado,
+        )
+    except (json.JSONDecodeError, ValueError) as e:
+        logger.error(f"Error decodificando respuesta estructurada de chat: {e}")
+        return ChefChatResponse(
+            respuesta="Ups, ha habido un problema entendiendo mi propia respuesta.",
+            generado_por_ia=False,
+        )
