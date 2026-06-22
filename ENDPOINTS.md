@@ -2,7 +2,7 @@
 
 > **Pivote 2 (2026-06-18):** la app es **exclusivamente comida, stock y recetas mediterráneas españolas**.
 > Los módulos Eventos (calendario) y Tareas (domésticas) fueron **eliminados por completo**.
-> Ver `ARCHITECTURE_MAP.md`.
+> Ver `01_CONTEXTO_Y_ARQUITECTURA_APP.md`.
 
 Contrato de los endpoints REST del backend, derivado del código real
 (`backend/app/api/routers/` y `backend/app/schemas/schemas.py`).

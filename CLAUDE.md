@@ -171,6 +171,91 @@ Este proyecto cuenta con un grafo de conocimiento en `graphify-out/` que mapea r
 *   **Higgsfield (Generador de Arte)**: Utilízalo para generar o rediseñar activos de imagen en `frontend/assets/` (splash, icon, adaptive-icon) bajo demanda.
 
 ---
+
+## 6. Contexto del Proyecto para el Agente IA
+
+> Esta sección contiene instrucciones y restricciones que el agente IA debe conocer para trabajar
+> correctamente. **No es documentación Diátaxis** — es contexto operativo cargado en cada sesión.
+> El detalle completo está en `01_CONTEXTO_Y_ARQUITECTURA_APP.md` y `ESTADO_ACTUAL.md`.
+
+### 6.1 Descripción del producto
+
+**Asistente del Hogar IA** — app de cocina familiar centrada en la generación de recetas mediterráneas
+españolas tradicionales y de aprovechamiento a partir del stock real de la despensa.
+Filosofía gastronómica estricta: sofritos, ingredientes frescos, temporada; sin fusiones incorrectas.
+
+> **Pivote 2 (2026-06-18):** la app es **exclusivamente de comida, stock y recetas**.
+> Los módulos Eventos y Tareas fueron eliminados. **No reintroducir nada relacionado.**
+
+Stack: React Native (Expo SDK 54) · FastAPI + SQLAlchemy 2.0 async · PostgreSQL (SQLite dev/test).
+Idioma: español en toda la UI, logs y respuestas IA.
+
+### 6.2 Restricciones no negociables
+
+1. **`hogar_id` siempre del JWT** — nunca de cabeceras ni del body del cliente. Se extrae en
+   `backend/app/api/deps.py → get_hogar_id()`. Romper esta regla crea una fuga de datos multi-tenant.
+2. **Todos los schemas Pydantic usan `extra='forbid'`** — extendidos de `BaseSchema`. Nunca añadir
+   `extra='allow'` ni saltar la validación.
+3. **Temperatura LLM = 0** en todas las llamadas al backend (Gemini).
+4. **Routers devuelven schemas Pydantic**, nunca instancias ORM.
+5. **Escrituras IA solo para acciones de bajo riesgo y reversibles** (descontar stock estimado,
+   ajuste de perfil) con undo visible. Acciones destructivas o de alto impacto requieren confirmación
+   explícita del usuario.
+
+### 6.3 Arquitectura (resumen operativo)
+
+```
+Router (api/routers/) → Service (services/) → Repository (repositories/) → SQLAlchemy models
+```
+
+- Dependency injection vía `FastAPI Depends()` definido en `api/deps.py`.
+- Excepciones tipadas en `repositories/exceptions.py`; mapeadas a HTTP en `main.py`.
+- Aislamiento multi-tenant: cada método de repositorio recibe `hogar_id: UUID` obligatorio.
+
+### 6.4 LLM — puntos críticos
+
+- **Persona unificada `_PERSONA_CHEF`** ("Marce") — inyectada en `PromptConfigService.get_system_instruction()`
+  y en ramas fallback. No remover.
+- **`_FILOSOFIA_MEDITERRANEA`** — guard final no removible en todos los prompts de recetas/plan.
+- **`memoria_gustos`** (tabla, 1/hogar): resumen NL destilado con Gemini. Se inyecta vía
+  `_bloque_memoria_gustos()` en sugerencias, plan y chat. `MemoriaService` la recalcula best-effort
+  tras ≥5 eventos nuevos o >7 días.
+- **`movimientos_despensa`** (ledger): hábitos de compra/consumo → `distill_taste_memory()` los
+  incorpora al resumen. El ledger crudo **nunca** va al prompt.
+- **Chat chef**: el servidor NO persiste texto del chat (RGPD). El cliente reenvía los últimos turnos
+  (máx. 12); la continuidad de largo plazo vive en `memoria_gustos`.
+- Sin API key: todas las funciones devuelven fallback estático — la app funciona sin clave.
+
+### 6.5 Estado de fases (actualizar en ESTADO_ACTUAL.md)
+
+**Completado (último commit `511cffe`, CI verde):**
+- Chef amigo: `_PERSONA_CHEF`, `memoria_gustos`, `POST /chef/chat`, `ChefChatScreen`.
+- Stock Fase 1: ledger `movimientos_despensa` + hábitos en memoria destilada.
+- Stock Fase 2A: `GET /lista-compra/sugerencias` (cadencia, sin IA).
+- Stock Fase 2B: `ultima_confirmacion` + `incierto` + `agotar`/`confirmar` de un toque.
+
+**Próximo paso — Fase 3 ítem 1:**
+Chat accionable: structured output `platos: RecetaSugerida[]` → tarjetas tocables + "añadir faltantes
+a la compra". Cupo freemium: `CHEF_FREE_DAILY_LIMIT`/día por hogar (Redis+memoria); al superarlo →
+upsell `PaywallScreen`. Cierra también los restos de Fase 2 (confirmación en chat + descuento por voz).
+
+### 6.6 Variables de entorno clave (backend)
+
+| Variable | Requerida | Propósito |
+|---|---|---|
+| `JWT_SECRET_KEY` | **Sí** | Firma tokens JWT de familia; la app no arranca sin ella |
+| `DATABASE_URL` | No | Dev: SQLite. Prod: `postgresql+asyncpg://...` |
+| `GEMINI_API_KEY` | No | Sin ella, IA en modo fallback estático |
+| `ADMIN_JWT_SECRET_KEY` | No | Firma tokens admin; sin ella `/admin/*` devuelve 503 |
+| `ADMIN_BOOTSTRAP_TOKEN` | No | Token one-time para crear el primer admin |
+| `REVENUECAT_SECRET_KEY` | No | Gate premium server-side; sin ella endpoints IA son abiertos |
+| `REVENUECAT_WEBHOOK_SECRET` | No | Valida webhooks RC; sin ella el endpoint devuelve 501 |
+| `REDIS_URL` | No | Caché compartida + rate-limit; sin ella solo memoria (1 worker) |
+
+Generar secretos: `python -c "import secrets; print(secrets.token_hex(48))"`
+
+---
+
 ## 🗺️ REGLAS DE ENRUTAMIENTO DE DOCUMENTACIÓN (DIÁTAXIS ENFORCEMENT)
 Cada vez que crees, modifiques o consultes documentación en este repositorio, debes autorregularte y enrutar la información al archivo correcto según el framework Diátaxis:
 1. ¿Es una EXPLICACIÓN (Conceptos, decisiones de diseño, arquitectura, justificación legal RGPD/AI Act)?
