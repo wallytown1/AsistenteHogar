@@ -66,6 +66,16 @@ export const typography: Record<string, TextStyle> = {
 };
 
 export const shadow = {
+  small: (Platform.select({
+    ios: {
+      shadowColor: '#3D2B1A',
+      shadowOpacity: 0.1,
+      shadowRadius: 8,
+      shadowOffset: { width: 0, height: 2 },
+    },
+    android: { elevation: 1 },
+    default: {},
+  }) ?? {}) as ViewStyle,
   card: (Platform.select({
     ios: {
       shadowColor: '#3D2B1A',

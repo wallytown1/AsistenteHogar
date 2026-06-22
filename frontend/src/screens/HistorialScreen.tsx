@@ -3,7 +3,8 @@ import { FlatList, View } from 'react-native';
 import { RecetaHistorial, Valoracion } from '../types/types';
 import { useRecetaHistorial } from '../hooks/useRecetaHistorial';
 import { colors, spacing, radius } from '../theme/tokens';
-import { Screen, Card, AppText, Icon, EmptyState, LoadingView } from '../components/ui';
+import { Screen, Card, AppText, Icon, EmptyState } from '../components/ui';
+import { HistorialSkeleton } from '../components/skeletons';
 
 function formatFecha(iso: string): string {
   return new Date(iso).toLocaleDateString('es-ES', {
@@ -87,9 +88,7 @@ export default function HistorialScreen() {
     fetchHistorial();
   }, [fetchHistorial]);
 
-  if (loadingHistorial && historial.length === 0) {
-    return <LoadingView />;
-  }
+  if (loadingHistorial && historial.length === 0) return <HistorialSkeleton />;
 
   return (
     <Screen onRefresh={fetchHistorial} refreshing={loadingHistorial}>

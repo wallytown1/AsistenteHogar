@@ -13,6 +13,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { usePantry, getDiasParaCaducar } from '../hooks/usePantry';
+import { PantrySkeleton } from '../components/skeletons';
 import { useRecetaHistorial } from '../hooks/useRecetaHistorial';
 import { useExpiryNotifications } from '../hooks/useExpiryNotifications';
 import {
@@ -41,7 +42,6 @@ import {
   Icon,
   FoodIcon,
   EmptyState,
-  LoadingView,
   ErrorView,
 } from '../components/ui';
 import { getCategoriaIcon } from '../lib/categoria';
@@ -820,8 +820,7 @@ export default function PantryScreen() {
     ]
   );
 
-  if (isLoading && items.length === 0)
-    return <LoadingView message="Cargando inventario de la despensa..." />;
+  if (isLoading && items.length === 0) return <PantrySkeleton />;
   if (error && items.length === 0) return <ErrorView message={error} onRetry={refetch} />;
 
   const handleAdd = () => {

@@ -6,6 +6,61 @@ Formato: `[FECHA] [ÁREA] [TIPO] Descripción`
 
 ---
 
+## [2026-06-22] — Skeleton Screens (Design System Adoption)
+
+Adopción de los skeleton screens del design system "Tierra Cálida" en la app real. Reemplaza todos los `ActivityIndicator`/`LoadingView` de pantalla completa por ghost-layouts animados que simulan la estructura del contenido.
+
+### Frontend — UI (`frontend/src/components/ui/`)
+- **MOD** `Skeleton.tsx`: Extendido con 7 helpers de composición: `SkeletonText`, `SkeletonCard`, `SkeletonImage`, `SkeletonChip`, `SkeletonStatCard`, `SkeletonRecipeRow`, `SkeletonSteps`. Todos usan el átomo base `MotiView` (nativo, 0 JS-thread).
+
+### Frontend — Skeletons (`frontend/src/components/skeletons/`)
+- **ADD** `DashboardSkeleton.tsx`: `DashboardBriefingSkeleton` (inline dentro de la Card de briefing) y `DashboardSkeleton` (pantalla completa, para uso futuro).
+- **ADD** `PantrySkeleton.tsx`: Ghost-layout completo con secciones "Por caducar" y "Disponibles" con filas de ingrediente + badges.
+- **ADD** `ShoppingListSkeleton.tsx`: Barra de progreso, banner Marce, ítems pendientes y completados.
+- **ADD** `PlanComidaSkeleton.tsx`: Pills de días horizontales + 4 cards de día con slots de comida y cena.
+- **ADD** `HistorialSkeleton.tsx`: Cards de receta con badge de estado y chips de valoración.
+- **ADD** `index.ts`: Barrel de exports.
+
+### Frontend — Pantallas
+- **MOD** `DashboardScreen.tsx`: Reemplazado `ActivityIndicator + AppText` del briefing por `DashboardBriefingSkeleton`.
+- **MOD** `PantryScreen.tsx`: Reemplazado `LoadingView` (early return) por `PantrySkeleton`.
+- **MOD** `ShoppingListScreen.tsx`: Reemplazado `LoadingView` (early return) por `ShoppingListSkeleton`.
+- **MOD** `PlanComidaScreen.tsx`: Reemplazado `LoadingView` (render condicional) por `PlanComidaSkeleton`.
+- **MOD** `HistorialScreen.tsx`: Reemplazado `LoadingView` (early return) por `HistorialSkeleton`.
+
+### Frontend — Tokens
+- **MOD** `theme/tokens.ts`: Añadido `shadow.small` (iOS: opacity 0.10/radius 8/offset y:2, Android: elevation 1).
+
+---
+
+## [2026-06-22] — Sistema de Diseño "Tierra Cálida" (Design System)
+
+Implementación completa del sistema de diseño `design-system/` importado desde claude.ai Design. Sirve como referencia canónica para todo el desarrollo visual de la app.
+
+### Design System (`design-system/`)
+- **ADD** `index.html`: Índice navegable del sistema (sticky nav, hero, 20 tarjetas en grid).
+- **ADD** `DESIGN_GUIDE.html`: Guía completa — filosofía, paleta, tipografía, espaciado, sombras nativas RN, anti-patrones, micro-animaciones (spring physics, haptics, shared transitions) y checklist WCAG AA.
+- **ADD** `tokens/colors.html`: 20 tokens de color — marca, superficies, texto, semánticos (success/warning/danger/info) y bordes.
+- **ADD** `tokens/typography.html`: 9 escalas tipográficas (display 28px/800 → micro 11px/600), todas fuentes nativas del sistema.
+- **ADD** `tokens/spacing.html`: 7 tokens de espaciado (xs:4px → xxxl:32px) + 6 de border-radius (sm:12px → pill:999px).
+- **ADD** `components/button.html`: 4 variantes (primary/secondary/ghost/danger) × 3 tamaños + estados hover/focus/active/disabled/loading.
+- **ADD** `components/input.html`: Inputs text/email/number con estados normal/focus/error/disabled/loading-icon.
+- **ADD** `components/toggle.html`: Switch on/off, checked/disabled, grupo multi-opción.
+- **ADD** `components/card.html`: Base, tinte brandSoft, tinte semántico, StatCard grid 2col, presionable con hover.
+- **ADD** `components/badge-chip.html`: 5 badges semánticos con iconos + chips de filtro activo/inactivo.
+- **ADD** `components/modal.html`: Bottom sheet con overlay — confirmación, lista-picker, error.
+- **ADD** `components/toast.html`: 6 variantes (success/error/info/warning/brand/con-cierre) con animación slideUp.
+- **ADD** `components/skeleton-loader.html`: Shimmer pulse CSS — card simple, receta completa, stats grid, filas de items.
+- **ADD** `components/dashboard-screen.html`: Estado cargado + skeleton; briefing Marce, stat grid 2×2, lista recetas, botón HTT con ring animado; snippet RN del Skeleton component con Reanimated.
+- **ADD** `components/despensa-screen.html`: Estado cargado; filtros por categoría, ítems con badges de caducidad (ok/warn/danger), botones de acción, swipe hint.
+- **ADD** `components/chat-screen.html`: Burbujas Marce (izq) y usuario (der), RecipeCard inline, typing-indicator (3 dots bounce), mic-btn con ring; skeleton de carga.
+- **ADD** `components/recipe-detail-screen.html`: Hero placeholder, meta chips, nota Marce, lista de ingredientes con dots de stock (ok/warn/miss), pasos step-by-step con estado completado.
+- **ADD** `components/shopping-list-screen.html`: Barra de progreso, banner Marce, ítems checked/unchecked con origen (chef/yo), badges de estado.
+- **ADD** `components/plan-comida-screen.html`: Selector de días (7 pills), slots desayuno/comida/merienda/cena, slots vacíos dashed, botones regenerar y guardar; skeleton de generación.
+- **ADD** `components/paywall-screen.html`: Hero oscuro (#2C1C0E) con radial glow cálido, toggle anual/mensual animado, precio con equivalencia, lista de 5 features, social proof 4.9★, CTA "prueba 7 días"; variante mensual con badge "Ahorra 40%".
+
+---
+
 ## [2026-06-22] — Hardening de RGPD y Seguridad
 
 Mejoras de seguridad y privacidad en el backend, incluyendo retención acotada de datos y anonimización de datos personales enviados al LLM de Gemini.

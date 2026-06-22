@@ -10,9 +10,9 @@ import {
   Card,
   IconButton,
   Icon,
-  LoadingView,
   ErrorView,
 } from '../components/ui';
+import { ShoppingListSkeleton } from '../components/skeletons';
 import { haptics } from '../lib/haptics';
 
 function ItemRow({
@@ -155,7 +155,7 @@ export default function ShoppingListScreen() {
     ]);
   };
 
-  if (isLoading) return <LoadingView />;
+  if (isLoading) return <ShoppingListSkeleton />;
   if (error) return <ErrorView message={error} />;
 
   const empty = pendientes.length === 0 && comprados.length === 0;
