@@ -336,3 +336,25 @@ async def delete_pantry_item(
 ) -> InventarioAlimentoResponse:
     """Elimina lógicamente un producto de la despensa del Hogar (soft delete)."""
     return await pantry_service.remove_item(alimento_id, hogar_id)
+
+
+@router.post("/pantry/{alimento_id}/agotar", response_model=InventarioAlimentoResponse)
+async def agotar_pantry_item(
+    alimento_id: uuid.UUID = Path(..., description="UUID del alimento agotado"),
+    hogar_id: uuid.UUID = Depends(get_hogar_id),
+    pantry_service: PantryService = Depends(get_pantry_service),
+) -> InventarioAlimentoResponse:
+    """ "Se acabó" de un toque: borra el alimento y lo registra como consumo (origen 'agotado')."""
+    return await pantry_service.agotar_item(alimento_id, hogar_id)
+
+
+@router.post(
+    "/pantry/{alimento_id}/confirmar", response_model=InventarioAlimentoResponse
+)
+async def confirmar_pantry_item(
+    alimento_id: uuid.UUID = Path(..., description="UUID del alimento confirmado"),
+    hogar_id: uuid.UUID = Depends(get_hogar_id),
+    pantry_service: PantryService = Depends(get_pantry_service),
+) -> InventarioAlimentoResponse:
+    """ "Sigo teniéndolo": renueva la confianza (resetea ultima_confirmacion → deja de estar incierto)."""
+    return await pantry_service.confirmar_item(alimento_id, hogar_id)

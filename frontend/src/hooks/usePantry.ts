@@ -110,6 +110,18 @@ export function usePantry() {
     }
   };
 
+  // "Se acabó": elimina el alimento y lo registra como consumo (origen 'agotado').
+  const agotarItem = async (id: string) => {
+    await apiRequest<AlimentoItem>(`/pantry/${id}/agotar`, { method: 'POST' });
+    await fetchPantry();
+  };
+
+  // "Sigo teniéndolo": renueva la confianza (deja de estar incierto).
+  const confirmarItem = async (id: string) => {
+    await apiRequest<AlimentoItem>(`/pantry/${id}/confirmar`, { method: 'POST' });
+    await fetchPantry();
+  };
+
   useEffect(() => {
     const ctrl = new AbortController();
     fetchPantry(ctrl.signal);
@@ -146,6 +158,8 @@ export function usePantry() {
     addItem,
     updateQuantity,
     deleteItem,
+    agotarItem,
+    confirmarItem,
     escanearTicketOcr,
     refetch: () => fetchPantry(),
   };

@@ -66,6 +66,7 @@ python smoke_test_rechazar_ingrediente.py  # rechazar-ingrediente: schema, multi
 python smoke_test_chef.py           # chef chat + valoración + memoria de gustos + aislamiento
 python smoke_test_movimientos.py    # ledger de movimientos + agregados de hábitos + aislamiento
 python smoke_test_lista_inteligente.py  # sugerencias de compra por cadencia del ledger
+python smoke_test_confianza.py      # stock incierto por cadencia + agotar + confirmar
 
 # Manual GDPR purge pass (also runs automatically every 24h from the app lifespan)
 python -m app.jobs.purge
@@ -162,6 +163,7 @@ python smoke_test_rechazar_ingrediente.py  # 16/16 must pass
 python smoke_test_chef.py            # chef chat + valoración + memoria must pass
 python smoke_test_movimientos.py     # ledger de movimientos + hábitos must pass
 python smoke_test_lista_inteligente.py  # sugerencias de compra must pass
+python smoke_test_confianza.py       # confianza de stock + agotar/confirmar must pass
 
 # Frontend
 cd frontend && npm run ts:check           # 0 errors

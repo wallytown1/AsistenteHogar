@@ -90,45 +90,81 @@ class PantryService:
         )
         return InventarioAlimentoResponse.model_validate(item)
 
+    async def agotar_item(
+        self, item_id: uuid.UUID, hogar_id: uuid.UUID
+    ) -> InventarioAlimentoResponse:
+        """ "Se acabó": borra el alimento y lo registra como consumo con origen 'agotado'."""
+        item = await self.pantry_repo.delete(item_id, hogar_id)
+        await self._registrar_movimiento(
+            hogar_id,
+            item.nombre,
+            "consumo",
+            float(item.cantidad),
+            item.unidad,
+            "agotado",
+        )
+        return InventarioAlimentoResponse.model_validate(item)
+
+    async def confirmar_item(
+        self, item_id: uuid.UUID, hogar_id: uuid.UUID
+    ) -> InventarioAlimentoResponse:
+        """ "Sigo teniéndolo": renueva la confianza (resetea ultima_confirmacion)."""
+        item = await self.pantry_repo.confirmar(item_id, hogar_id)
+        return InventarioAlimentoResponse.model_validate(item)
+
     async def get_stock_metrics(self, hogar_id: uuid.UUID) -> PantryStockMetrics:
-        """Calcula el porcentaje de stock de la despensa y recolecta alertas de caducidad
-        próximas en los siguientes 6 días utilizando consistencia de zona horaria UTC."""
+        """Calcula el porcentaje de stock de la despensa, las alertas de caducidad (6 días)
+        y marca como 'incierto' lo que probablemente se ha consumido según la cadencia de
+        compra del hogar (ledger). Consistencia de zona horaria en UTC."""
         items = await self.pantry_repo.get_all(hogar_id)
 
-        # Consistencia de zona horaria: fecha actual en UTC
         hoy_utc = datetime.now(UTC).date()
+        ahora = datetime.now(UTC)
         limite_alerta = hoy_utc + timedelta(days=6)
+
+        # Cadencias de compra por alimento (días entre compras) para calcular incierto.
+        intervalos: dict[str, float] = {}
+        if self.movimientos_repo is not None:
+            for h in await self.movimientos_repo.habitos_compra(hogar_id):
+                if h.intervalo_medio_dias is not None:
+                    intervalos[h.nombre] = h.intervalo_medio_dias
+
+        def _a_respuesta(item: object) -> InventarioAlimentoResponse:
+            resp = InventarioAlimentoResponse.model_validate(item)
+            intervalo = intervalos.get(resp.nombre.strip().lower())
+            if intervalo is not None and resp.ultima_confirmacion is not None:
+                dias = (ahora - resp.ultima_confirmacion).total_seconds() / 86400.0
+                resp.incierto = dias >= intervalo
+            return resp
 
         items_disponibles = len(items)
         alertas_caducidad = []
         items_suficientes = 0
+        items_resp: list[InventarioAlimentoResponse] = []
 
         for item in items:
-            # 1. Alertas de caducidad (fecha_caducidad <= hoy + 6 días)
-            if item.fecha_caducidad is not None:
-                # Comparamos objetos date puros
-                if item.fecha_caducidad <= limite_alerta:
-                    alertas_caducidad.append(
-                        InventarioAlimentoResponse.model_validate(item)
-                    )
+            resp = _a_respuesta(item)
+            items_resp.append(resp)
 
-            # 2. Lógica para determinar stock suficiente
-            # Umbral de stock: Categorías perecederas (Lácteos/Carnes) = 2.0, otros = 1.0
+            if (
+                item.fecha_caducidad is not None
+                and item.fecha_caducidad <= limite_alerta
+            ):
+                alertas_caducidad.append(resp)
+
             threshold = 2.0 if item.categoria in ["Lácteos", "Carnes"] else 1.0
             if item.cantidad >= threshold:
                 items_suficientes += 1
 
-        # Calcular porcentaje de stock (rango [0.0, 100.0] estricto)
         if items_disponibles == 0:
             porcentaje_stock = 100.0
         else:
             porcentaje_stock = round((items_suficientes / items_disponibles) * 100.0, 2)
-            # Asegurar límites por si acaso
             porcentaje_stock = max(0.0, min(100.0, porcentaje_stock))
 
         return PantryStockMetrics(
             porcentaje_stock=porcentaje_stock,
             items_disponibles=items_disponibles,
             alertas_caducidad=alertas_caducidad,
-            items=[InventarioAlimentoResponse.model_validate(item) for item in items],
+            items=items_resp,
         )

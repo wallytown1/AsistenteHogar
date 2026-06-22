@@ -74,6 +74,8 @@ type PantryItemCardProps = {
   onToggleSelect: () => void;
   onUpdateQuantity: (id: string, qty: number) => void;
   onDelete: (id: string) => void;
+  onAgotar: (id: string) => void;
+  onConfirmar: (id: string) => void;
 };
 
 const PantryItemCard = React.memo(function PantryItemCard({
@@ -83,6 +85,8 @@ const PantryItemCard = React.memo(function PantryItemCard({
   onToggleSelect,
   onUpdateQuantity,
   onDelete,
+  onAgotar,
+  onConfirmar,
 }: PantryItemCardProps) {
   const status = getItemStatus(item, diasUmbral);
 
@@ -255,6 +259,62 @@ const PantryItemCard = React.memo(function PantryItemCard({
           </Pressable>
         </View>
       </View>
+
+      {/* Confianza que decae: si probablemente se ha consumido, pedir confirmación */}
+      {item.incierto && (
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            marginTop: spacing.md,
+            paddingTop: spacing.md,
+            borderTopWidth: 1,
+            borderTopColor: colors.border,
+            gap: spacing.sm,
+          }}
+        >
+          <Icon name="help-circle-outline" size={16} color={colors.inkMuted} />
+          <AppText variant="micro" color={colors.inkMuted} style={{ flex: 1 }}>
+            ¿Te queda {item.nombre.toLowerCase()}?
+          </AppText>
+          <Pressable
+            onPress={() => {
+              haptics.light();
+              onConfirmar(item.id);
+            }}
+            hitSlop={6}
+            accessibilityLabel={`Sí, sigo teniendo ${item.nombre}`}
+            style={{
+              paddingHorizontal: spacing.md,
+              paddingVertical: 5,
+              borderRadius: radius.pill,
+              backgroundColor: colors.pantrySoft,
+            }}
+          >
+            <AppText variant="micro" color={colors.pantry} style={{ fontWeight: '700' }}>
+              Sí, sigo
+            </AppText>
+          </Pressable>
+          <Pressable
+            onPress={() => {
+              haptics.light();
+              onAgotar(item.id);
+            }}
+            hitSlop={6}
+            accessibilityLabel={`Se acabó ${item.nombre}`}
+            style={{
+              paddingHorizontal: spacing.md,
+              paddingVertical: 5,
+              borderRadius: radius.pill,
+              backgroundColor: colors.dangerSoft,
+            }}
+          >
+            <AppText variant="micro" color={colors.danger} style={{ fontWeight: '700' }}>
+              Se acabó
+            </AppText>
+          </Pressable>
+        </View>
+      )}
     </Card>
   );
 });
@@ -273,6 +333,8 @@ export default function PantryScreen() {
     addItem,
     updateQuantity,
     deleteItem,
+    agotarItem,
+    confirmarItem,
     escanearTicketOcr,
     refetch,
   } = usePantry();
@@ -743,9 +805,19 @@ export default function PantryScreen() {
         onToggleSelect={() => toggleSelectProduct(item.id)}
         onUpdateQuantity={updateQuantity}
         onDelete={deleteItem}
+        onAgotar={agotarItem}
+        onConfirmar={confirmarItem}
       />
     ),
-    [diasUmbral, selectedItems, toggleSelectProduct, updateQuantity, deleteItem]
+    [
+      diasUmbral,
+      selectedItems,
+      toggleSelectProduct,
+      updateQuantity,
+      deleteItem,
+      agotarItem,
+      confirmarItem,
+    ]
   );
 
   if (isLoading && items.length === 0)

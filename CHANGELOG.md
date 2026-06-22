@@ -6,6 +6,25 @@ Formato: `[FECHA] [ÁREA] [TIPO] Descripción`
 
 ---
 
+## [2026-06-22] — Inteligencia de stock (Fase 2B): confianza que decae + "se acabó"
+
+El stock se trata como una **hipótesis** ("lo que probablemente tienes"): cada alimento se marca como
+**incierto** cuando, según tu cadencia de compra (ledger), probablemente ya se ha consumido, y se ofrece
+reconciliarlo de un toque. Sin IA.
+
+- **ADD** Campo `ultima_confirmacion` en `inventario_alimentos` + migración. Se fija al añadir/reponer.
+- **ADD** Flag calculado `incierto` en `InventarioAlimentoResponse`/`get_stock_metrics`: un alimento es
+  incierto si tiene cadencia conocida (≥2 compras) y han pasado al menos sus días de cadencia media desde
+  la última confirmación. Reutiliza `habitos_compra` del ledger (Fase 1).
+- **ADD** `POST /api/v1/pantry/{id}/agotar` — "se acabó" de un toque: soft-delete + movimiento `consumo`
+  con origen `agotado`.
+- **ADD** `POST /api/v1/pantry/{id}/confirmar` — "sigo teniéndolo": resetea `ultima_confirmacion` (renueva
+  la confianza, deja de estar incierto).
+- **ADD** Frontend: los alimentos inciertos muestran "¿Te queda?" con acciones **Sí, sigo** / **Se acabó**.
+- **ADD** `smoke_test_confianza.py` (incierto por cadencia + agotar + confirmar + aislamiento) y en CI.
+
+---
+
 ## [2026-06-22] — Inteligencia de stock (Fase 2A): lista de la compra inteligente
 
 Primer consumidor del ledger orientado al usuario: la lista de la compra **sugiere lo que te suele

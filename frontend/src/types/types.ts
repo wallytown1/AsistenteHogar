@@ -9,6 +9,9 @@ export interface AlimentoItem {
   is_deleted: boolean;
   created_at: string;
   updated_at: string;
+  ultima_confirmacion?: string | null;
+  // Calculado por el backend: probablemente consumido según la cadencia de compra.
+  incierto?: boolean;
 }
 
 export interface PerfilHogar {

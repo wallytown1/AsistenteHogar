@@ -177,6 +177,12 @@ class InventarioAlimento(Base):
     unidad: Mapped[str] = mapped_column(String(30), nullable=False)
     fecha_caducidad: Mapped[date | None] = mapped_column(Date, nullable=True)
     categoria: Mapped[str] = mapped_column(String(50), nullable=False)
+    # Última vez que el hogar confirmó tener este alimento (alta, reposición o "sigo
+    # teniéndolo"). Base de la "confianza que decae": pasada la cadencia de compra sin
+    # confirmar, el alimento se marca como incierto.
+    ultima_confirmacion: Mapped[datetime] = mapped_column(
+        TZDateTime, nullable=False, server_default=utcnow()
+    )
     is_deleted: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False, index=True
     )

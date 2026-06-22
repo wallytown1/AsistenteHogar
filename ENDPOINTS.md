@@ -184,6 +184,18 @@ Actualización parcial (`InventarioAlimentoUpdate`, todos los campos opcionales)
 Borrado lógico (`is_deleted = true`).
 **200** → item borrado · **404** inexistente/ajeno.
 
+### `POST /api/v1/pantry/{alimento_id}/agotar` 🔒
+"Se acabó" de un toque: borrado lógico + movimiento `consumo` con origen `agotado` en el ledger.
+**200** → item borrado · **404** inexistente/ajeno.
+
+### `POST /api/v1/pantry/{alimento_id}/confirmar` 🔒
+"Sigo teniéndolo": resetea `ultima_confirmacion` a ahora → renueva la confianza y el alimento deja de
+estar `incierto`. **200** → item actualizado · **404** inexistente/ajeno.
+
+> **Stock como hipótesis:** `InventarioAlimentoResponse` incluye `incierto: bool` (calculado en
+> `GET /pantry`): true cuando el alimento tiene cadencia de compra conocida (≥2 compras en el ledger) y
+> han pasado ≥ sus días de cadencia media desde `ultima_confirmacion` (probablemente ya se consumió).
+
 ### `POST /api/v1/pantry/audio` 🔒 ⭐ Premium ✅ Implementado
 Interpreta texto transcrito de una nota de voz y devuelve propuesta de alimentos (IA pasiva — usuario confirma).
 Gemini procesa el texto igual que `/pantry/interpretar` pero optimizado para micro-ajustes

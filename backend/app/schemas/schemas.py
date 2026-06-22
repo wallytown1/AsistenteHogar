@@ -197,6 +197,10 @@ class InventarioAlimentoResponse(BaseSchema):
     is_deleted: bool
     created_at: datetime
     updated_at: datetime
+    ultima_confirmacion: datetime | None = None
+    # Calculado (no es columna): el alimento probablemente se ha consumido según la
+    # cadencia de compra del hogar y debería confirmarse. Lo fija get_stock_metrics.
+    incierto: bool = False
 
 
 # --- SERVICE LAYER RESPONSES ---

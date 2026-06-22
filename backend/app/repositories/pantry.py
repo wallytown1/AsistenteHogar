@@ -91,6 +91,20 @@ class PantryRepository:
             raise DatabaseIntegrityError(str(e.orig)) from e
         return db_item
 
+    async def confirmar(
+        self, item_id: uuid.UUID, hogar_id: uuid.UUID
+    ) -> InventarioAlimento:
+        """Renueva la confianza: fija ultima_confirmacion = ahora ('sigo teniéndolo')."""
+        db_item = await self.get_by_id(item_id, hogar_id, lock=True)
+        db_item.ultima_confirmacion = datetime.now(UTC)
+        try:
+            await self.session.commit()
+            await self.session.refresh(db_item)
+        except IntegrityError as e:
+            await self.session.rollback()
+            raise DatabaseIntegrityError(str(e.orig)) from e
+        return db_item
+
     async def delete(
         self, item_id: uuid.UUID, hogar_id: uuid.UUID
     ) -> InventarioAlimento:
