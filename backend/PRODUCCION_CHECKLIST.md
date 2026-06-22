@@ -52,7 +52,8 @@
   nombres (`Familiar_N`) **solo en el briefing**. Los endpoints `interpret_*` y
   `sugerir-metadata` envían el texto del usuario tal cual a Gemini. Decidir si eso es
   aceptable o ampliar la anonimización antes de producción con datos reales.
-- [ ] Confirmar que `LEGALIDAD.md` sigue cumplido con la configuración final.
+- [ ] Confirmar el cumplimiento legal (RGPD/AI Act) con la configuración final — ver
+  `SECURITY.md §8` (retención/RGPD) y `01_CONTEXTO_Y_ARQUITECTURA_APP.md §5` (compliance).
 
 ---
 

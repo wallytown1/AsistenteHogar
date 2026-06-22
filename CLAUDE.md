@@ -264,7 +264,17 @@ Cada vez que crees, modifiques o consultes documentación en este repositorio, d
    👉 Enrútalo SIEMPRE a: `CLAUDE.md`.
 3. ¿Es el ESTADO TEMPORAL (Fases del proyecto, bugs actuales, roadmap de mejoras, historial)?
    👉 Enrútalo SIEMPRE a: `ESTADO_ACTUAL.md`.
-4. ¿Es una REFERENCIA ATÓMICA (Esquemas de bases de datos, especificaciones técnicas de APIs o herramientas)?
-   👉 Enrútalo a su archivo técnico: `ENDPOINTS.md` o dentro de la carpeta `.claude/skills/graphify/references/REFERENCES.md`.
+4. ¿Es una REFERENCIA ATÓMICA (Especificaciones técnicas de APIs/endpoints)?
+   👉 Enrútalo a: `ENDPOINTS.md`.
+5. ¿Es POSTURA DE SEGURIDAD (modelo de autenticación, rate limits, prompt injection, riesgos
+   aceptados, contacto de divulgación responsable)?
+   👉 Enrútalo a: `SECURITY.md` (fichero estándar de GitHub; la justificación legal RGPD/AI Act
+   de alto nivel va en `01_CONTEXTO_Y_ARQUITECTURA_APP.md §5`).
+6. ¿Es el CHANGELOG detallado (entradas fechadas por área/tipo)?
+   👉 Enrútalo a: `CHANGELOG.md` (historial pre-2026-06-11 en `CHANGELOG_ARCHIVE.md`).
+
+> **Nota:** los ficheros bajo `.claude/skills/graphify/references/` son documentación interna de
+> la skill graphify (referenciada por path exacto desde `SKILL.md`). **No tocar ni consolidar.**
+
 [Restricción]: Queda prohibido crear nuevos archivos .md en la raíz del monorepo sin confirmación explícita del usuario.
 ---

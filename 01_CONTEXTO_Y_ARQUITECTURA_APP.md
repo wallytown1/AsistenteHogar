@@ -261,6 +261,26 @@ La estética está inspirada en un minimalismo cálido y editorial (tonos crema 
 -   `AppText`: Encapsulador de texto tipográfico del sistema.
 -   `StatCard` / `EmptyState` / `Badge` / `Fab`.
 
+### 4.4 Iconografía
+-   Iconos vectoriales vía `@expo/vector-icons` (Ionicons + MaterialCommunityIcons); `FoodIcon`
+    para ingredientes (`src/components/ui/Icon.tsx`). **Sin emoji en la UI.**
+-   Área táctil mínima: **44×44 pt (iOS) / 48×48 dp (Android)**.
+
+### 4.5 Anti-patrones (prohibido)
+Reglas no negociables del sistema de diseño; verificar antes de cualquier trabajo de UI:
+
+- ❌ Gradientes púrpura / azul / genéricos.
+- ❌ Sombras azul-frío (`shadowColor: '#1E2A4A'`) — las sombras son warm-tinted.
+- ❌ Fondo `#FFFFFF` puro o `#F5F6FA` gris frío.
+- ❌ Texto negro `#000000` o `#111827` frío.
+- ❌ Fuentes Inter / Roboto hardcodeadas (se usan las del sistema).
+- ❌ `className` de NativeWind/Tailwind (eliminadas del stack).
+- ❌ Más de 1 color de acento por pantalla.
+- ❌ Radios de 4–8 px en elementos interactivos (usar la escala `radius`).
+
+> Skill de diseño activo: `~/.claude/skills/mobile-app-design/` (touch targets, contraste WCAG).
+> `src/theme/tokens.ts` es la **única fuente de verdad**: no hardcodear valores en componentes.
+
 ---
 
 ## 5. Arquitectura de Cumplimiento Legal (RGPD & AI Act)
