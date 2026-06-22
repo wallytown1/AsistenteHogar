@@ -14,11 +14,13 @@ import logging
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.models import RegistroBorrado
+from app.repositories.movimientos import MovimientoDespensaRepository
 from app.repositories.pantry import PantryRepository
 
 logger = logging.getLogger("app.jobs.purge")
 
 RETENTION_DAYS = 30
+MOVEMENTS_RETENTION_MONTHS = 12
 PURGE_INTERVAL_SECONDS = 24 * 60 * 60  # una pasada diaria
 
 
@@ -26,22 +28,41 @@ class PurgeService:
     def __init__(self, session: AsyncSession):
         self.session = session
         self.pantry_repo = PantryRepository(session)
+        self.movimientos_repo = MovimientoDespensaRepository(session)
 
-    async def run(self, retention_days: int = RETENTION_DAYS) -> int:
-        """Purga físicamente la despensa (única tabla de negocio con soft-delete) en
-        una transacción y registra la evidencia agregada. Devuelve el total de filas
+    async def run(
+        self,
+        retention_days: int = RETENTION_DAYS,
+        movements_retention_months: int = MOVEMENTS_RETENTION_MONTHS,
+    ) -> int:
+        """Purga físicamente la despensa (soft-deleted) y los movimientos antiguos (>12 meses)
+        en una transacción y registra la evidencia agregada. Devuelve el total de filas
         eliminadas."""
         try:
-            total = await self.pantry_repo.purge_expired(retention_days)
-            if total > 0:
+            total_pantry = await self.pantry_repo.purge_expired(retention_days)
+            if total_pantry > 0:
                 # Auditoría sin datos personales: solo tipo, motivo y recuento
                 self.session.add(
                     RegistroBorrado(
                         tipo_evento="purga_programada",
                         motivo=f"retencion_{retention_days}_dias",
-                        registros_afectados=total,
+                        registros_afectados=total_pantry,
                     )
                 )
+
+            total_movements = await self.movimientos_repo.purge_old_movements(
+                movements_retention_months
+            )
+            if total_movements > 0:
+                self.session.add(
+                    RegistroBorrado(
+                        tipo_evento="purga_programada",
+                        motivo=f"retencion_{movements_retention_months}_meses_movimientos",
+                        registros_afectados=total_movements,
+                    )
+                )
+
+            total = total_pantry + total_movements
             await self.session.commit()
         except Exception:
             await self.session.rollback()
@@ -49,7 +70,8 @@ class PurgeService:
 
         if total > 0:
             logger.info(
-                f"Purga física completada: {total} registro(s) eliminados definitivamente."
+                f"Purga física completada: {total} registro(s) eliminados definitivamente "
+                f"({total_pantry} de despensa, {total_movements} de movimientos)."
             )
         else:
             logger.info(
@@ -58,14 +80,19 @@ class PurgeService:
         return total
 
 
-async def run_purge_once(retention_days: int = RETENTION_DAYS) -> int:
+async def run_purge_once(
+    retention_days: int = RETENTION_DAYS,
+    movements_retention_months: int = MOVEMENTS_RETENTION_MONTHS,
+) -> int:
     """Abre su propia sesión y ejecuta una pasada de purga (CLI y scheduler)."""
     # Import diferido: app.database aborta el proceso si falta DATABASE_URL,
     # y este módulo se importa también desde main.py durante el arranque.
     from app.database import async_session_maker
 
     async with async_session_maker() as session:
-        return await PurgeService(session).run(retention_days)
+        return await PurgeService(session).run(
+            retention_days, movements_retention_months
+        )
 
 
 async def purge_scheduler() -> None:

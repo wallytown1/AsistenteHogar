@@ -1,4 +1,5 @@
 import hashlib
+from typing import cast
 
 from app.models.models import PromptTemplate
 from app.repositories.prompt_template import PromptTemplateRepository
@@ -23,8 +24,8 @@ class PromptConfigService:
         2. DB (template activo)
         3. Fallback hardcodeado
 
-        En todos los casos, _PERSONA_CHEF se antepone (voz cálida y cercana) y
-        _FILOSOFIA_MEDITERRANEA se añade al final — ninguna de las dos puede ser
+        En todos los casos, PERSONA_CHEF se antepone (voz cálida y cercana) y
+        FILOSOFIA_MEDITERRANEA se añade al final — ninguna de las dos puede ser
         eliminada por una edición del admin (la parte editable es la del medio).
         """
         cache_key = _hash_key("prompt", clave)
@@ -42,11 +43,11 @@ class PromptConfigService:
 
         # Guards no-negociables: persona cálida delante, filosofía mediterránea detrás.
         result = (
-            llm_module._PERSONA_CHEF
+            llm_module.PERSONA_CHEF
             + "\n\n"
             + base
             + "\n\n"
-            + llm_module._FILOSOFIA_MEDITERRANEA
+            + llm_module.FILOSOFIA_MEDITERRANEA
         )
 
         await llm_module._cache_set(cache_key, result, PROMPT_CACHE_TTL)
@@ -82,3 +83,44 @@ class PromptConfigService:
         await self._repo._session.commit()
         await self.invalidate(clave)
         return template
+
+    async def seed_default_templates(self) -> None:
+        """Inicializa los templates de prompt por defecto en la base de datos de manera idempotente.
+        En despliegues concurrentes, maneja IntegrityError en caso de race conditions.
+        """
+        from sqlalchemy.exc import IntegrityError
+
+        default_templates = [
+            {
+                "clave": "recetas",
+                "system_instruction": llm_module.DEFAULT_RECETAS,
+                "activo": True,
+            },
+            {
+                "clave": "plan_comidas",
+                "system_instruction": llm_module.DEFAULT_PLAN,
+                "activo": True,
+            },
+        ]
+
+        for dt in default_templates:
+            try:
+                clave = cast(str, dt["clave"])
+                system_instruction = cast(str | None, dt["system_instruction"])
+                activo = cast(bool | None, dt["activo"])
+                # Comprobar primero si ya existe para evitar la inserción
+                template = await self._repo.get_by_clave(clave)
+                if template is None:
+                    await self._repo.upsert(
+                        clave=clave,
+                        system_instruction=system_instruction,
+                        activo=activo,
+                    )
+                    await self._repo._session.commit()
+            except IntegrityError:
+                # En caso de concurrencia (race condition), otra transacción ya lo insertó.
+                # Hacemos rollback de la sesión actual para no dejarla corrupta y continuar.
+                await self._repo._session.rollback()
+            except Exception:
+                # Otros fallos menores no deben impedir el arranque de la app
+                await self._repo._session.rollback()

@@ -356,7 +356,7 @@ class MemoriaGustos(Base):
         index=True,
     )
     resumen: Mapped[str] = mapped_column(String(2000), nullable=False, default="")
-    # Nº de eventos de historial ya incorporados al resumen: permite detectar cuándo
+    # Nº de señales de historial ya incorporadas al resumen: permite detectar cuándo
     # la memoria está obsoleta (hay nuevas señales sin destilar) y recalcular.
     eventos_fuente: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     created_at: Mapped[datetime] = mapped_column(
