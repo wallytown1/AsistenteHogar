@@ -744,3 +744,20 @@ class ChefChatResponse(BaseSchema):
         None,
         description="Mensajes legibles sobre ingredientes descontados (ej: '200g de arroz')",
     )
+
+
+# --- TRANSCRIPCIÓN DE AUDIO (VOZ AL CHEF) ---
+
+
+class TranscribeAudioRequest(BaseSchema):
+    audio_base64: str = Field(
+        ..., description="Grabación de voz del usuario codificada en Base64"
+    )
+    mime_type: str = Field(
+        ..., description="MIME type del audio (ej: 'audio/m4a' o 'audio/webm')"
+    )
+
+
+class TranscribeAudioResponse(BaseSchema):
+    texto: str = Field(..., description="Texto transcrito por el asistente de IA")
+    generado_por_ia: bool = Field(False)

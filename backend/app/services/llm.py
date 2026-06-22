@@ -157,6 +157,8 @@ async def _call_gemini(
     timeout: float = 15.0,
     image_base64: str | None = None,
     contents: list[dict[str, Any]] | None = None,
+    audio_base64: str | None = None,
+    audio_mime_type: str | None = None,
 ) -> str | None:
     """Llamada a la API de Gemini con reintento acotado ante fallos transitorios.
     Devuelve el texto generado o None si falla definitivamente.
@@ -183,6 +185,15 @@ async def _call_gemini(
                         # pero idealmente el frontend enviará JPEGs.
                         "mimeType": "image/jpeg",
                         "data": image_base64,
+                    }
+                }
+            )
+        if audio_base64:
+            parts.append(
+                {
+                    "inlineData": {
+                        "mimeType": audio_mime_type or "audio/m4a",
+                        "data": audio_base64,
                     }
                 }
             )
@@ -1409,3 +1420,26 @@ async def chef_chat(
             respuesta="Ups, ha habido un problema entendiendo mi propia respuesta.",
             generado_por_ia=False,
         )
+
+
+async def transcribe_audio(audio_base64: str, mime_type: str) -> str | None:
+    """Transcribe un archivo de audio hablado en lenguaje natural.
+    Usa el modelo multimodal de Gemini para convertir voz a texto."""
+    if not GEMINI_API_KEY:
+        return None
+
+    system_instruction = (
+        "Eres un asistente de transcripción preciso. Transcribe el siguiente audio "
+        "hablado en español. Devuelve SOLO la transcripción del texto, sin añadir "
+        "comentarios, explicaciones, ni etiquetas. No añadas comillas."
+    )
+
+    texto = await _call_gemini(
+        system_instruction=system_instruction,
+        user_prompt="",
+        max_output_tokens=300,
+        audio_base64=audio_base64,
+        audio_mime_type=mime_type,
+    )
+
+    return texto

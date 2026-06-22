@@ -19,6 +19,8 @@ from app.schemas.schemas import (
     ChefChatResponse,
     PerfilIndividualResponse,
     RecetaMaestraResponse,
+    TranscribeAudioRequest,
+    TranscribeAudioResponse,
 )
 from app.services.llm import chef_chat
 from app.services.memoria import MemoriaService
@@ -103,3 +105,30 @@ async def chef_chat_endpoint(
             response.consumos_aplicados = aplicados
 
     return response
+
+
+@router.post(
+    "/chef/transcribe",
+    response_model=TranscribeAudioResponse,
+    dependencies=[Depends(check_freemium_chat_quota), Depends(chef_chat_rate_limiter)],
+)
+async def chef_transcribe_endpoint(
+    body: TranscribeAudioRequest,
+    hogar_id: uuid.UUID = Depends(get_hogar_id),
+) -> TranscribeAudioResponse:
+    """Convierte un audio hablado en texto utilizando el modelo multimodal de Gemini.
+    Comparte límite de rate limit y cuota freemium con el chat del chef."""
+    from app.services.llm import transcribe_audio
+
+    texto = await transcribe_audio(body.audio_base64, body.mime_type)
+
+    if texto is None:
+        return TranscribeAudioResponse(
+            texto="Lo siento, no he podido escuchar bien el audio. ¿Puedes repetirlo?",
+            generado_por_ia=False,
+        )
+
+    return TranscribeAudioResponse(
+        texto=texto,
+        generado_por_ia=True,
+    )

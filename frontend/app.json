@@ -50,7 +50,8 @@
           "cameraPermission": "Necesitamos acceso a la cámara para escanear tickets de compra y fotografiar la nevera.",
           "microphonePermission": false
         }
-      ]
+      ],
+      "expo-audio"
     ],
     "extra": {
       "eas": {

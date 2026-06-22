@@ -6,6 +6,20 @@ Formato: `[FECHA] [ÁREA] [TIPO] Descripción`
 
 ---
 
+## [2026-06-22] — Fase 3: Voz al Chef
+
+Integración de dictado de audio para que los usuarios puedan enviar notas de voz al asistente en lugar de teclear.
+
+### Backend
+- **ADD** `POST /chef/transcribe`: Endpoint premium que recibe el Base64 del audio y emplea la capacidad nativa de Gemini 1.5 para la transcripción del audio a texto sin intermediarios STT.
+- **MOD** `llm.py`: Añadida compatibilidad con envíos multimedia (`audio/`) vía `inlineData`.
+
+### Frontend
+- **ADD** `useAudioRecording.ts`: Hook nativo con `expo-audio` y `expo-file-system` que abstrae el manejo de permisos, grabación y posterior empaquetado en base64 de ficheros `.m4a`.
+- **MOD** `ChefChatScreen.tsx`: Modificada la caja de entrada para que actúe dinámicamente como botón de grabación *hold-to-talk* cuando el texto está vacío, emitiendo directamente el mensaje al soltar (estilo mensajería moderna).
+
+---
+
 ## [2026-06-22] — Fase 3: Briefing Personalizado
 
 El resumen matutino (Dashboard) ahora se basa en la memoria destilada del hogar para ofrecer recomendaciones hiper-personalizadas.

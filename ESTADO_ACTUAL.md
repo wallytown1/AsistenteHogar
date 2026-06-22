@@ -38,14 +38,15 @@ Este documento centraliza el estado de los despliegues, las fases en curso, el r
 ### ✅ Sesión 2026-06-22 (Parte 3) — Briefing Personalizado
 *   **Briefing Personalizado**: El saludo matutino del Chef ahora inyecta el `_bloque_memoria_gustos`, logrando que las sugerencias de aprovechamiento en el Dashboard suenen hiper-personalizadas al recordar los gustos y hábitos del hogar.
 
+### ✅ Sesión 2026-06-22 (Parte 4) — Voz al Chef
+*   **Voz al Chef**: Integrado `expo-audio` nativo para permitir mantener presionado el botón del micrófono y dictar por voz al Chef. El audio se procesa vía Base64 usando el modelo multimodal de Gemini (`/chef/transcribe`) enviándolo directamente al chat.
+
 ---
 
 ## 3. Roadmap / Próximos Pasos (Backlog)
 
 ### ⏳ Fase 3 — Mejoras del Chef (Continuación)
-1.  **Voz al Chef**:
-    *   Integración de audio dictado directamente al Chef: `expo-audio` + `POST /chef/transcribe` (Gemini audio→texto). requiere build nativo EAS.
-2.  **Chef Proactivo**:
+1.  **Chef Proactivo**:
     *   Notificaciones locales de caducidad personalizadas en la voz de Marce con deep-linking al Chat.
 
 ### ⏳ Fase 5 — Integración Comercial y Publicación

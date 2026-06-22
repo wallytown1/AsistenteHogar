@@ -190,3 +190,8 @@ export interface RechazarIngredienteResponse {
   generado_por_ia: boolean;
   mensaje: string | null;
 }
+
+export interface TranscribeAudioResponse {
+  texto: string;
+  generado_por_ia: boolean;
+}

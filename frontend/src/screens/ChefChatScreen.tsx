@@ -14,6 +14,7 @@ import { colors, spacing, radius } from '../theme/tokens';
 import { AppText, Icon } from '../components/ui';
 import AIDisclaimerBanner from '../components/AIDisclaimerBanner';
 import { useChefChat } from '../hooks/useChefChat';
+import { useAudioRecording } from '../hooks/useAudioRecording';
 import { ChefMensaje } from '../types/types';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -68,6 +69,7 @@ function Burbuja({ mensaje }: { mensaje: ChefMensaje }) {
 
 export default function ChefChatScreen() {
   const { mensajes, enviando, enviar } = useChefChat();
+  const { startRecording, stopAndTranscribe, isRecording, isTranscribing } = useAudioRecording();
   const [texto, setTexto] = useState('');
   const listRef = useRef<FlatList<ChefMensaje>>(null);
 
@@ -133,15 +135,36 @@ export default function ChefChatScreen() {
             onSubmitEditing={onEnviar}
             returnKeyType="send"
           />
-          <Pressable
-            onPress={onEnviar}
-            disabled={enviando || !texto.trim()}
-            style={[styles.sendBtn, (enviando || !texto.trim()) && styles.sendBtnDisabled]}
-            accessibilityRole="button"
-            accessibilityLabel="Enviar mensaje"
-          >
-            <Icon name="send" size={18} color={colors.onBrand} />
-          </Pressable>
+          {texto.trim() === '' && !enviando ? (
+            <Pressable
+              onPressIn={() => startRecording()}
+              onPressOut={async () => {
+                const transcription = await stopAndTranscribe();
+                if (transcription) {
+                  enviar(transcription);
+                }
+              }}
+              style={[styles.sendBtn, isRecording && styles.sendBtnRecording]}
+              accessibilityRole="button"
+              accessibilityLabel="Mantener presionado para grabar audio"
+            >
+              {isTranscribing ? (
+                <ActivityIndicator size="small" color={colors.onBrand} />
+              ) : (
+                <Icon name="mic" size={18} color={colors.onBrand} />
+              )}
+            </Pressable>
+          ) : (
+            <Pressable
+              onPress={onEnviar}
+              disabled={enviando || !texto.trim()}
+              style={[styles.sendBtn, (enviando || !texto.trim()) && styles.sendBtnDisabled]}
+              accessibilityRole="button"
+              accessibilityLabel="Enviar mensaje"
+            >
+              <Icon name="send" size={18} color={colors.onBrand} />
+            </Pressable>
+          )}
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -230,6 +253,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.brand,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  sendBtnRecording: {
+    transform: [{ scale: 1.2 }],
+    backgroundColor: colors.danger,
   },
   sendBtnDisabled: { opacity: 0.4 },
   platosContainer: {

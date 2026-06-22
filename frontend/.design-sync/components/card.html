@@ -1,0 +1,54 @@
+<!-- @dsCard group="Contenedores" name="Card" subtitle="Superficie base · tinte · presionable" -->
+<!DOCTYPE html><html lang="es"><head><meta charset="utf-8">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; background: #FAF7F2; padding: 28px; max-width: 390px; }
+.label { font-size: 11px; font-weight: 800; letter-spacing: 0.6px; text-transform: uppercase; color: #AE9B87; margin-bottom: 14px; }
+.section { margin-bottom: 24px; }
+.card { border-radius: 32px; border: 1px solid #EAE0D3; padding: 20px; box-shadow: 0 6px 14px rgba(61,43,26,0.07); margin-bottom: 10px; }
+.card-title { font-size: 15px; font-weight: 700; color: #2C1C0E; margin-bottom: 4px; }
+.card-body  { font-size: 13px; font-weight: 500; color: #7A6045; }
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.stat { text-align: center; padding: 16px 12px; }
+.stat-num { font-size: 22px; font-weight: 800; color: #8B5E3C; letter-spacing: -0.3px; }
+.stat-lbl { font-size: 11px; font-weight: 800; letter-spacing: 0.6px; text-transform: uppercase; color: #AE9B87; margin-top: 2px; }
+</style></head><body>
+
+<div class="section">
+  <div class="label">Card base</div>
+  <div class="card" style="background:#FFFDF8">
+    <div class="card-title">Tortilla española</div>
+    <div class="card-body">4 huevos · 3 patatas · 1 cebolla</div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="label">Card con tinte (brandSoft)</div>
+  <div class="card" style="background:#F6EDE3; border-color:#D9CCBC">
+    <div class="card-title" style="color:#6B4429">Recomendación del chef</div>
+    <div class="card-body" style="color:#8B5E3C">Marce sugiere este plato basándose en tu despensa de hoy.</div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="label">Card con tinte semántico (éxito)</div>
+  <div class="card" style="background:#EBF4EE; border-color:#C0DCCA">
+    <div class="card-title" style="color:#3D6B49">Stock confirmado</div>
+    <div class="card-body" style="color:#5C8B68">Todos los ingredientes están disponibles en tu despensa.</div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="label">StatCard (grid 2 col)</div>
+  <div class="row2">
+    <div class="card stat" style="background:#FFFDF8">
+      <div class="stat-num">12</div>
+      <div class="stat-lbl">Recetas</div>
+    </div>
+    <div class="card stat" style="background:#FFFDF8">
+      <div class="stat-num">28</div>
+      <div class="stat-lbl">Ingredientes</div>
+    </div>
+  </div>
+</div>
+</body></html>
