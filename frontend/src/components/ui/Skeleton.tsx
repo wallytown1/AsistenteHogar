@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, ViewStyle, DimensionValue, StyleProp } from 'react-native';
 import { MotiView } from 'moti';
+import { useReducedMotion } from 'react-native-reanimated';
 import { colors, radius, shadow, spacing } from '../../theme/tokens';
 
 interface SkeletonProps {
@@ -10,20 +11,31 @@ interface SkeletonProps {
   style?: StyleProp<ViewStyle>;
 }
 
-/** Átomo base pulsante. Usa moti para animar en el hilo nativo. */
+/**
+ * Átomo base pulsante. Usa moti para animar en el hilo nativo.
+ * Respeta "Reducir movimiento" del SO: con la opción activa muestra una
+ * opacidad estática en lugar del pulso infinito (accesibilidad).
+ */
 export const Skeleton: React.FC<SkeletonProps> = ({
   width = '100%',
   height = 20,
   borderRadius = radius.md,
   style,
-}) => (
-  <MotiView
-    transition={{ type: 'timing', duration: 1000, loop: true }}
-    from={{ opacity: 0.3 }}
-    animate={{ opacity: 0.7 }}
-    style={[{ width, height, borderRadius, backgroundColor: colors.cardAlt }, style]}
-  />
-);
+}) => {
+  const reduceMotion = useReducedMotion();
+  return (
+    <MotiView
+      transition={
+        reduceMotion
+          ? { type: 'timing', duration: 0 }
+          : { type: 'timing', duration: 1000, loop: true }
+      }
+      from={{ opacity: reduceMotion ? 0.5 : 0.3 }}
+      animate={{ opacity: reduceMotion ? 0.5 : 0.7 }}
+      style={[{ width, height, borderRadius, backgroundColor: colors.cardAlt }, style]}
+    />
+  );
+};
 
 // ─── Helpers de composición ────────────────────────────────────────────────
 
