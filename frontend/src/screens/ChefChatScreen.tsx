@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import {
   View,
   StyleSheet,
@@ -16,7 +16,7 @@ import AIDisclaimerBanner from '../components/AIDisclaimerBanner';
 import { useChefChat } from '../hooks/useChefChat';
 import { useAudioRecording } from '../hooks/useAudioRecording';
 import { ChefMensaje } from '../types/types';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { haptics } from '../lib/haptics';
 import RecipeChatCard from '../components/chat/RecipeChatCard';
@@ -72,6 +72,16 @@ export default function ChefChatScreen() {
   const { startRecording, stopAndTranscribe, isRecording, isTranscribing } = useAudioRecording();
   const [texto, setTexto] = useState('');
   const listRef = useRef<FlatList<ChefMensaje>>(null);
+  const route = useRoute<any>();
+  const navigation = useNavigation<NativeStackNavigationProp<any>>();
+
+  useEffect(() => {
+    if (route.params?.initialMessage) {
+      enviar(route.params.initialMessage);
+      // Limpiamos para que no se reenvíe
+      navigation.setParams({ initialMessage: undefined });
+    }
+  }, [route.params?.initialMessage, enviar, navigation]);
 
   const onEnviar = () => {
     const limpio = texto.trim();

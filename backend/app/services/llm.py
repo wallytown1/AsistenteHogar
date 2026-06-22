@@ -307,16 +307,32 @@ def generate_fallback_briefing(context: DashboardUnifiedContext) -> str:
     return "\n".join(lines)
 
 
+_BRIEFING_RESPONSE_SCHEMA = {
+    "type": "OBJECT",
+    "properties": {
+        "briefing_texto": {
+            "type": "STRING",
+            "description": "El saludo matutino cálido y sugerencias de aprovechamiento, en 2 párrafos.",
+        },
+        "notificacion_push": {
+            "type": "STRING",
+            "description": "Un mensaje corto (<120 caracteres) para una notificación push en el móvil para recordar cocinar algo antes de que caduque. Omitir o dejar vacío si no hay alertas urgentes.",
+        },
+    },
+    "required": ["briefing_texto"],
+}
+
+
 async def generate_morning_briefing(
     context: DashboardUnifiedContext,
     memoria: MemoriaGustosResponse | None = None,
-) -> tuple[str, bool]:
+) -> tuple[str, str | None, bool]:
     """Genera el resumen personalizado del hogar con Gemini, con caché TTL y
     fallback estático en caso de error de API o red.
-    Devuelve (texto, generado_por_ia): el flag permite al cliente mostrar el
+    Devuelve (texto, notificacion, generado_por_ia): el flag permite al cliente mostrar el
     aviso de transparencia de IA solo cuando el texto proviene del modelo."""
     if not GEMINI_API_KEY:
-        return generate_fallback_briefing(context), False
+        return generate_fallback_briefing(context), None, False
 
     # El briefing solo maneja datos de despensa (nombres de alimentos), nunca
     # datos personales, por lo que no requiere anonimización.
@@ -342,7 +358,15 @@ async def generate_morning_briefing(
     cache_key = _hash_key("briefing", prompt_usuario)
     cached = await _cache_get(cache_key)
     if cached is not None:
-        return cached, True
+        try:
+            parsed = json.loads(cached)
+            return (
+                parsed.get("briefing_texto", ""),
+                parsed.get("notificacion_push"),
+                True,
+            )
+        except json.JSONDecodeError:
+            pass
 
     system_instruction = (
         _PERSONA_CHEF + "\n\n"
@@ -351,21 +375,43 @@ async def generate_morning_briefing(
         "1. Un saludo matutino cálido y apetitoso que invite a cocinar algo casero hoy.\n"
         "2. Una recomendación amable sobre qué alimentos de la despensa aprovechar pronto "
         "porque están a punto de caducar, sugiriendo de forma natural algún plato tradicional "
-        "español para aprovecharlos.\n\n"
+        "español para aprovecharlos.\n"
+        "3. (Opcional) Una 'notificacion_push' si hay alimentos que caducan. "
+        "Imagina que se la envías al usuario al móvil para animarle a abrir la app.\n\n"
         "Restricciones críticas de seguridad e IA:\n"
         "- Sé extremadamente veraz y fiel a los datos proporcionados. Prohibido inventar alimentos.\n"
-        "- Cocina mediterránea española tradicional y de aprovechamiento; nada de fusiones impropias.\n"
-        "- NO uses NINGUNA marca de formato Markdown (ni *, ni -, ni #). Solo usa texto plano y puntos y aparte."
+        "- Cocina mediterránea española tradicional y de aprovechamiento.\n"
+        "- NO uses NINGUNA marca de formato Markdown en el briefing."
     )
 
-    texto = await _call_gemini(
-        system_instruction, prompt_usuario, max_output_tokens=400
+    texto_json = await _call_gemini(
+        system_instruction,
+        prompt_usuario,
+        max_output_tokens=500,
+        response_schema=_BRIEFING_RESPONSE_SCHEMA,
     )
-    if texto is None:
-        return generate_fallback_briefing(context), False
+    if texto_json is None:
+        return generate_fallback_briefing(context), None, False
 
-    await _cache_set(cache_key, texto, BRIEFING_CACHE_TTL)
-    return texto, True
+    try:
+        parsed = json.loads(texto_json)
+        briefing_texto = parsed.get(
+            "briefing_texto", generate_fallback_briefing(context)
+        )
+        notificacion_push = parsed.get("notificacion_push")
+        await _cache_set(
+            cache_key,
+            json.dumps(
+                {
+                    "briefing_texto": briefing_texto,
+                    "notificacion_push": notificacion_push,
+                }
+            ),
+            BRIEFING_CACHE_TTL,
+        )
+        return briefing_texto, notificacion_push, True
+    except json.JSONDecodeError:
+        return generate_fallback_briefing(context), None, False
 
 
 # --- Sugerencias de recetas -----------------------------------------------------

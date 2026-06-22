@@ -44,6 +44,7 @@ class DashboardService:
         # en el cliente solo cuando el texto proviene realmente del modelo.
         (
             context.briefing_texto,
+            context.notificacion_push,
             context.briefing_generado_por_ia,
         ) = await generate_morning_briefing(context, memoria)
 

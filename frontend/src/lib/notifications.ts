@@ -42,7 +42,7 @@ function cuerpo(primero: string, total: number, sufijo: string): string {
   return `${primero} y ${total - 1} alimento${total > 2 ? 's' : ''} más ${sufijo}.`;
 }
 
-export async function programarAlertasCaducidad(alertas: AlimentoItem[]): Promise<void> {
+export async function programarNotificacionMarce(texto: string): Promise<void> {
   if (Platform.OS === 'web') return;
   const { status } = await Notifications.getPermissionsAsync();
   if (status !== 'granted') return;
@@ -52,41 +52,23 @@ export async function programarAlertasCaducidad(alertas: AlimentoItem[]): Promis
     Notifications.cancelScheduledNotificationAsync(ID_PRONTO),
   ]);
 
-  const urgentes = alertas.filter((i) => {
-    const d = getDiasParaCaducar(i.fecha_caducidad);
-    return d !== null && d <= 3;
-  });
-  const proximos = alertas.filter((i) => {
-    const d = getDiasParaCaducar(i.fecha_caducidad);
-    return d !== null && d > 3;
-  });
+  if (!texto) return;
 
   const trigger: Notifications.DateTriggerInput = {
     type: Notifications.SchedulableTriggerInputTypes.DATE,
     date: proxima9am(),
   };
 
-  if (urgentes.length > 0) {
-    await Notifications.scheduleNotificationAsync({
-      identifier: ID_URGENTE,
-      content: {
-        title: '¡Revisa tu despensa!',
-        body: cuerpo(urgentes[0].nombre, urgentes.length, 'caduca muy pronto'),
-        data: { tipo: 'urgente' },
+  await Notifications.scheduleNotificationAsync({
+    identifier: ID_URGENTE, // Reusamos el ID para asegurar unicidad
+    content: {
+      title: 'Marce 🧑‍🍳',
+      body: texto,
+      data: {
+        screen: 'ChefChat',
+        isFromPush: true,
       },
-      trigger,
-    });
-  }
-
-  if (proximos.length > 0) {
-    await Notifications.scheduleNotificationAsync({
-      identifier: ID_PRONTO,
-      content: {
-        title: 'Alimentos para usar esta semana',
-        body: cuerpo(proximos[0].nombre, proximos.length, 'caduca pronto'),
-        data: { tipo: 'pronto' },
-      },
-      trigger,
-    });
-  }
+    },
+    trigger,
+  });
 }

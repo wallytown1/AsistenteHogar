@@ -6,6 +6,19 @@ Formato: `[FECHA] [ÁREA] [TIPO] Descripción`
 
 ---
 
+## [2026-06-22] — Fase 3: Chef Proactivo (Notificaciones IA)
+
+Implementado un sistema inteligente de notificaciones locales para evitar desperdicio de comida, utilizando la IA como motor conversacional para avisos push.
+
+### Backend
+- **MOD** `llm.py`: Alterado `generate_morning_briefing` para utilizar `responseSchema` estructurado. Ahora devuelve el clásico briefing y, paralelamente, genera una alerta corta (<120 caracteres) en la voz de Marce enfocada en ingredientes próximos a caducar.
+- **MOD** `dashboard.py`: Añadido el campo `notificacion_push` al modelo de contexto que consume la app al inicio.
+
+### Frontend
+- **MOD** `useDashboard.ts` & `notifications.ts`: La aplicación atrapa la sugerencia y programa nativamente (`expo-notifications`) un aviso local para las 9:00 AM del día siguiente.
+- **MOD** `AppNavigator.tsx`: Añadido *Deep-Linking* interno (`useLastNotificationResponse`). Al tocar el aviso, la app abre directamente la sección del Chef.
+- **MOD** `ChefChatScreen.tsx`: Soporte para parámetro `initialMessage`. Al entrar vía Push, el Chef auto-envía un mensaje de bienvenida contextual.
+
 ## [2026-06-22] — Fase 3: Voz al Chef
 
 Integración de dictado de audio para que los usuarios puedan enviar notas de voz al asistente en lugar de teclear.

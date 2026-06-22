@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { AlimentoItem, PantryStockMetrics } from '../types/types';
 import { apiRequest, TIMEOUT } from '../api/api';
-import { programarAlertasCaducidad } from '../lib/notifications';
 
 /**
  * Retorna los días restantes para la caducidad de un alimento.
@@ -39,7 +38,6 @@ export function usePantry() {
       setPorcentajeStock(data.porcentaje_stock);
       setItemsDisponibles(data.items_disponibles);
       setAlertasCaducidad(data.alertas_caducidad || []);
-      programarAlertasCaducidad(data.alertas_caducidad || []).catch(() => {});
     } catch (err: any) {
       if (err.name === 'AbortError') return;
       setError(

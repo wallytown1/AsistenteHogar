@@ -259,6 +259,9 @@ class DashboardUnifiedContext(BaseSchema):
     briefing_texto: str | None = Field(
         None, description="Resumen ejecutivo amigable generado por IA"
     )
+    notificacion_push: str | None = Field(
+        None, description="Texto corto para notificación push proactiva"
+    )
     briefing_generado_por_ia: bool = Field(
         False,
         description="True si el briefing proviene del modelo de IA (obliga a mostrar el aviso de transparencia); False si es el fallback estático",

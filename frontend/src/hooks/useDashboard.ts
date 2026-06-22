@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { DashboardData } from '../types/types';
 import { apiRequest, TIMEOUT } from '../api/api';
+import { programarNotificacionMarce } from '../lib/notifications';
 
 /**
  * Hook para la orquestación asíncrona del Dashboard (Informe de la Mañana).
@@ -16,6 +17,9 @@ export function useDashboard() {
     try {
       const data = await apiRequest<DashboardData>('/dashboard', { signal, timeoutMs: TIMEOUT.AI });
       setBriefing(data);
+      if (data.notificacion_push) {
+        programarNotificacionMarce(data.notificacion_push).catch(console.error);
+      }
     } catch (err: any) {
       if (err.name === 'AbortError') return;
       setError(

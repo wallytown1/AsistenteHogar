@@ -95,6 +95,7 @@ export interface DashboardData {
   fecha: string;
   alertas_despensa: PantryStockMetrics;
   briefing_texto?: string;
+  notificacion_push?: string;
   /** True si el briefing proviene del LLM: obliga a mostrar el aviso de transparencia IA */
   briefing_generado_por_ia?: boolean;
 }

@@ -41,13 +41,12 @@ Este documento centraliza el estado de los despliegues, las fases en curso, el r
 ### ✅ Sesión 2026-06-22 (Parte 4) — Voz al Chef
 *   **Voz al Chef**: Integrado `expo-audio` nativo para permitir mantener presionado el botón del micrófono y dictar por voz al Chef. El audio se procesa vía Base64 usando el modelo multimodal de Gemini (`/chef/transcribe`) enviándolo directamente al chat.
 
+### ✅ Sesión 2026-06-22 (Parte 5) — Chef Proactivo (Fase 3 Completada)
+*   **Chef Proactivo**: Implementadas notificaciones push locales con IA. Al cargar el Dashboard, el LLM calcula silenciosamente una notificación de caducidad en la voz de Marce. El frontend la programa para el día siguiente usando `expo-notifications`, y si el usuario la toca (deep-link), abre automáticamente la pantalla de Chat con un saludo contextual.
+
 ---
 
 ## 3. Roadmap / Próximos Pasos (Backlog)
-
-### ⏳ Fase 3 — Mejoras del Chef (Continuación)
-1.  **Chef Proactivo**:
-    *   Notificaciones locales de caducidad personalizadas en la voz de Marce con deep-linking al Chat.
 
 ### ⏳ Fase 5 — Integración Comercial y Publicación
 *   Definición de `REVENUECAT_SECRET_KEY` en producción (Railway) para cerrar el gate premium.

@@ -4,10 +4,12 @@ import {
   BottomTabNavigationOptions,
 } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { RouteProp } from '@react-navigation/native';
+import { RouteProp, useNavigation } from '@react-navigation/native';
 import { ActivityIndicator, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import * as Notifications from 'expo-notifications';
+
 import DashboardScreen from '../screens/DashboardScreen';
 import PantryScreen from '../screens/PantryScreen';
 import SettingsScreen from '../screens/SettingsScreen';
@@ -30,7 +32,7 @@ import { colors } from '../theme/tokens';
 type RootTabParamList = {
   Inicio: undefined;
   Despensa: undefined;
-  Chef: undefined;
+  Chef: { initialMessage?: string } | undefined;
   Compra: undefined;
   Ajustes: undefined;
 };
@@ -122,6 +124,24 @@ function CenteredLoader() {
  */
 function AuthedApp() {
   const { needsProfile, checked, savePerfil, skip } = useOnboarding();
+  const navigation = useNavigation<any>();
+  const lastNotificationResponse = Notifications.useLastNotificationResponse();
+
+  useEffect(() => {
+    if (
+      lastNotificationResponse &&
+      lastNotificationResponse.notification.request.content.data?.screen === 'ChefChat' &&
+      lastNotificationResponse.actionIdentifier === Notifications.DEFAULT_ACTION_IDENTIFIER
+    ) {
+      const isFromPush = lastNotificationResponse.notification.request.content.data?.isFromPush;
+      if (isFromPush) {
+        navigation.navigate('Chef', {
+          initialMessage:
+            '¡Hola! He venido por tu aviso de los alimentos que van a caducar pronto. ¿Qué preparamos?',
+        });
+      }
+    }
+  }, [lastNotificationResponse, navigation]);
 
   if (!checked) {
     return <CenteredLoader />;
