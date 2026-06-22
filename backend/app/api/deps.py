@@ -208,13 +208,6 @@ async def get_pantry_service(
     return PantryService(pantry_repo, MovimientoDespensaRepository(session))
 
 
-async def get_dashboard_service(
-    pantry_service: PantryService = Depends(get_pantry_service),
-) -> DashboardService:
-    """Provee una instancia de DashboardService (resumen de despensa)."""
-    return DashboardService(pantry_service)
-
-
 async def get_onboarding_service(
     session: AsyncSession = Depends(get_async_session),
 ) -> OnboardingService:
@@ -239,6 +232,14 @@ async def get_memoria_service(
 ) -> MemoriaService:
     """Provee MemoriaService (lectura de memoria + recálculo cuando está obsoleta)."""
     return _build_memoria_service(session)
+
+
+async def get_dashboard_service(
+    pantry_service: PantryService = Depends(get_pantry_service),
+    memoria_service: MemoriaService = Depends(get_memoria_service),
+) -> DashboardService:
+    """Provee una instancia de DashboardService (resumen de despensa e inyección de memoria)."""
+    return DashboardService(pantry_service, memoria_service)
 
 
 async def get_historial_service(

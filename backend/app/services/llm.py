@@ -298,6 +298,7 @@ def generate_fallback_briefing(context: DashboardUnifiedContext) -> str:
 
 async def generate_morning_briefing(
     context: DashboardUnifiedContext,
+    memoria: MemoriaGustosResponse | None = None,
 ) -> tuple[str, bool]:
     """Genera el resumen personalizado del hogar con Gemini, con caché TTL y
     fallback estático en caso de error de API o red.
@@ -323,6 +324,7 @@ async def generate_morning_briefing(
     prompt_usuario = (
         f"Fecha: {context.fecha}\n"
         f"Alimentos que vencen pronto en despensa: {resumen_alimentos}\n"
+        f"{_bloque_memoria_gustos(memoria)}"
     )
 
     # Caché: si la despensa no cambió, reutilizar el briefing reciente.

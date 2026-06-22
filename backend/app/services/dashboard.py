@@ -4,12 +4,14 @@ from datetime import UTC, datetime
 from app.core.utils import sanitize_text
 from app.schemas.schemas import DashboardUnifiedContext
 from app.services.llm import generate_morning_briefing
+from app.services.memoria import MemoriaService
 from app.services.pantry import PantryService
 
 
 class DashboardService:
-    def __init__(self, pantry_service: PantryService):
+    def __init__(self, pantry_service: PantryService, memoria_service: MemoriaService):
         self.pantry_service = pantry_service
+        self.memoria_service = memoria_service
 
     async def get_unified_dashboard(
         self, hogar_id: uuid.UUID
@@ -17,6 +19,7 @@ class DashboardService:
         """Recopila el estado de la despensa del hogar y genera el resumen de la
         mañana centrado en stock, caducidades y recetas de aprovechamiento."""
         alertas_despensa = await self.pantry_service.get_stock_metrics(hogar_id)
+        memoria = await self.memoria_service.obtener(hogar_id)
 
         # Consistencia de zona horaria: fecha actual en UTC
         hoy_utc = datetime.now(UTC).date()
@@ -42,6 +45,6 @@ class DashboardService:
         (
             context.briefing_texto,
             context.briefing_generado_por_ia,
-        ) = await generate_morning_briefing(context)
+        ) = await generate_morning_briefing(context, memoria)
 
         return context

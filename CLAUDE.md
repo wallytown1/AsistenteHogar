@@ -1,6 +1,7 @@
-# Guía Práctica de Desarrollo — CLAUDE.md
+# CLAUDE.md
 
-Este documento sirve como manual práctico de referencia rápida ("How-To") para la ejecución de comandos, el flujo de trabajo de git y las directrices de calidad de este repositorio.
+> **How-To operativo**: comandos de consola, flujo git y directrices de calidad de este monorepo.
+> Para arquitectura/conceptos → `01_CONTEXTO_Y_ARQUITECTURA_APP.md`. Para estado/roadmap → `ESTADO_ACTUAL.md`.
 
 ---
 

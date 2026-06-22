@@ -35,16 +35,17 @@ Este documento centraliza el estado de los despliegues, las fases en curso, el r
 *   **Descuento Automático**: La IA extrae los ingredientes consumidos según el chat y el backend actualiza la despensa automáticamente, mostrando badges verdes de confirmación.
 *   **Cupo Freemium**: Límite de 5 mensajes diarios por hogar para cuentas gratuitas (`CHEF_FREE_DAILY_LIMIT`), validado mediante Redis (o fallback en memoria). Superado el límite, se devuelve un error 402 que navega automáticamente a la pasarela de pago (`PaywallScreen`).
 
+### ✅ Sesión 2026-06-22 (Parte 3) — Briefing Personalizado
+*   **Briefing Personalizado**: El saludo matutino del Chef ahora inyecta el `_bloque_memoria_gustos`, logrando que las sugerencias de aprovechamiento en el Dashboard suenen hiper-personalizadas al recordar los gustos y hábitos del hogar.
+
 ---
 
 ## 3. Roadmap / Próximos Pasos (Backlog)
 
 ### ⏳ Fase 3 — Mejoras del Chef (Continuación)
-1.  **Briefing Personal**:
-    *   Inyectar el contexto de `memoria_gustos` en `generate_morning_briefing` en el backend.
-2.  **Voz al Chef**:
+1.  **Voz al Chef**:
     *   Integración de audio dictado directamente al Chef: `expo-audio` + `POST /chef/transcribe` (Gemini audio→texto). requiere build nativo EAS.
-3.  **Chef Proactivo**:
+2.  **Chef Proactivo**:
     *   Notificaciones locales de caducidad personalizadas en la voz de Marce con deep-linking al Chat.
 
 ### ⏳ Fase 5 — Integración Comercial y Publicación

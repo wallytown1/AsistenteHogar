@@ -6,6 +6,17 @@ Formato: `[FECHA] [ÁREA] [TIPO] Descripción`
 
 ---
 
+## [2026-06-22] — Fase 3: Briefing Personalizado
+
+El resumen matutino (Dashboard) ahora se basa en la memoria destilada del hogar para ofrecer recomendaciones hiper-personalizadas.
+
+### Backend
+- **MOD** `deps.py`: Inyectada la dependencia `MemoriaService` dentro del `get_dashboard_service`.
+- **MOD** `dashboard.py`: Obtenida la memoria destilada del hogar (`memoria_service.obtener`) y enviada a la rutina generativa.
+- **MOD** `llm.py`: Extendido `generate_morning_briefing` y su prompt para incorporar el `_bloque_memoria_gustos(memoria)`, dotando al "Buenos Días" del asistente de contexto histórico sobre el comportamiento de la familia.
+
+---
+
 ## [2026-06-22] — Fase 3: Chat Accionable y Cupo Freemium
 
 El chat del chef ("Marce") ahora es interactivo y transaccional, con soporte freemium integrado.
