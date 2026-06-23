@@ -67,6 +67,10 @@ Este documento centraliza el estado de los despliegues, las fases en curso, el r
 ### ✅ Sesión 2026-06-22 (Parte 5) — Chef Proactivo (Fase 3 Completada)
 *   **Chef Proactivo**: Implementadas notificaciones push locales con IA. Al cargar el Dashboard, el LLM calcula silenciosamente una notificación de caducidad en la voz de Marce. El frontend la programa para el día siguiente usando `expo-notifications`, y si el usuario la toca (deep-link), abre automáticamente la pantalla de Chat con un saludo contextual.
 
+### ✅ Sesión 2026-06-23 (Parte 2) — Smoke test de `/restaurar` y limpieza de deuda técnica
+*   **Bloque 4 en `smoke_test_chef.py`**: 10 checks nuevos que cubren el flujo completo de `POST /pantry/{id}/restaurar`: agotar → restaurar → reaparición en GET /pantry + 404 en ítem activo + 404 en ítem ajeno + compensación en ledger (`tipo=compra`, `origen=undo`) verificada vía sesión async directa.
+*   **Deuda técnica actualizada**: eliminados ítems obsoletos (caché Redis y rate-limit ya implementados en código; react-native-svg y Unsplash no existen en el proyecto). Deuda real restante: `REDIS_URL` en Railway, billing Gemini, y ruta del hook pre-commit backend.
+
 ### ✅ Sesión 2026-06-23 — Calidad UX: React Query, Toast y Undo del Chef
 *   **React Query**: Hooks de datos migrados a `useQuery`/`useMutation` con caché compartida por dominio (`['pantry']`, `['lista-compra']`, `['dashboard']`, etc.). El Dashboard IA ya no se regenera al cambiar de pestaña mientras el caché esté fresco.
 *   **Mutaciones optimistas**: `toggleItem`/`deleteItem`/`clearChecked` en lista de la compra y `agotarItem`/`confirmarItem`/`updateQuantity` en despensa actualizan la UI al instante con rollback automático si falla la red.

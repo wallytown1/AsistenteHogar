@@ -5,6 +5,7 @@ de memoria es no-op: se valida contrato, gating, validacion y aislamiento, no la
 
 Ejecutar: python smoke_test_chef.py
 """
+import asyncio
 import os
 import sys
 import uuid
@@ -22,9 +23,12 @@ alembic_cfg = Config("alembic.ini")
 alembic_command.upgrade(alembic_cfg, "head")
 
 from fastapi.testclient import TestClient
+from sqlalchemy import select
 from app.main import app
+from app.models.models import MovimientoDespensa
 
 fallos: list[str] = []
+hogarA_id: str | None = None
 
 
 def check(nombre: str, condicion: bool, detalle: str = "") -> None:
@@ -130,6 +134,63 @@ with TestClient(app) as client:
     r = client.get("/api/v1/pantry/recetas/historial", headers=hA)
     check("3.2 hogar A ve sus 2 entradas", r.status_code == 200 and len(r.json()) == 2, f"n={len(r.json())}")
 
+    # --- Bloque 4: Restaurar (undo chef) ---
+    print("\n[Bloque 4] Restaurar endpoint (undo chef)")
+
+    r_loginA = client.post("/api/v1/auth/login", json={"email": "chef_A@test.com", "password": "SecurePass123"})
+    hogarA_id = r_loginA.json().get("hogar", {}).get("id")
+
+    r = client.post("/api/v1/pantry", json={
+        "nombre": "Aceite de oliva", "cantidad": 1.0, "unidad": "litro", "categoria": "Aceites",
+    }, headers=hA)
+    check("4.1 Crear item para test restaurar -> 201", r.status_code == 201, f"status={r.status_code}")
+    item_id = r.json().get("id") if r.status_code == 201 else None
+
+    if item_id:
+        r = client.post(f"/api/v1/pantry/{item_id}/agotar", headers=hA)
+        check("4.2 Agotar item -> 200", r.status_code == 200, f"status={r.status_code}")
+
+        r = client.get("/api/v1/pantry", headers=hA)
+        ids_activos = [i["id"] for i in r.json().get("items", [])]
+        check("4.3 Item agotado no aparece en GET /pantry", item_id not in ids_activos)
+
+        r = client.post(f"/api/v1/pantry/{item_id}/restaurar", headers=hA)
+        check("4.4 POST /restaurar -> 200", r.status_code == 200, f"status={r.status_code}")
+        body = r.json() if r.status_code == 200 else {}
+        check("4.5 Respuesta tiene is_deleted=False", body.get("is_deleted") is False)
+        check("4.6 Respuesta conserva el mismo id", body.get("id") == item_id)
+
+        r = client.get("/api/v1/pantry", headers=hA)
+        ids_activos = [i["id"] for i in r.json().get("items", [])]
+        check("4.7 Item restaurado reaparece en GET /pantry", item_id in ids_activos)
+
+        r = client.post(f"/api/v1/pantry/{item_id}/restaurar", headers=hA)
+        check("4.8 Restaurar item activo (no soft-deleted) -> 404", r.status_code == 404, f"status={r.status_code}")
+
+        client.post(f"/api/v1/pantry/{item_id}/agotar", headers=hA)
+        r = client.post(f"/api/v1/pantry/{item_id}/restaurar", headers=hB)
+        check("4.9 Restaurar item ajeno (otro hogar) -> 404", r.status_code == 404, f"status={r.status_code}")
+
+
+async def _verificar_ledger_restaurar() -> None:
+    from app.database import async_session_maker
+
+    async with async_session_maker() as session:
+        stmt = select(MovimientoDespensa).where(
+            MovimientoDespensa.hogar_id == uuid.UUID(hogarA_id),
+            MovimientoDespensa.origen == "undo",
+            MovimientoDespensa.tipo == "compra",
+        )
+        resultado = list((await session.execute(stmt)).scalars().all())
+        check(
+            "4.10 Ledger: compensación tipo=compra origen=undo registrada",
+            len(resultado) >= 1,
+            f"n={len(resultado)}",
+        )
+
+
+if hogarA_id:
+    asyncio.run(_verificar_ledger_restaurar())
 
 print("\n" + "=" * 50)
 if fallos:
