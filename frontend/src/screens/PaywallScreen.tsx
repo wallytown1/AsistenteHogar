@@ -241,9 +241,31 @@ export default function PaywallScreen() {
         />
 
         <AppText variant="micro" color="inkFaint" style={styles.legal}>
-          Los precios pueden variar por región. Las suscripciones se renuevan automáticamente.
-          Puedes cancelar en cualquier momento desde los ajustes de tu cuenta.
+          Precios con IVA incluido, según la pantalla de compra. Las suscripciones son de pago
+          recurrente y se renuevan automáticamente al final de cada periodo salvo que las canceles
+          al menos 24 h antes, desde los ajustes de App Store o Google Play. El cobro lo gestiona la
+          tienda de aplicaciones. Servicio para mayores de 14 años.
         </AppText>
+
+        <View style={styles.legalLinks}>
+          <AppText
+            variant="micro"
+            style={styles.legalLink}
+            onPress={() => navigation.navigate('Legal', { documento: 'terminos' })}
+          >
+            Términos de Servicio
+          </AppText>
+          <AppText variant="micro" color="inkFaint">
+            {'  ·  '}
+          </AppText>
+          <AppText
+            variant="micro"
+            style={styles.legalLink}
+            onPress={() => navigation.navigate('Legal', { documento: 'privacidad' })}
+          >
+            Política de Privacidad
+          </AppText>
+        </View>
       </ScrollView>
     </View>
   );
@@ -307,4 +329,11 @@ const styles = StyleSheet.create({
   },
   restoreButton: { marginTop: spacing.xl },
   legal: { textAlign: 'center', marginTop: spacing.lg, paddingHorizontal: spacing.md },
+  legalLinks: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: spacing.sm,
+  },
+  legalLink: { color: colors.brand, fontWeight: '600' },
 });
