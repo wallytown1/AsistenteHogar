@@ -517,6 +517,10 @@ export default function PantryScreen() {
             procesarImagenParaRevision(result);
           },
         },
+        {
+          text: 'PDF Mercadona',
+          onPress: () => navigation.navigate('TicketImportPdf'),
+        },
       ]);
     } catch {
       Alert.alert('Error', 'No se pudo abrir la cámara.');

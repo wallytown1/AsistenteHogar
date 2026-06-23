@@ -122,6 +122,22 @@ export interface AlimentoInterpretado {
   fecha_caducidad: string | null; // YYYY-MM-DD
 }
 
+export interface ProductoTicketPdf {
+  nombre: string;
+  cantidad: number;
+  unidad: string;
+  categoria: string;
+  fecha_caducidad: string | null; // YYYY-MM-DD
+  precio_unitario: number | null; // € por unidad extraído del ticket
+}
+
+export interface TicketPdfResponse {
+  productos: ProductoTicketPdf[];
+  fecha_compra: string | null; // YYYY-MM-DD
+  supermercado: string | null;
+  mensaje: string | null;
+}
+
 export interface InterpretarDespensaResponse {
   alimentos: AlimentoInterpretado[];
   mensaje: string | null;
