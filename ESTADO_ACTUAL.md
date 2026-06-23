@@ -16,6 +16,10 @@ Este documento centraliza el estado de los despliegues, las fases en curso, el r
 
 ## 2. Sesiones Recientes
 
+### ✅ Sesión 2026-06-23 (Parte 3) — Optimización del Carisma del Chef (Marce)
+*   **Carisma potenciado**: Modificada la directiva `PERSONA_CHEF` en `llm.py` para dotar a Marce de un tono más coloquial, cercano, informal y entusiasta ("tío cocinillas/amigo de la familia"), utilizando expresiones cotidianas y cálidas españolas, e invitaciones apasionadas al aprovechamiento gastronómico sin perder rigor.
+*   **Verificación**: Ejecutada la suite de 13 pruebas de humo del backend (SQLite).
+
 ### ✅ Sesión 2026-06-22 (Parte 9) — Skeleton Screens (Adopción Design System)
 *   **Skeleton helpers**: Extendido `Skeleton.tsx` con 7 helpers de composición (`SkeletonText`, `SkeletonCard`, `SkeletonImage`, `SkeletonChip`, `SkeletonStatCard`, `SkeletonRecipeRow`, `SkeletonSteps`). Todos animan en hilo nativo vía Moti.
 *   **5 skeleton screens**: Creados en `frontend/src/components/skeletons/` — `DashboardSkeleton`, `PantrySkeleton`, `ShoppingListSkeleton`, `PlanComidaSkeleton`, `HistorialSkeleton`. Ghost-layouts que simulan la estructura real del contenido.
