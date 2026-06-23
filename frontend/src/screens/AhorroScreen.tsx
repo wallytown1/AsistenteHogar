@@ -60,8 +60,11 @@ export default function AhorroScreen() {
     if (!data) return;
     haptics.selection();
     try {
+      const detalle = esEstimado
+        ? `valor estimado de lo cocinado: ${ahorroMostrado.toFixed(2)} €`
+        : `valor aprovechado a precios reales: ${ahorroMostrado.toFixed(2)} €`;
       await Share.share({
-        message: `🌿 Este mes he aprovechado la despensa y evitado desperdiciar ${data.kg_no_desperdiciados.toFixed(1)} kg de comida. Ahorro estimado: ${ahorroMostrado.toFixed(2)} €. #AsistenteHogar #SinDesperdicio`,
+        message: `🌿 Este mes he cocinado con lo que tenía en casa (~${data.kg_no_desperdiciados.toFixed(1)} kg estimados). ${detalle}. #AsistenteHogar #SinDesperdicio`,
       });
     } catch {
       // user cancelled
@@ -110,10 +113,28 @@ export default function AhorroScreen() {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
-          {/* Hero: € ahorrado */}
+          {/* Hero: valor aprovechado de la despensa */}
           <View style={styles.heroCard}>
-            <AppText variant="micro" color="inkMuted" style={styles.heroMes}>
-              {mesFormateado.charAt(0).toUpperCase() + mesFormateado.slice(1)}
+            <View style={styles.heroTopRow}>
+              <AppText variant="micro" color="inkMuted" style={styles.heroMes}>
+                {mesFormateado.charAt(0).toUpperCase() + mesFormateado.slice(1)}
+              </AppText>
+              <View style={[styles.tag, esEstimado ? styles.tagEstimado : styles.tagReal]}>
+                <AppText
+                  variant="micro"
+                  style={{
+                    color: esEstimado ? colors.warning : colors.success,
+                    fontWeight: '700',
+                  }}
+                >
+                  {esEstimado ? 'ESTIMACIÓN' : 'PRECIOS REALES'}
+                </AppText>
+              </View>
+            </View>
+            <AppText variant="micro" color="inkMuted" style={styles.heroLabel}>
+              {esEstimado
+                ? 'Valor estimado de lo que has cocinado'
+                : 'Valor aprovechado de tu despensa'}
             </AppText>
             <View style={styles.heroAmount}>
               <AppText style={styles.euroSymbol}>€</AppText>
@@ -121,8 +142,8 @@ export default function AhorroScreen() {
             </View>
             <AppText variant="caption" color="inkMuted" style={styles.heroSubtitle}>
               {esEstimado
-                ? 'ahorro estimado · importa tickets para el cálculo real'
-                : 'ahorro real calculado desde tus tickets'}
+                ? `Estimación a partir de ${data.recetas_cocinadas} receta${data.recetas_cocinadas === 1 ? '' : 's'} cocinada${data.recetas_cocinadas === 1 ? '' : 's'} (media España ~3,50 €/comida). Importa tickets para calcularlo con tus precios reales.`
+                : 'Calculado con los precios reales de tus tickets importados.'}
             </AppText>
           </View>
 
@@ -138,14 +159,14 @@ export default function AhorroScreen() {
             <StatBox
               icon="leaf-outline"
               value={`${data.kg_no_desperdiciados.toFixed(1)} kg`}
-              label="no desperdiciados"
+              label="aprovechados (est.)"
               iconColor={colors.success}
             />
             <View style={styles.statDivider} />
             <StatBox
               icon="trending-up-outline"
               value={`${data.porcentaje_media_espana}%`}
-              label="mejor que la media"
+              label="vs. media ESP (est.)"
               iconColor={colors.warning}
             />
           </Card>
@@ -268,7 +289,22 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
-  heroMes: { textTransform: 'capitalize', marginBottom: spacing.sm },
+  heroTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    alignSelf: 'stretch',
+    marginBottom: spacing.xs,
+  },
+  heroMes: { textTransform: 'capitalize' },
+  heroLabel: { textAlign: 'center', marginBottom: spacing.xs },
+  tag: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+    borderRadius: radius.pill,
+  },
+  tagEstimado: { backgroundColor: colors.warningSoft },
+  tagReal: { backgroundColor: colors.successSoft },
   heroAmount: { flexDirection: 'row', alignItems: 'flex-start', gap: 2 },
   euroSymbol: {
     fontSize: 28,

@@ -75,10 +75,10 @@ function AhorroPreviewCard({ onPress, isPremium }: { onPress: () => void; isPrem
           <AppText variant="captionStrong">Informe de Ahorro</AppText>
           <AppText variant="micro" color={colors.inkFaint}>
             {recetas > 0
-              ? `${recetas} receta${recetas === 1 ? '' : 's'} · ~${ahorro.toFixed(0)} € estimado este mes`
+              ? `${recetas} receta${recetas === 1 ? '' : 's'} · ~${ahorro.toFixed(0)} € est. cocinado este mes`
               : isPremium
                 ? 'Sin recetas cocinadas este mes'
-                : 'Premium · Ver cuánto ahorras'}
+                : 'Premium · Mide lo que aprovechas'}
           </AppText>
         </View>
       </View>

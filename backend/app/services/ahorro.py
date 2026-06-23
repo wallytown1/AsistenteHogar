@@ -114,11 +114,15 @@ class AhorroService:
             (r.nombre, r.unidad): float(r.cantidad_total) for r in consumos_result
         }
 
-        # Precio medio por ingrediente: últimos 180 días (incluye el mes actual)
+        # Precio medio por ingrediente: últimos 180 días (incluye el mes actual).
+        # Se agrupa por (nombre, unidad): el precio unitario solo es comparable
+        # contra consumos en la MISMA unidad. Cruzar "€/ud" contra "500 gramos"
+        # produciría cifras absurdas, así que la clave incluye la unidad.
         hace_180 = inicio - timedelta(days=180)
         precios_result = await self._s.execute(
             select(
                 MovimientoDespensa.nombre,
+                MovimientoDespensa.unidad,
                 func.avg(MovimientoDespensa.precio_unitario).label("precio_medio"),
             )
             .where(
@@ -127,10 +131,10 @@ class AhorroService:
                 MovimientoDespensa.precio_unitario.is_not(None),
                 MovimientoDespensa.fecha >= hace_180,
             )
-            .group_by(MovimientoDespensa.nombre)
+            .group_by(MovimientoDespensa.nombre, MovimientoDespensa.unidad)
         )
-        precios: dict[str, float] = {
-            r.nombre: float(r.precio_medio) for r in precios_result
+        precios: dict[tuple[str, str | None], float] = {
+            (r.nombre, r.unidad): float(r.precio_medio) for r in precios_result
         }
 
         # Entradas de compra con precio en el mes (de tickets importados)
@@ -149,10 +153,12 @@ class AhorroService:
             or 0
         )
 
-        # Construir desglose: ingredientes consumidos con precio conocido
+        # Construir desglose: ingredientes consumidos con precio conocido en la
+        # MISMA unidad (clave nombre+unidad). Si no hay precio para esa unidad,
+        # el ingrediente no se valora (mejor omitir que inventar una cifra).
         desglose: list[DesgloseMensualItem] = []
         for (nombre, unidad), cantidad in consumos.items():
-            precio_m = precios.get(nombre)
+            precio_m = precios.get((nombre, unidad))
             if precio_m and cantidad:
                 desglose.append(
                     DesgloseMensualItem(

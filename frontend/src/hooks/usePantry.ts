@@ -5,6 +5,19 @@ import { apiRequest, TIMEOUT } from '../api/api';
 import { useToast } from '../components/ui/Toast';
 
 /**
+ * Payload para crear un alimento. Los campos de ticket (precio_unitario,
+ * fecha_compra) son opcionales: solo se rellenan al confirmar productos
+ * importados de un PDF de ticket, y alimentan el Informe de Ahorro.
+ */
+export type NuevoAlimento = Omit<
+  AlimentoItem,
+  'id' | 'is_deleted' | 'hogar_id' | 'created_at' | 'updated_at'
+> & {
+  precio_unitario?: number | null;
+  fecha_compra?: string | null;
+};
+
+/**
  * Retorna los días restantes para la caducidad de un alimento.
  * Construye la fecha en hora LOCAL para evitar off-by-one UTC en fechas "YYYY-MM-DD".
  */
@@ -34,9 +47,8 @@ export function usePantry() {
     queryClient.setQueryData<PantryStockMetrics>(['pantry'], (old) => (old ? updater(old) : old));
 
   const addMutation = useMutation({
-    mutationFn: (
-      item: Omit<AlimentoItem, 'id' | 'is_deleted' | 'hogar_id' | 'created_at' | 'updated_at'>
-    ) => apiRequest<AlimentoItem>('/pantry', { method: 'POST', json: item }),
+    mutationFn: (item: NuevoAlimento) =>
+      apiRequest<AlimentoItem>('/pantry', { method: 'POST', json: item }),
     onError: () => toast.show({ tipo: 'error', mensaje: 'No se pudo añadir el producto' }),
     onSettled: invalidate,
   });
@@ -101,9 +113,7 @@ export function usePantry() {
     onSettled: invalidate,
   });
 
-  const addItem = async (
-    item: Omit<AlimentoItem, 'id' | 'is_deleted' | 'hogar_id' | 'created_at' | 'updated_at'>
-  ) => {
+  const addItem = async (item: NuevoAlimento) => {
     await addMutation.mutateAsync(item);
   };
 

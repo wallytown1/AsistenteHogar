@@ -160,6 +160,19 @@ class InventarioAlimentoCreate(BaseSchema):
     categoria: str = Field(
         ..., min_length=1, max_length=50, description="Categoría de clasificación"
     )
+    precio_unitario: float | None = Field(
+        None,
+        ge=0,
+        description=(
+            "Precio por unidad en euros (capturado del ticket). Se guarda en el "
+            "ledger de movimientos para alimentar el Informe de Ahorro. Nullable "
+            "en altas manuales sin precio."
+        ),
+    )
+    fecha_compra: date | None = Field(
+        None,
+        description="Fecha de compra del ticket (puede diferir del alta en la app)",
+    )
 
     @field_validator("fecha_caducidad")
     @classmethod

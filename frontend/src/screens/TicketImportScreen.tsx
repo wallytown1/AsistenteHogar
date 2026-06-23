@@ -94,6 +94,9 @@ export default function TicketImportScreen() {
           unidad: p.unidad,
           categoria: p.categoria,
           fecha_caducidad: p.fecha_caducidad,
+          // Precio y fecha del ticket → ledger → Informe de Ahorro
+          precio_unitario: p.precio_unitario,
+          fecha_compra: fechaCompra,
         });
       }
       haptics.success();
