@@ -1037,12 +1037,24 @@ export default function PantryScreen() {
   const listEmptyComponent = (
     <Card style={{ marginBottom: spacing.lg }}>
       <EmptyState
-        icon="basket-outline"
-        accent={colors.pantry}
-        accentSoft={colors.pantrySoft}
-        title="Sin productos"
-        subtitle="Pulsa + para añadir el primer producto a tu despensa."
+        icon="camera-outline"
+        accent={colors.success}
+        accentSoft={colors.successSoft}
+        title="Empieza por aquí"
+        subtitle="Fotografía tu nevera o importa el ticket de Mercadona y dejamos tu despensa lista en segundos. Marce cocinará con lo que tengas."
       />
+      <View style={{ gap: spacing.sm, marginTop: spacing.sm }}>
+        <Button label="Fotografiar la nevera" icon="camera-outline" onPress={handleFotoNevera} />
+        <Button
+          label="Importar ticket de Mercadona"
+          icon="receipt-outline"
+          variant="secondary"
+          onPress={() => {
+            if (!checkPremiumGate()) return;
+            navigation.navigate('TicketImportPdf');
+          }}
+        />
+      </View>
     </Card>
   );
 
