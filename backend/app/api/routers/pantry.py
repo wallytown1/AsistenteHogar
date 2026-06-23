@@ -219,7 +219,7 @@ async def get_sugerencias(
 @router.post(
     "/pantry/interpretar",
     response_model=InterpretarDespensaResponse,
-    dependencies=[Depends(requiere_premium), Depends(interpretar_rate_limiter)],
+    dependencies=[Depends(interpretar_rate_limiter)],
 )
 async def interpretar_despensa(
     schema: InterpretarDespensaRequest,
@@ -235,7 +235,7 @@ async def interpretar_despensa(
 @router.post(
     "/pantry/audio",
     response_model=InterpretarDespensaResponse,
-    dependencies=[Depends(requiere_premium), Depends(audio_rate_limiter)],
+    dependencies=[Depends(audio_rate_limiter)],
 )
 async def interpretar_audio_despensa(
     schema: InterpretarDespensaRequest,
@@ -254,7 +254,7 @@ async def interpretar_audio_despensa(
 @router.post(
     "/pantry/sugerir-metadata",
     response_model=SugerenciaMetadataResponse,
-    dependencies=[Depends(requiere_premium), Depends(metadata_rate_limiter)],
+    dependencies=[Depends(metadata_rate_limiter)],
 )
 async def sugerir_metadata(
     schema: SugerirMetadataRequest,
@@ -270,7 +270,7 @@ async def sugerir_metadata(
 @router.post(
     "/pantry/ocr-ticket",
     response_model=TicketOcrResponse,
-    dependencies=[Depends(requiere_premium), Depends(interpretar_rate_limiter)],
+    dependencies=[Depends(interpretar_rate_limiter)],
 )
 async def ocr_ticket_compra(
     schema: TicketOcrRequest,
@@ -283,7 +283,7 @@ async def ocr_ticket_compra(
 @router.post(
     "/pantry/foto-nevera",
     response_model=FotoNeveraResponse,
-    dependencies=[Depends(requiere_premium), Depends(foto_nevera_rate_limiter)],
+    dependencies=[Depends(foto_nevera_rate_limiter)],
 )
 async def analizar_foto_nevera(
     schema: FotoNeveraRequest,

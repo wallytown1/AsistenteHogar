@@ -38,7 +38,7 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
 
 # Límite de mensajes de chat con el chef por día para usuarios freemium
-CHEF_FREE_DAILY_LIMIT = int(os.getenv("CHEF_FREE_DAILY_LIMIT", "5"))
+CHEF_FREE_DAILY_LIMIT = int(os.getenv("CHEF_FREE_DAILY_LIMIT", "10"))
 
 # Redis. Opcional: sin ella la caché y el rate-limit operan en memoria (instancia
 # única). En producción con múltiples workers debe apuntar a un Redis compartido.

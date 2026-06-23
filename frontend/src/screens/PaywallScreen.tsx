@@ -30,10 +30,11 @@ const TIERS: TierConfig[] = [
     color: colors.inkFaint,
     colorSoft: colors.cardAlt,
     features: [
-      'Despensa manual (CRUD)',
-      'Briefing diario',
+      'OCR de tickets de compra',
+      'Foto de nevera con IA',
+      'Añadir por voz o texto IA',
       'Recetas del catálogo',
-      'Lista de la compra',
+      'Chat con Marce (10/día)',
     ],
   },
   {
@@ -42,12 +43,12 @@ const TIERS: TierConfig[] = [
     sublabel: 'Mensual',
     color: colors.brand,
     colorSoft: colors.brandSoft,
+    badge: 'MÁS POPULAR',
     features: [
       'Todo lo del plan Gratis',
       'Recetas IA personalizadas',
-      'OCR de tickets de compra',
-      'Añadir por audio o texto IA',
-      'Foto de nevera con IA',
+      'Informe de Ahorro mensual en €',
+      'Chat con Marce sin límites',
     ],
   },
   {
@@ -138,7 +139,8 @@ export default function PaywallScreen() {
           Elige tu plan
         </AppText>
         <AppText variant="body" color="inkFaint" style={styles.subtitle}>
-          Desbloquea la IA para cocinar mejor con lo que tienes en casa.
+          La IA para añadir stock es gratis. Premium desbloquea el Informe de Ahorro y las recetas
+          personalizadas.
         </AppText>
 
         {loading ? (

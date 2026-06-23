@@ -347,13 +347,7 @@ export default function PantryScreen() {
   const diasUmbral = usePantrySettingsStore((s) => s.diasUmbral);
   const navigation = useNavigation<NativeStackNavigationProp<any>>();
 
-  const checkPremiumGate = () => {
-    if (!isPremium) {
-      navigation.navigate('Paywall');
-      return false;
-    }
-    return true;
-  };
+  const checkPremiumGate = () => true;
 
   const [filtroCategoria, setFiltroCategoria] = useState('');
   const [soloBajoStock, setSoloBajoStock] = useState(false);
@@ -1101,30 +1095,14 @@ export default function PantryScreen() {
         ) : null}
 
         {!sugerenciasLoading && recetas.length === 0 && !recetasMensaje ? (
-          isPremium ? (
-            <AppText
-              variant="caption"
-              color={colors.inkFaint}
-              center
-              style={{ paddingVertical: spacing.md, lineHeight: 18 }}
-            >
-              Pulsa «Sugerir con IA» para recibir recetas que aprovechen tu despensa, priorizando lo
-              que caduca pronto.
-            </AppText>
-          ) : (
-            <View style={{ paddingVertical: spacing.md, gap: spacing.sm }}>
-              <AppText variant="caption" color={colors.inkFaint} center style={{ lineHeight: 18 }}>
-                Activa Premium para recetas IA personalizadas según tu despensa.
-              </AppText>
-              <Button
-                label="Ver catálogo de recetas"
-                variant="secondary"
-                size="sm"
-                icon="book-outline"
-                onPress={fetchRecetasBasicas}
-              />
-            </View>
-          )
+          <AppText
+            variant="caption"
+            color={colors.inkFaint}
+            center
+            style={{ paddingVertical: spacing.md, lineHeight: 18 }}
+          >
+            Pulsa «Sugerir con IA» para recibir recetas personalizadas según tu despensa.
+          </AppText>
         ) : null}
 
         {!sugerenciasLoading && recetas.length > 0 && recetasGeneradasPorIA ? (
