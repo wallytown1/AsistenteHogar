@@ -14,6 +14,9 @@ from app.api.deps import (
     get_recetario_repo,
     requiere_familia,
     requiere_premium,
+    text_ai_daily_quota,
+    ticket_pdf_daily_quota,
+    vision_daily_quota,
 )
 from app.core.rate_limit import (
     audio_rate_limiter,
@@ -222,7 +225,7 @@ async def get_sugerencias(
 @router.post(
     "/pantry/interpretar",
     response_model=InterpretarDespensaResponse,
-    dependencies=[Depends(interpretar_rate_limiter)],
+    dependencies=[Depends(interpretar_rate_limiter), Depends(text_ai_daily_quota)],
 )
 async def interpretar_despensa(
     schema: InterpretarDespensaRequest,
@@ -238,7 +241,7 @@ async def interpretar_despensa(
 @router.post(
     "/pantry/audio",
     response_model=InterpretarDespensaResponse,
-    dependencies=[Depends(audio_rate_limiter)],
+    dependencies=[Depends(audio_rate_limiter), Depends(text_ai_daily_quota)],
 )
 async def interpretar_audio_despensa(
     schema: InterpretarDespensaRequest,
@@ -257,7 +260,7 @@ async def interpretar_audio_despensa(
 @router.post(
     "/pantry/sugerir-metadata",
     response_model=SugerenciaMetadataResponse,
-    dependencies=[Depends(metadata_rate_limiter)],
+    dependencies=[Depends(metadata_rate_limiter), Depends(text_ai_daily_quota)],
 )
 async def sugerir_metadata(
     schema: SugerirMetadataRequest,
@@ -273,7 +276,7 @@ async def sugerir_metadata(
 @router.post(
     "/pantry/ocr-ticket",
     response_model=TicketOcrResponse,
-    dependencies=[Depends(interpretar_rate_limiter)],
+    dependencies=[Depends(interpretar_rate_limiter), Depends(vision_daily_quota)],
 )
 async def ocr_ticket_compra(
     schema: TicketOcrRequest,
@@ -286,7 +289,7 @@ async def ocr_ticket_compra(
 @router.post(
     "/pantry/ticket/pdf",
     response_model=TicketPdfResponse,
-    dependencies=[Depends(interpretar_rate_limiter)],
+    dependencies=[Depends(interpretar_rate_limiter), Depends(ticket_pdf_daily_quota)],
 )
 async def parsear_ticket_pdf(
     schema: TicketPdfRequest,
@@ -303,7 +306,7 @@ async def parsear_ticket_pdf(
 @router.post(
     "/pantry/foto-nevera",
     response_model=FotoNeveraResponse,
-    dependencies=[Depends(foto_nevera_rate_limiter)],
+    dependencies=[Depends(foto_nevera_rate_limiter), Depends(vision_daily_quota)],
 )
 async def analizar_foto_nevera(
     schema: FotoNeveraRequest,
