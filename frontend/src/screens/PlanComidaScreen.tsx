@@ -7,7 +7,8 @@ import { DiaPlanComidas } from '../types/types';
 import { usePlanComidas } from '../hooks/usePlanComidas';
 import AIDisclaimerBanner from '../components/AIDisclaimerBanner';
 import { colors, spacing, radius } from '../theme/tokens';
-import { Card, AppText, IconButton, LoadingView, ErrorView, EmptyState } from '../components/ui';
+import { Card, AppText, IconButton, ErrorView, EmptyState } from '../components/ui';
+import { PlanComidaSkeleton } from '../components/skeletons';
 
 export default function PlanComidaScreen() {
   const navigation = useNavigation();
@@ -66,7 +67,7 @@ export default function PlanComidaScreen() {
       </View>
 
       {loading ? (
-        <LoadingView message="Generando plan semanal con IA..." />
+        <PlanComidaSkeleton />
       ) : error ? (
         <ErrorView message={error} onRetry={refetch} />
       ) : !plan || plan.dias.length === 0 ? (

@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, ActivityIndicator, Pressable } from 'react-native';
+import { View, Pressable } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useDashboard } from '../hooks/useDashboard';
@@ -10,6 +10,7 @@ import { usePurchasesStore } from '../state/purchasesStore';
 import AIDisclaimerBanner from '../components/AIDisclaimerBanner';
 import { colors, radius, spacing } from '../theme/tokens';
 import { Screen, Card, Badge, AppText, Icon, FoodIcon, Button } from '../components/ui';
+import { DashboardBriefingSkeleton } from '../components/skeletons';
 import { getCategoriaIcon } from '../lib/categoria';
 import { FadeInView } from '../animations';
 
@@ -82,12 +83,7 @@ export default function DashboardScreen() {
           </View>
 
           {loading && !briefing ? (
-            <View style={{ paddingVertical: spacing.xl, alignItems: 'center' }}>
-              <ActivityIndicator size="small" color={colors.brand} />
-              <AppText variant="caption" color={colors.inkMuted} style={{ marginTop: spacing.md }}>
-                Redactando informe con IA...
-              </AppText>
-            </View>
+            <DashboardBriefingSkeleton />
           ) : error && !briefing ? (
             <View style={{ paddingVertical: spacing.md, alignItems: 'center' }}>
               <AppText

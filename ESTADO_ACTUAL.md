@@ -16,6 +16,18 @@ Este documento centraliza el estado de los despliegues, las fases en curso, el r
 
 ## 2. Sesiones Recientes
 
+### ✅ Sesión 2026-06-22 (Parte 9) — Skeleton Screens (Adopción Design System)
+*   **Skeleton helpers**: Extendido `Skeleton.tsx` con 7 helpers de composición (`SkeletonText`, `SkeletonCard`, `SkeletonImage`, `SkeletonChip`, `SkeletonStatCard`, `SkeletonRecipeRow`, `SkeletonSteps`). Todos animan en hilo nativo vía Moti.
+*   **5 skeleton screens**: Creados en `frontend/src/components/skeletons/` — `DashboardSkeleton`, `PantrySkeleton`, `ShoppingListSkeleton`, `PlanComidaSkeleton`, `HistorialSkeleton`. Ghost-layouts que simulan la estructura real del contenido.
+*   **Integración en pantallas**: Reemplazados todos los `ActivityIndicator`/`LoadingView` de pantalla completa en las 5 pantallas principales.
+*   **Token `shadow.small`**: Añadido nivel de sombra pequeño para inputs/chips.
+*   **Verificación**: `ts:check` 0 errores · `lint` 0 errores · 3 warnings pre-existentes sin relación.
+
+### ✅ Sesión 2026-06-22 (Parte 8) — Sistema de Diseño "Tierra Cálida"
+*   **Design System completo**: 20 archivos HTML en `design-system/` importados desde claude.ai Design. Incluye tokens (colores, tipografía, espaciado), 8 componentes base (button, input, toggle, card, badge-chip, modal, toast, skeleton-loader) y 7 mocks de pantalla (dashboard, despensa, chat, recipe-detail, shopping-list, plan-comida, paywall).
+*   **Guía de diseño**: `DESIGN_GUIDE.html` documenta la filosofía "Tierra Cálida", anti-patrones, sombras nativas RN, micro-animaciones (spring physics, haptics, shared transitions) y checklist WCAG AA.
+*   **Verificación**: Backend (smoke tests auth/modules/chef/dashboard/movimientos/legal), Frontend TypeScript y Admin-web TypeScript: todos limpios. ESLint frontend: 0 errores, 3 warnings pre-existentes irrelevantes.
+
 ### ✅ Sesión 2026-06-22 (Parte 6) — Inicialización Automática de Prompts IA
 *   **Siembra Idempotente**: Implementado el método `seed_default_templates` en `PromptConfigService` para poblar automáticamente los prompts por defecto (`"recetas"` y `"plan_comidas"`) si están ausentes de la BD.
 *   **Lógica Concurrente Lifespan**: Integrado el sembrado en el hook `lifespan` de FastAPI durante el arranque. Diseñado para atrapar errores de integridad (`IntegrityError`) y prevenir caídas en despliegues con contenedores concurrentes (clusters de Railway).
@@ -71,6 +83,8 @@ Este documento centraliza el estado de los despliegues, las fases en curso, el r
 
 ## 4. Historial de Cambios (Changelog Simplificado)
 
+*   **v1.7.0 (2026-06-22)**: Skeleton Screens — ghost-layouts animados (Moti/nativo) para Dashboard, Pantry, ShoppingList, PlanComida e Historial. Reemplaza `ActivityIndicator`/`LoadingView` de pantalla completa.
+*   **v1.6.0 (2026-06-22)**: Design System "Tierra Cálida" — 20 archivos HTML de referencia canónica en `design-system/` (tokens, 8 componentes, 7 mocks de pantalla, guía WCAG AA y animaciones RN).
 *   **v1.5.0 (2026-06-22)**: Inteligencia de stock predictiva (Ledger de movimientos, lista de compra inteligente sin IA, confianza de stock decaída y "¿Te queda?" UI).
 *   **v1.4.0 (2026-06-21)**: Chef Amigo (Voz cálida Marce, memoria destilada de gustos del hogar, valoraciones del historial e inyección de contexto en sugerencias).
 *   **v1.3.0 (2026-06-20)**: Seguridad y Tiers (JTI Blocklist en Redis, HttpOnly cookie + CSRF en panel admin, webhook de RevenueCat para sincronizar caché de tier, y primera build APK de desarrollo exitosa).
