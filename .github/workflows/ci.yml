@@ -63,6 +63,8 @@ jobs:
           python smoke_test_movimientos.py
           python smoke_test_lista_inteligente.py
           python smoke_test_confianza.py
+          python smoke_test_ahorro.py
+          python smoke_test_premium.py
 
       # Schemathesis: fuzzing del esquema OpenAPI contra un servidor uvicorn REAL.
       #
