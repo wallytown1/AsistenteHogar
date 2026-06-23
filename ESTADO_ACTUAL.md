@@ -77,6 +77,15 @@ Este documento centraliza el estado de los despliegues, las fases en curso, el r
 *   **Toast reutilizable**: Componente `ToastProvider` + `useToast()` con tipos info/success/error y botón de acción "Deshacer". Todos los errores de mutación se notifican visualmente.
 *   **Undo del Chef**: Cumple CLAUDE.md §6.2.5 (escrituras IA reversibles). El backend devuelve `consumos_detalle` estructurado por cada descuento aplicado; el frontend muestra botón "Deshacer" en la burbuja del chef que llama a `POST /pantry/{id}/restaurar` (reactiva soft-deleted + compensa ledger).
 
+### ✅ Sesión 2026-06-23 — Auditoría de Calidad y Seguridad de la Agencia (Clean Slate)
+*   **Reality Checker (QA)**:
+    *   **TypeScript check**: Verificados `frontend/` y `admin-web/` mediante `npm run ts:check`. Resultado: **0 errores de compilación**.
+    *   **Backend Smoke Tests**: Ejecutada la suite completa de 13 pruebas de humo en el backend de FastAPI. Resultado: **100% de éxito**. Todos los tests (auth, pantry, chef, legal, admin, perfiles, etc.) pasaron correctamente sobre SQLite.
+*   **Application Security Engineer (Seguridad)**:
+    *   **JWT Multi-tenant isolation**: Verificado en `deps.py`. El `hogar_id` se extrae de forma hermética a nivel de base de datos a partir del token firmado, anulando cualquier intento de manipulación IDOR/BOLA por headers o cuerpo de petición del cliente.
+    *   **CORS**: Verificado en `main.py`. Restringido en producción a la lista explícita de `ALLOWED_ORIGINS` (evitando orígenes por defecto y mitigando ataques CSRF/Cross-site).
+    *   **Bóveda local de secretos**: Inicializado el almacenamiento externo seguro en `C:\Users\navar\.gemini\agency-vault\AsistenteHogar\.env`, aislando las claves y tokens sensibles del control de Git y eliminando riesgos de fuga en repositorios remotos.
+
 ---
 
 ## 3. Roadmap / Próximos Pasos (Backlog)
