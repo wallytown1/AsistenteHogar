@@ -44,6 +44,8 @@ from app.schemas.schemas import (
     SugerirMetadataRequest,
     TicketOcrRequest,
     TicketOcrResponse,
+    TicketPdfRequest,
+    TicketPdfResponse,
 )
 from app.services.historial import RecetaHistorialService
 from app.services.llm import (
@@ -52,6 +54,7 @@ from app.services.llm import (
     generate_recipe_suggestions,
     interpret_pantry_audio,
     interpret_pantry_text,
+    parse_ticket_pdf,
     process_receipt_ocr,
     suggest_food_metadata,
 )
@@ -278,6 +281,23 @@ async def ocr_ticket_compra(
 ) -> TicketOcrResponse:
     """Procesa una imagen en Base64 de un ticket de compra usando Gemini Vision y devuelve una lista de productos propuestos."""
     return await process_receipt_ocr(schema.imagen_base64, schema.fecha_referencia)
+
+
+@router.post(
+    "/pantry/ticket/pdf",
+    response_model=TicketPdfResponse,
+    dependencies=[Depends(interpretar_rate_limiter)],
+)
+async def parsear_ticket_pdf(
+    schema: TicketPdfRequest,
+    hogar_id: uuid.UUID = Depends(get_hogar_id),
+) -> TicketPdfResponse:
+    """Parsea un PDF de ticket de supermercado con Gemini Flash visión.
+
+    Extrae productos con precio unitario (para el AhorroService). Sin gate premium:
+    es el motor principal de onboarding sin fricción de la Fase 2 del pivote.
+    IA pasiva: devuelve propuestas; el usuario confirma y llama a POST /pantry por cada una."""
+    return await parse_ticket_pdf(schema.pdf_base64, schema.fecha_referencia)
 
 
 @router.post(

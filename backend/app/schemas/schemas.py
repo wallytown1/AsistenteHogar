@@ -453,6 +453,56 @@ class TicketOcrResponse(BaseSchema):
     )
 
 
+# --- PARSER DE TICKET PDF (Fase 2 — Mercadona / supermercados) ---
+
+
+class ProductoTicketPdf(BaseSchema):
+    """Producto extraído de un ticket PDF. Incluye precio para el AhorroService."""
+
+    nombre: str = Field(..., min_length=1, max_length=200)
+    cantidad: float = Field(1.0, gt=0)
+    unidad: str = Field("unidades", max_length=30)
+    categoria: str = Field("Despensa", max_length=50)
+    fecha_caducidad: date | None = None
+    precio_unitario: float | None = Field(
+        None,
+        description="Precio por unidad del ticket en euros (nullable si no visible)",
+    )
+
+
+class TicketPdfRequest(BaseSchema):
+    pdf_base64: str = Field(
+        ...,
+        description="Archivo PDF del ticket de compra codificado en Base64 (máx. 10 MB)",
+    )
+    fecha_referencia: date = Field(
+        ...,
+        description="Fecha actual del dispositivo para resolver caducidades relativas",
+    )
+
+    @field_validator("pdf_base64")
+    @classmethod
+    def validar_tamano_pdf(cls, v: str) -> str:
+        # 10 MB decodificado ≈ 13.6 MB en base64
+        if len(v) > 14_000_000:
+            raise ValueError("El PDF supera el límite de 10 MB.")
+        return v
+
+
+class TicketPdfResponse(BaseSchema):
+    productos: list[ProductoTicketPdf] = Field(
+        default_factory=list,
+        description="Productos propuestos por la IA (el usuario confirma antes de añadir)",
+    )
+    fecha_compra: date | None = Field(
+        None, description="Fecha de compra extraída del ticket"
+    )
+    supermercado: str | None = Field(
+        None, description="Nombre del supermercado detectado"
+    )
+    mensaje: str | None = Field(None)
+
+
 # --- PERFILES INDIVIDUALES (Fase 3) ---
 
 

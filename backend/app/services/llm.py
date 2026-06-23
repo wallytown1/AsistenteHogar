@@ -29,12 +29,14 @@ from app.schemas.schemas import (
     PerfilHogarResponse,
     PerfilIndividualResponse,
     PlanComidasResponse,
+    ProductoTicketPdf,
     RecetaHistorialResponse,
     RecetaMaestraResponse,
     RecetasSugeridasResponse,
     RecetaSugerida,
     SugerenciaMetadataResponse,
     TicketOcrResponse,
+    TicketPdfResponse,
 )
 from app.services.privacy import AnonimizadorLLM
 
@@ -1501,6 +1503,177 @@ async def chef_chat(
         return ChefChatResponse(
             respuesta="Ups, ha habido un problema entendiendo mi propia respuesta.",
             generado_por_ia=False,
+        )
+
+
+# --- PARSER DE TICKET PDF (Fase 2 — Mercadona / supermercados) ------------------
+
+_TICKET_PDF_RESPONSE_SCHEMA: dict[str, Any] = {
+    "type": "OBJECT",
+    "properties": {
+        "supermercado": {"type": "STRING"},
+        "fecha_compra": {"type": "STRING"},
+        "productos": {
+            "type": "ARRAY",
+            "items": {
+                "type": "OBJECT",
+                "properties": {
+                    "nombre": {"type": "STRING"},
+                    "cantidad": {"type": "NUMBER"},
+                    "unidad": {"type": "STRING"},
+                    "categoria": {"type": "STRING"},
+                    "precio_unitario": {"type": "NUMBER"},
+                    "fecha_caducidad": {"type": "STRING"},
+                },
+                "required": ["nombre", "cantidad", "unidad", "categoria"],
+            },
+        },
+    },
+    "required": ["productos"],
+}
+
+_TICKET_PDF_SYSTEM = (
+    "Eres un asistente de hogar experto en extraer compras de tickets de supermercado. "
+    "Analiza el PDF adjunto, que es un ticket de compra español.\n"
+    "Extrae TODOS los alimentos y productos del hogar. Omite: IVA, bolsas, puntos de fidelidad, métodos de pago.\n"
+    "Para cada producto:\n"
+    "1. 'nombre': nombre limpio en español (ej: 'LECHE DESNAT 1L' → 'Leche Desnatada').\n"
+    "2. 'cantidad' y 'unidad': número + unidad lógica (1 litro, 500 gramos, 6 unidades).\n"
+    "3. 'categoria': una de (Lácteos, Carnes, Pescado, Frutas, Verduras, Bebidas, Congelados, Limpieza, Despensa).\n"
+    "4. 'precio_unitario': precio POR UNIDAD en euros (float). Si el ticket muestra precio total de varias unidades, divide. Null si no es legible.\n"
+    "5. 'fecha_caducidad': ISO YYYY-MM-DD estimada desde la fecha de referencia si el producto es perecedero. Cadena vacía si dura meses.\n"
+    "Además:\n"
+    "- 'supermercado': nombre del supermercado si aparece en el ticket (ej: 'Mercadona', 'Lidl'). Cadena vacía si no visible.\n"
+    "- 'fecha_compra': fecha ISO YYYY-MM-DD del ticket si aparece impresa. Cadena vacía si no visible.\n"
+    "Si el PDF no contiene un ticket de compra o es ilegible, devuelve productos=[]."
+)
+
+
+async def parse_ticket_pdf(
+    pdf_base64: str, fecha_referencia: datetime.date
+) -> TicketPdfResponse:
+    """Parsea un PDF de ticket de supermercado con Gemini Flash visión.
+    Extrae productos con precio unitario para el AhorroService.
+    IA pasiva: devuelve propuestas; el usuario confirma antes de añadir a la despensa."""
+    if not GEMINI_API_KEY:
+        return TicketPdfResponse(
+            productos=[],
+            mensaje="Gemini AI no configurado. Función de ticket PDF deshabilitada.",
+        )
+
+    # Construimos el turno con inline PDF (application/pdf) pasándolo vía `contents`
+    # para no modificar la firma de _call_gemini con un cuarto tipo de media.
+    contents: list[dict[str, Any]] = [
+        {
+            "parts": [
+                {
+                    "text": (
+                        f"Ticket de compra. Fecha de referencia: {fecha_referencia.isoformat()}. "
+                        "Extrae todos los productos con sus precios."
+                    )
+                },
+                {
+                    "inlineData": {
+                        "mimeType": "application/pdf",
+                        "data": pdf_base64,
+                    }
+                },
+            ]
+        }
+    ]
+
+    start_time = time.time()
+    try:
+        raw_json = await _call_gemini(
+            system_instruction=_TICKET_PDF_SYSTEM,
+            contents=contents,
+            response_schema=_TICKET_PDF_RESPONSE_SCHEMA,
+            max_output_tokens=3000,
+            timeout=45.0,
+        )
+        if not raw_json:
+            return TicketPdfResponse(
+                productos=[],
+                mensaje="No se pudo procesar el PDF del ticket. Comprueba que sea un ticket de compra legible.",
+            )
+
+        data = json.loads(raw_json)
+
+        productos: list[ProductoTicketPdf] = []
+        for item in data.get("productos", []):
+            if not isinstance(item, dict):
+                continue
+            nombre = (item.get("nombre") or "").strip()
+            if not nombre:
+                continue
+            try:
+                cantidad = float(item.get("cantidad") or 1)
+                if cantidad <= 0:
+                    cantidad = 1.0
+            except (TypeError, ValueError):
+                cantidad = 1.0
+            precio_raw = item.get("precio_unitario")
+            try:
+                precio_unitario = float(precio_raw) if precio_raw is not None else None
+                if precio_unitario is not None and precio_unitario < 0:
+                    precio_unitario = None
+            except (TypeError, ValueError):
+                precio_unitario = None
+            fc_raw = (item.get("fecha_caducidad") or "").strip()
+            try:
+                fecha_caducidad = (
+                    datetime.date.fromisoformat(fc_raw) if fc_raw else None
+                )
+            except ValueError:
+                fecha_caducidad = None
+            productos.append(
+                ProductoTicketPdf(
+                    nombre=nombre,
+                    cantidad=cantidad,
+                    unidad=(item.get("unidad") or "unidades").strip() or "unidades",
+                    categoria=(item.get("categoria") or "Despensa").strip()
+                    or "Despensa",
+                    fecha_caducidad=fecha_caducidad,
+                    precio_unitario=precio_unitario,
+                )
+            )
+
+        fecha_compra_raw = (data.get("fecha_compra") or "").strip()
+        try:
+            fecha_compra = (
+                datetime.date.fromisoformat(fecha_compra_raw)
+                if fecha_compra_raw
+                else None
+            )
+        except ValueError:
+            fecha_compra = None
+
+        supermercado_raw = (data.get("supermercado") or "").strip() or None
+
+        logger.info(
+            f"Ticket PDF procesado en {time.time() - start_time:.2f}s. "
+            f"{len(productos)} productos, supermercado={supermercado_raw}, fecha={fecha_compra}."
+        )
+        return TicketPdfResponse(
+            productos=productos,
+            fecha_compra=fecha_compra,
+            supermercado=supermercado_raw,
+            mensaje=None
+            if productos
+            else "No se detectaron productos en el ticket. Comprueba que el PDF sea legible.",
+        )
+
+    except json.JSONDecodeError:
+        logger.error("Error decodificando respuesta JSON del parser de ticket PDF.")
+        return TicketPdfResponse(
+            productos=[],
+            mensaje="El formato de respuesta de la IA fue inválido.",
+        )
+    except Exception as e:
+        logger.error(f"Error inesperado en parse_ticket_pdf: {e}")
+        return TicketPdfResponse(
+            productos=[],
+            mensaje="Error interno procesando el ticket.",
         )
 
 
