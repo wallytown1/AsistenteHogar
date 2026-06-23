@@ -1,137 +1,134 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { AlimentoItem, PantryStockMetrics } from '../types/types';
 import { apiRequest, TIMEOUT } from '../api/api';
+import { useToast } from '../components/ui/Toast';
 
 /**
  * Retorna los días restantes para la caducidad de un alimento.
+ * Construye la fecha en hora LOCAL para evitar off-by-one UTC en fechas "YYYY-MM-DD".
  */
 export function getDiasParaCaducar(fechaCaducidad: string | null): number | null {
   if (!fechaCaducidad) return null;
   const hoy = new Date();
   hoy.setHours(0, 0, 0, 0);
-  // fecha_caducidad llega como "YYYY-MM-DD" (date-only). `new Date(str)` lo interpretaría
-  // como medianoche UTC, lo que en husos horarios negativos lo desplaza al día anterior
-  // (off-by-one). Construimos la fecha con los componentes Y-M-D en hora LOCAL para evitarlo.
   const [y, m, d] = fechaCaducidad.slice(0, 10).split('-').map(Number);
   if (!y || !m || !d) return null;
   const fecha = new Date(y, m - 1, d);
   return Math.ceil((fecha.getTime() - hoy.getTime()) / 86400000);
 }
 
-/**
- * Hook para la gestión asíncrona de la despensa de alimentos.
- */
 export function usePantry() {
-  const [items, setItems] = useState<AlimentoItem[]>([]);
-  const [porcentajeStock, setPorcentajeStock] = useState<number>(100);
-  const [itemsDisponibles, setItemsDisponibles] = useState<number>(0);
-  const [alertasCaducidad, setAlertasCaducidad] = useState<AlimentoItem[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+  const toast = useToast();
+  const [ocrLoading, setOcrLoading] = useState(false);
 
-  const fetchPantry = useCallback(async (signal?: AbortSignal) => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const data = await apiRequest<PantryStockMetrics>('/pantry', { signal });
-      setItems(data.items || []);
-      setPorcentajeStock(data.porcentaje_stock);
-      setItemsDisponibles(data.items_disponibles);
-      setAlertasCaducidad(data.alertas_caducidad || []);
-    } catch (err: any) {
-      if (err.name === 'AbortError') return;
-      setError(
-        err.name === 'TimeoutError'
-          ? 'El servidor tardó demasiado. Comprueba tu conexión.'
-          : err.message || 'Error al obtener los datos de la despensa'
-      );
-    } finally {
-      if (!signal?.aborted) setIsLoading(false);
-    }
-  }, []);
+  const query = useQuery({
+    queryKey: ['pantry'],
+    queryFn: ({ signal }) => apiRequest<PantryStockMetrics>('/pantry', { signal }),
+  });
+
+  const invalidate = () => queryClient.invalidateQueries({ queryKey: ['pantry'] });
+
+  const patchItems = (updater: (old: PantryStockMetrics) => PantryStockMetrics) =>
+    queryClient.setQueryData<PantryStockMetrics>(['pantry'], (old) => (old ? updater(old) : old));
+
+  const addMutation = useMutation({
+    mutationFn: (
+      item: Omit<AlimentoItem, 'id' | 'is_deleted' | 'hogar_id' | 'created_at' | 'updated_at'>
+    ) => apiRequest<AlimentoItem>('/pantry', { method: 'POST', json: item }),
+    onError: () => toast.show({ tipo: 'error', mensaje: 'No se pudo añadir el producto' }),
+    onSettled: invalidate,
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, cantidad }: { id: string; cantidad: number }) =>
+      apiRequest<AlimentoItem>(`/pantry/${id}`, { method: 'PATCH', json: { cantidad } }),
+    onMutate: async ({ id, cantidad }) => {
+      await queryClient.cancelQueries({ queryKey: ['pantry'] });
+      const prev = queryClient.getQueryData<PantryStockMetrics>(['pantry']);
+      patchItems((old) => ({
+        ...old,
+        items: old.items.map((i) => (i.id === id ? { ...i, cantidad } : i)),
+      }));
+      return { prev };
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.prev) queryClient.setQueryData(['pantry'], ctx.prev);
+      toast.show({ tipo: 'error', mensaje: 'No se pudo actualizar la cantidad' });
+    },
+    onSettled: invalidate,
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => apiRequest<void>(`/pantry/${id}`, { method: 'DELETE' }),
+    onError: () => toast.show({ tipo: 'error', mensaje: 'No se pudo eliminar el producto' }),
+    onSettled: invalidate,
+  });
+
+  const agotarMutation = useMutation({
+    mutationFn: (id: string) =>
+      apiRequest<AlimentoItem>(`/pantry/${id}/agotar`, { method: 'POST' }),
+    onMutate: async (id) => {
+      await queryClient.cancelQueries({ queryKey: ['pantry'] });
+      const prev = queryClient.getQueryData<PantryStockMetrics>(['pantry']);
+      patchItems((old) => ({ ...old, items: old.items.filter((i) => i.id !== id) }));
+      return { prev };
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.prev) queryClient.setQueryData(['pantry'], ctx.prev);
+      toast.show({ tipo: 'error', mensaje: 'No se pudo registrar el consumo' });
+    },
+    onSettled: invalidate,
+  });
+
+  const confirmarMutation = useMutation({
+    mutationFn: (id: string) =>
+      apiRequest<AlimentoItem>(`/pantry/${id}/confirmar`, { method: 'POST' }),
+    onMutate: async (id) => {
+      await queryClient.cancelQueries({ queryKey: ['pantry'] });
+      const prev = queryClient.getQueryData<PantryStockMetrics>(['pantry']);
+      patchItems((old) => ({
+        ...old,
+        items: old.items.map((i) => (i.id === id ? { ...i, incierto: false } : i)),
+      }));
+      return { prev };
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.prev) queryClient.setQueryData(['pantry'], ctx.prev);
+      toast.show({ tipo: 'error', mensaje: 'No se pudo confirmar el artículo' });
+    },
+    onSettled: invalidate,
+  });
 
   const addItem = async (
     item: Omit<AlimentoItem, 'id' | 'is_deleted' | 'hogar_id' | 'created_at' | 'updated_at'>
   ) => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      await apiRequest<AlimentoItem>('/pantry', {
-        method: 'POST',
-        json: item,
-      });
-      await fetchPantry();
-    } catch (err: any) {
-      setError(err.message || 'Error al registrar el producto');
-      throw err;
-    } finally {
-      setIsLoading(false);
-    }
+    await addMutation.mutateAsync(item);
   };
 
   const updateQuantity = async (id: string, cantidad: number) => {
-    // Sanitización local preventiva: validación local de cantidad > 0
-    if (cantidad <= 0) {
-      const errorMsg = 'La cantidad del producto debe ser estrictamente mayor que 0.';
-      setError(errorMsg);
-      throw new Error(errorMsg);
-    }
-    setIsLoading(true);
-    setError(null);
-    try {
-      await apiRequest<AlimentoItem>(`/pantry/${id}`, {
-        method: 'PATCH',
-        json: { cantidad },
-      });
-      await fetchPantry();
-    } catch (err: any) {
-      setError(err.message || 'Error al actualizar la cantidad');
-      throw err;
-    } finally {
-      setIsLoading(false);
-    }
+    if (cantidad <= 0)
+      throw new Error('La cantidad del producto debe ser estrictamente mayor que 0.');
+    await updateMutation.mutateAsync({ id, cantidad });
   };
 
   const deleteItem = async (id: string) => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      await apiRequest<AlimentoItem>(`/pantry/${id}`, {
-        method: 'DELETE',
-      });
-      await fetchPantry();
-    } catch (err: any) {
-      setError(err.message || 'Error al eliminar el producto');
-      throw err;
-    } finally {
-      setIsLoading(false);
-    }
+    await deleteMutation.mutateAsync(id);
   };
 
-  // "Se acabó": elimina el alimento y lo registra como consumo (origen 'agotado').
   const agotarItem = async (id: string) => {
-    await apiRequest<AlimentoItem>(`/pantry/${id}/agotar`, { method: 'POST' });
-    await fetchPantry();
+    await agotarMutation.mutateAsync(id);
   };
 
-  // "Sigo teniéndolo": renueva la confianza (deja de estar incierto).
   const confirmarItem = async (id: string) => {
-    await apiRequest<AlimentoItem>(`/pantry/${id}/confirmar`, { method: 'POST' });
-    await fetchPantry();
+    await confirmarMutation.mutateAsync(id);
   };
 
-  useEffect(() => {
-    const ctrl = new AbortController();
-    fetchPantry(ctrl.signal);
-    return () => ctrl.abort();
-  }, [fetchPantry]);
-
-  const escanearTicketOcr = async (imagenBase64: string) => {
-    setIsLoading(true);
-    setError(null);
+  const escanearTicketOcr = async (imagenBase64: string): Promise<any[]> => {
+    setOcrLoading(true);
     try {
       const hoy = new Date().toISOString().slice(0, 10);
-      // Asumimos que el backend devuelve un objeto con { alimentos: AlimentoItem[] }
       const data = await apiRequest<{ alimentos: any[] }>('/pantry/ocr-ticket', {
         method: 'POST',
         json: { imagen_base64: imagenBase64, fecha_referencia: hoy },
@@ -139,26 +136,34 @@ export function usePantry() {
       });
       return data.alimentos || [];
     } catch (err: any) {
-      setError(err.message || 'Error al procesar la imagen del ticket');
+      toast.show({ tipo: 'error', mensaje: err.message || 'Error al procesar el ticket' });
       throw err;
     } finally {
-      setIsLoading(false);
+      setOcrLoading(false);
     }
   };
 
+  const d = query.data;
+
   return {
-    items,
-    porcentajeStock,
-    itemsDisponibles,
-    alertasCaducidad,
-    isLoading,
-    error,
+    items: d?.items ?? [],
+    porcentajeStock: d?.porcentaje_stock ?? 100,
+    itemsDisponibles: d?.items_disponibles ?? 0,
+    alertasCaducidad: d?.alertas_caducidad ?? [],
+    isLoading: query.isLoading || ocrLoading,
+    error: query.isError ? mensajeError(query.error) : null,
     addItem,
     updateQuantity,
     deleteItem,
     agotarItem,
     confirmarItem,
     escanearTicketOcr,
-    refetch: () => fetchPantry(),
+    refetch: () => query.refetch(),
   };
+}
+
+function mensajeError(error: unknown): string {
+  const e = error as { name?: string; message?: string };
+  if (e?.name === 'TimeoutError') return 'El servidor tardó demasiado. Comprueba tu conexión.';
+  return e?.message || 'Error al obtener los datos de la despensa';
 }

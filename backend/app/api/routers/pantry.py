@@ -358,3 +358,15 @@ async def confirmar_pantry_item(
 ) -> InventarioAlimentoResponse:
     """ "Sigo teniéndolo": renueva la confianza (resetea ultima_confirmacion → deja de estar incierto)."""
     return await pantry_service.confirmar_item(alimento_id, hogar_id)
+
+
+@router.post(
+    "/pantry/{alimento_id}/restaurar", response_model=InventarioAlimentoResponse
+)
+async def restaurar_pantry_item(
+    alimento_id: uuid.UUID = Path(..., description="UUID del alimento a restaurar"),
+    hogar_id: uuid.UUID = Depends(get_hogar_id),
+    pantry_service: PantryService = Depends(get_pantry_service),
+) -> InventarioAlimentoResponse:
+    """Undo de un agotado o descuento del chef: reactiva el alimento y registra compensación en el ledger."""
+    return await pantry_service.restaurar_item(alimento_id, hogar_id)

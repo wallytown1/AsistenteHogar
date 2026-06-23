@@ -1,88 +1,120 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ListaCompraItem, SugerenciaCompra } from '../types/types';
 import { apiRequest } from '../api/api';
+import { useToast } from '../components/ui/Toast';
 
 export function useListaCompra() {
-  const [items, setItems] = useState<ListaCompraItem[]>([]);
-  const [sugerencias, setSugerencias] = useState<SugerenciaCompra[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+  const toast = useToast();
 
-  const fetchSugerencias = useCallback(async (signal?: AbortSignal) => {
-    try {
-      const data = await apiRequest<SugerenciaCompra[]>('/lista-compra/sugerencias', { signal });
-      setSugerencias(data);
-    } catch {
-      // silencioso — las sugerencias son un extra, no deben romper la pantalla
-    }
-  }, []);
+  const itemsQuery = useQuery({
+    queryKey: ['lista-compra'],
+    queryFn: ({ signal }) => apiRequest<ListaCompraItem[]>('/lista-compra', { signal }),
+  });
 
-  const fetch = useCallback(
-    async (signal?: AbortSignal) => {
-      setIsLoading(true);
-      setError(null);
-      try {
-        const data = await apiRequest<ListaCompraItem[]>('/lista-compra', { signal });
-        setItems(data);
-        await fetchSugerencias(signal);
-      } catch (err: any) {
-        if (err.name === 'AbortError') return;
-        setError(err.message || 'Error al cargar la lista');
-      } finally {
-        if (!signal?.aborted) setIsLoading(false);
-      }
+  // Las sugerencias son un extra: sus errores se suprimen intencionalmente.
+  const sugerenciasQuery = useQuery({
+    queryKey: ['lista-compra', 'sugerencias'],
+    queryFn: ({ signal }) =>
+      apiRequest<SugerenciaCompra[]>('/lista-compra/sugerencias', { signal }),
+  });
+
+  const invalidateItems = () => queryClient.invalidateQueries({ queryKey: ['lista-compra'] });
+
+  const patchItems = (updater: (old: ListaCompraItem[]) => ListaCompraItem[]) =>
+    queryClient.setQueryData<ListaCompraItem[]>(['lista-compra'], (old) =>
+      old ? updater(old) : old
+    );
+
+  const addMutation = useMutation({
+    mutationFn: ({
+      nombre,
+      cantidad,
+      unidad,
+    }: {
+      nombre: string;
+      cantidad?: number;
+      unidad?: string;
+    }) =>
+      apiRequest<ListaCompraItem>('/lista-compra', {
+        method: 'POST',
+        json: { nombre, cantidad: cantidad ?? null, unidad: unidad ?? null },
+      }),
+    onError: () => toast.show({ tipo: 'error', mensaje: 'No se pudo añadir el artículo' }),
+    onSettled: invalidateItems,
+  });
+
+  const toggleMutation = useMutation({
+    mutationFn: ({ id, is_checked }: { id: string; is_checked: boolean }) =>
+      apiRequest<ListaCompraItem>(`/lista-compra/${id}`, { method: 'PATCH', json: { is_checked } }),
+    onMutate: async ({ id, is_checked }) => {
+      await queryClient.cancelQueries({ queryKey: ['lista-compra'] });
+      const prev = queryClient.getQueryData<ListaCompraItem[]>(['lista-compra']);
+      patchItems((old) => old.map((i) => (i.id === id ? { ...i, is_checked } : i)));
+      return { prev };
     },
-    [fetchSugerencias]
-  );
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.prev) queryClient.setQueryData(['lista-compra'], ctx.prev);
+      toast.show({ tipo: 'error', mensaje: 'No se pudo actualizar el artículo' });
+    },
+    onSettled: invalidateItems,
+  });
 
-  useEffect(() => {
-    const ctrl = new AbortController();
-    fetch(ctrl.signal);
-    return () => ctrl.abort();
-  }, [fetch]);
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => apiRequest(`/lista-compra/${id}`, { method: 'DELETE' }),
+    onMutate: async (id) => {
+      await queryClient.cancelQueries({ queryKey: ['lista-compra'] });
+      const prev = queryClient.getQueryData<ListaCompraItem[]>(['lista-compra']);
+      patchItems((old) => old.filter((i) => i.id !== id));
+      return { prev };
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.prev) queryClient.setQueryData(['lista-compra'], ctx.prev);
+      toast.show({ tipo: 'error', mensaje: 'No se pudo eliminar el artículo' });
+    },
+    onSettled: invalidateItems,
+  });
 
-  const addItem = async (nombre: string, cantidad?: number, unidad?: string) => {
-    const item = await apiRequest<ListaCompraItem>('/lista-compra', {
-      method: 'POST',
-      json: { nombre, cantidad: cantidad ?? null, unidad: unidad ?? null },
-    });
-    setItems((prev) => [...prev, item]);
-    // Si la sugerida se añade, deja de sugerirse.
-    setSugerencias((prev) => prev.filter((s) => s.nombre !== nombre));
-  };
+  const clearMutation = useMutation({
+    mutationFn: () => apiRequest('/lista-compra', { method: 'DELETE' }),
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ['lista-compra'] });
+      const prev = queryClient.getQueryData<ListaCompraItem[]>(['lista-compra']);
+      patchItems((old) => old.filter((i) => !i.is_checked));
+      return { prev };
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.prev) queryClient.setQueryData(['lista-compra'], ctx.prev);
+      toast.show({ tipo: 'error', mensaje: 'No se pudo limpiar la lista' });
+    },
+    onSettled: invalidateItems,
+  });
 
-  const toggleItem = async (id: string, is_checked: boolean) => {
-    const updated = await apiRequest<ListaCompraItem>(`/lista-compra/${id}`, {
-      method: 'PATCH',
-      json: { is_checked },
-    });
-    setItems((prev) => prev.map((i) => (i.id === id ? updated : i)));
-  };
+  const addItem = async (nombre: string, cantidad?: number, unidad?: string) =>
+    addMutation.mutateAsync({ nombre, cantidad, unidad });
 
-  const deleteItem = async (id: string) => {
-    await apiRequest(`/lista-compra/${id}`, { method: 'DELETE' });
-    setItems((prev) => prev.filter((i) => i.id !== id));
-  };
+  const toggleItem = async (id: string, is_checked: boolean) =>
+    toggleMutation.mutateAsync({ id, is_checked });
 
-  const clearChecked = async () => {
-    await apiRequest('/lista-compra', { method: 'DELETE' });
-    setItems((prev) => prev.filter((i) => !i.is_checked));
-  };
+  const deleteItem = async (id: string) => deleteMutation.mutateAsync(id);
 
-  const pendientes = items.filter((i) => !i.is_checked);
-  const comprados = items.filter((i) => i.is_checked);
+  const clearChecked = async () => clearMutation.mutateAsync();
+
+  const items = itemsQuery.data ?? [];
 
   return {
     items,
-    pendientes,
-    comprados,
-    sugerencias,
-    isLoading,
-    error,
+    pendientes: items.filter((i) => !i.is_checked),
+    comprados: items.filter((i) => i.is_checked),
+    sugerencias: sugerenciasQuery.data ?? [],
+    isLoading: itemsQuery.isLoading,
+    error: itemsQuery.isError
+      ? ((itemsQuery.error as any)?.message ?? 'Error al cargar la lista')
+      : null,
     addItem,
     toggleItem,
     deleteItem,
     clearChecked,
-    refetch: () => fetch(),
+    refetch: () => itemsQuery.refetch(),
   };
 }

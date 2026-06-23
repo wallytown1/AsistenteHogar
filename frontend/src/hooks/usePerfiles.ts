@@ -1,18 +1,15 @@
-import { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { PerfilIndividual } from '../types/types';
 import { apiRequest } from '../api/api';
 
 export function usePerfiles() {
-  const [perfiles, setPerfiles] = useState<PerfilIndividual[]>([]);
-  const [loading, setLoading] = useState(false);
+  const query = useQuery({
+    queryKey: ['perfiles'],
+    queryFn: ({ signal }) => apiRequest<PerfilIndividual[]>('/perfiles', { signal }),
+  });
 
-  useEffect(() => {
-    setLoading(true);
-    apiRequest<PerfilIndividual[]>('/perfiles')
-      .then(setPerfiles)
-      .catch(() => setPerfiles([]))
-      .finally(() => setLoading(false));
-  }, []);
-
-  return { perfiles, loading };
+  return {
+    perfiles: query.data ?? [],
+    loading: query.isLoading,
+  };
 }

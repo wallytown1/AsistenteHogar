@@ -192,6 +192,12 @@ Borrado lógico (`is_deleted = true`).
 "Sigo teniéndolo": resetea `ultima_confirmacion` a ahora → renueva la confianza y el alimento deja de
 estar `incierto`. **200** → item actualizado · **404** inexistente/ajeno.
 
+### `POST /api/v1/pantry/{alimento_id}/restaurar` 🔒
+Undo de un agotado o descuento del chef: reactiva el alimento (`is_deleted = false`) y registra un
+movimiento de compensación (`tipo='compra'`, `origen='undo'`) en el ledger. Requiere que el ítem esté
+en estado soft-deleted y pertenezca al hogar.
+**200** → `InventarioAlimentoResponse` · **404** ítem no encontrado en soft-deleted de este hogar.
+
 > **Stock como hipótesis:** `InventarioAlimentoResponse` incluye `incierto: bool` (calculado en
 > `GET /pantry`): true cuando el alimento tiene cadencia de compra conocida (≥2 compras en el ledger) y
 > han pasado ≥ sus días de cadencia media desde `ultima_confirmacion` (probablemente ya se consumió).

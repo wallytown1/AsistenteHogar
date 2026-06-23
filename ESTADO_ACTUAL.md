@@ -67,6 +67,12 @@ Este documento centraliza el estado de los despliegues, las fases en curso, el r
 ### ✅ Sesión 2026-06-22 (Parte 5) — Chef Proactivo (Fase 3 Completada)
 *   **Chef Proactivo**: Implementadas notificaciones push locales con IA. Al cargar el Dashboard, el LLM calcula silenciosamente una notificación de caducidad en la voz de Marce. El frontend la programa para el día siguiente usando `expo-notifications`, y si el usuario la toca (deep-link), abre automáticamente la pantalla de Chat con un saludo contextual.
 
+### ✅ Sesión 2026-06-23 — Calidad UX: React Query, Toast y Undo del Chef
+*   **React Query**: Hooks de datos migrados a `useQuery`/`useMutation` con caché compartida por dominio (`['pantry']`, `['lista-compra']`, `['dashboard']`, etc.). El Dashboard IA ya no se regenera al cambiar de pestaña mientras el caché esté fresco.
+*   **Mutaciones optimistas**: `toggleItem`/`deleteItem`/`clearChecked` en lista de la compra y `agotarItem`/`confirmarItem`/`updateQuantity` en despensa actualizan la UI al instante con rollback automático si falla la red.
+*   **Toast reutilizable**: Componente `ToastProvider` + `useToast()` con tipos info/success/error y botón de acción "Deshacer". Todos los errores de mutación se notifican visualmente.
+*   **Undo del Chef**: Cumple CLAUDE.md §6.2.5 (escrituras IA reversibles). El backend devuelve `consumos_detalle` estructurado por cada descuento aplicado; el frontend muestra botón "Deshacer" en la burbuja del chef que llama a `POST /pantry/{id}/restaurar` (reactiva soft-deleted + compensa ledger).
+
 ---
 
 ## 3. Roadmap / Próximos Pasos (Backlog)

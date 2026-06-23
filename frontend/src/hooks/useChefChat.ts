@@ -1,8 +1,10 @@
 import { useState, useCallback } from 'react';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useQueryClient } from '@tanstack/react-query';
 import { apiRequest, TIMEOUT } from '../api/api';
-import { ChefMensaje, ChefChatResponse } from '../types/types';
+import { ChefMensaje, ChefChatResponse, ConsumoAplicado } from '../types/types';
+import { useToast } from '../components/ui/Toast';
 
 const SALUDO_INICIAL: ChefMensaje = {
   rol: 'chef',
@@ -15,6 +17,8 @@ const MAX_TURNOS_CONTEXTO = 12;
 
 export function useChefChat() {
   const navigation = useNavigation<NativeStackNavigationProp<any>>();
+  const queryClient = useQueryClient();
+  const toast = useToast();
   const [mensajes, setMensajes] = useState<ChefMensaje[]>([SALUDO_INICIAL]);
   const [enviando, setEnviando] = useState(false);
 
@@ -49,8 +53,12 @@ export function useChefChat() {
             texto: respuesta,
             platos: res.platos,
             consumos_aplicados: res.consumos_aplicados,
+            consumos_detalle: res.consumos_detalle,
           },
         ]);
+        if (res.consumos_aplicados?.length) {
+          queryClient.invalidateQueries({ queryKey: ['pantry'] });
+        }
       } catch (err: any) {
         if (err.name === 'ApiError' && err.status === 402) {
           navigation.navigate('Paywall');
@@ -69,8 +77,30 @@ export function useChefChat() {
         setEnviando(false);
       }
     },
-    [mensajes, enviando, navigation]
+    [mensajes, enviando, navigation, queryClient]
   );
 
-  return { mensajes, enviando, enviar };
+  const deshacerConsumos = useCallback(
+    async (detalle: ConsumoAplicado[]) => {
+      try {
+        await Promise.all(
+          detalle.map((c) =>
+            c.fue_agotado
+              ? apiRequest(`/pantry/${c.item_id}/restaurar`, { method: 'POST' })
+              : apiRequest(`/pantry/${c.item_id}`, {
+                  method: 'PATCH',
+                  json: { cantidad: c.cantidad_anterior },
+                })
+          )
+        );
+        queryClient.invalidateQueries({ queryKey: ['pantry'] });
+        toast.show({ tipo: 'success', mensaje: 'Descuento de stock revertido' });
+      } catch {
+        toast.show({ tipo: 'error', mensaje: 'No se pudo deshacer el descuento' });
+      }
+    },
+    [queryClient, toast]
+  );
+
+  return { mensajes, enviando, enviar, deshacerConsumos };
 }

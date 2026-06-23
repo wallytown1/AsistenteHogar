@@ -17,6 +17,7 @@ from app.repositories.receta_maestra import RecetaMaestraRepository
 from app.schemas.schemas import (
     ChefChatRequest,
     ChefChatResponse,
+    ConsumoAplicado,
     PerfilIndividualResponse,
     RecetaMaestraResponse,
     TranscribeAudioRequest,
@@ -68,27 +69,35 @@ async def chef_chat_endpoint(
     )
 
     if response.consumo_estimado:
-        aplicados = []
         import logging
 
         from app.schemas.schemas import InventarioAlimentoUpdate
 
         logger = logging.getLogger("app.api.chef")
+        aplicados: list[str] = []
+        detallados: list[ConsumoAplicado] = []
         for consumo in response.consumo_estimado:
             try:
-                # Validar uuid
                 try:
                     c_id = uuid.UUID(str(consumo.item_id))
                 except ValueError:
                     continue
-                # Verificamos si existe en metrices.items para evitar llamadas a DB si no es de este hogar
                 item_actual = next((i for i in metrics.items if i.id == c_id), None)
                 if item_actual:
+                    cantidad_anterior = float(item_actual.cantidad)
                     if consumo.cantidad >= item_actual.cantidad:
                         await pantry_service.agotar_item(c_id, hogar_id)
                         aplicados.append(f"Agotado: {item_actual.nombre}")
+                        detallados.append(
+                            ConsumoAplicado(
+                                item_id=c_id,
+                                nombre=item_actual.nombre,
+                                cantidad_anterior=cantidad_anterior,
+                                fue_agotado=True,
+                            )
+                        )
                     else:
-                        nueva_cant = float(item_actual.cantidad) - consumo.cantidad
+                        nueva_cant = cantidad_anterior - consumo.cantidad
                         if nueva_cant > 0:
                             await pantry_service.update_item(
                                 c_id,
@@ -98,11 +107,21 @@ async def chef_chat_endpoint(
                             aplicados.append(
                                 f"Descontado {consumo.cantidad} {item_actual.unidad} de {item_actual.nombre}"
                             )
+                            detallados.append(
+                                ConsumoAplicado(
+                                    item_id=c_id,
+                                    nombre=item_actual.nombre,
+                                    cantidad_anterior=cantidad_anterior,
+                                    fue_agotado=False,
+                                )
+                            )
             except Exception as e:
                 logger.warning(f"Error aplicando consumo estimado: {e}")
 
         if aplicados:
             response.consumos_aplicados = aplicados
+        if detallados:
+            response.consumos_detalle = detallados
 
     return response
 

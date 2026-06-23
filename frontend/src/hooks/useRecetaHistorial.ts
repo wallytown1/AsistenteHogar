@@ -1,11 +1,16 @@
-import { useState, useCallback } from 'react';
+import { useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from '../api/api';
 import { RecetaHistorial, Valoracion } from '../types/types';
 
 export function useRecetaHistorial() {
+  const queryClient = useQueryClient();
   const [loadingReceta, setLoadingReceta] = useState<string | null>(null);
-  const [historial, setHistorial] = useState<RecetaHistorial[]>([]);
-  const [loadingHistorial, setLoadingHistorial] = useState(false);
+
+  const query = useQuery({
+    queryKey: ['historial'],
+    queryFn: ({ signal }) => apiRequest<RecetaHistorial[]>('/pantry/recetas/historial', { signal }),
+  });
 
   const registrarAccion = async (
     nombre_receta: string,
@@ -15,10 +20,13 @@ export function useRecetaHistorial() {
   ): Promise<RecetaHistorial | null> => {
     setLoadingReceta(`${nombre_receta}:${accion}`);
     try {
-      return await apiRequest<RecetaHistorial>('/pantry/recetas/historial', {
+      const item = await apiRequest<RecetaHistorial>('/pantry/recetas/historial', {
         method: 'POST',
         json: { nombre_receta, accion, valoracion, categoria },
       });
+      // El historial cacheado queda obsoleto tras registrar una acción.
+      queryClient.invalidateQueries({ queryKey: ['historial'] });
+      return item;
     } catch {
       return null;
     } finally {
@@ -29,17 +37,11 @@ export function useRecetaHistorial() {
   const isLoading = (nombre_receta: string, accion: 'cocinada' | 'rechazada') =>
     loadingReceta === `${nombre_receta}:${accion}`;
 
-  const fetchHistorial = useCallback(async () => {
-    setLoadingHistorial(true);
-    try {
-      const data = await apiRequest<RecetaHistorial[]>('/pantry/recetas/historial');
-      setHistorial(data);
-    } catch {
-      // silencioso — pantalla muestra EmptyState
-    } finally {
-      setLoadingHistorial(false);
-    }
-  }, []);
-
-  return { registrarAccion, isLoading, historial, loadingHistorial, fetchHistorial };
+  return {
+    registrarAccion,
+    isLoading,
+    historial: query.data ?? [],
+    loadingHistorial: query.isLoading || query.isRefetching,
+    fetchHistorial: () => query.refetch(),
+  };
 }
