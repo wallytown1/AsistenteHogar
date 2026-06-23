@@ -1,38 +1,28 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { PlanComidasResponse } from '../types/types';
 import { apiRequest, TIMEOUT } from '../api/api';
 
 export function usePlanComidas() {
-  const [loading, setLoading] = useState<boolean>(true);
-  const [plan, setPlan] = useState<PlanComidasResponse | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchPlan = useCallback(async (signal?: AbortSignal) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await apiRequest<PlanComidasResponse>('/pantry/plan-comidas', {
+  const query = useQuery({
+    queryKey: ['plan-comidas'],
+    queryFn: ({ signal }) =>
+      apiRequest<PlanComidasResponse>('/pantry/plan-comidas', {
         signal,
         timeoutMs: TIMEOUT.AI,
-      });
-      setPlan(data);
-    } catch (err: any) {
-      if (err.name === 'AbortError') return;
-      setError(
-        err.name === 'TimeoutError'
-          ? 'El servidor tardó demasiado en responder. Comprueba tu conexión.'
-          : err.message || 'No se pudo cargar el plan de comidas.'
-      );
-    } finally {
-      if (!signal?.aborted) setLoading(false);
-    }
-  }, []);
+      }),
+  });
 
-  useEffect(() => {
-    const ctrl = new AbortController();
-    fetchPlan(ctrl.signal);
-    return () => ctrl.abort();
-  }, [fetchPlan]);
+  return {
+    loading: query.isLoading,
+    plan: query.data ?? null,
+    error: query.isError ? mensajeError(query.error) : null,
+    refetch: () => query.refetch(),
+  };
+}
 
-  return { loading, plan, error, refetch: () => fetchPlan() };
+function mensajeError(error: unknown): string {
+  const e = error as { name?: string; message?: string };
+  if (e?.name === 'TimeoutError')
+    return 'El servidor tardó demasiado en responder. Comprueba tu conexión.';
+  return e?.message || 'No se pudo cargar el plan de comidas.';
 }

@@ -733,6 +733,15 @@ class ConsumoEstimado(BaseSchema):
     nombre: str = Field(..., description="Nombre del alimento")
 
 
+class ConsumoAplicado(BaseSchema):
+    """Detalle estructurado de un consumo ya aplicado al stock (para poder deshacerlo)."""
+
+    item_id: UUID
+    nombre: str
+    cantidad_anterior: float
+    fue_agotado: bool
+
+
 class ChefChatResponse(BaseSchema):
     respuesta: str
     generado_por_ia: bool
@@ -746,6 +755,10 @@ class ChefChatResponse(BaseSchema):
     consumos_aplicados: list[str] | None = Field(
         None,
         description="Mensajes legibles sobre ingredientes descontados (ej: '200g de arroz')",
+    )
+    consumos_detalle: list[ConsumoAplicado] | None = Field(
+        None,
+        description="Detalle estructurado de cada consumo (para undo en el cliente)",
     )
 
 

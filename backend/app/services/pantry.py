@@ -112,6 +112,16 @@ class PantryService:
         item = await self.pantry_repo.confirmar(item_id, hogar_id)
         return InventarioAlimentoResponse.model_validate(item)
 
+    async def restaurar_item(
+        self, item_id: uuid.UUID, hogar_id: uuid.UUID
+    ) -> InventarioAlimentoResponse:
+        """Undo de un agotado o descuento del chef: reactiva el alimento y compensa el ledger."""
+        item = await self.pantry_repo.restaurar(item_id, hogar_id)
+        await self._registrar_movimiento(
+            hogar_id, item.nombre, "compra", float(item.cantidad), item.unidad, "undo"
+        )
+        return InventarioAlimentoResponse.model_validate(item)
+
     async def get_stock_metrics(self, hogar_id: uuid.UUID) -> PantryStockMetrics:
         """Calcula el porcentaje de stock de la despensa, las alertas de caducidad (6 días)
         y marca como 'incierto' lo que probablemente se ha consumido según la cadencia de

@@ -6,6 +6,31 @@ Formato: `[FECHA] [ÁREA] [TIPO] Descripción`
 
 ---
 
+## [2026-06-23] — Calidad UX: React Query, Toast y Undo del Chef
+
+Refactorización completa de la capa de datos del frontend hacia React Query y corrección del incumplimiento de escrituras IA reversibles (CLAUDE.md §6.2.5).
+
+### Frontend
+- **ADD** `queryClient.ts`: `QueryClient` centralizado con `staleTime: 30s`, sin retry en 4xx.
+- **MOD** `App.tsx`: Añadido `QueryClientProvider` y `ToastProvider` en la raíz.
+- **ADD** `Toast.tsx`: Componente `ToastProvider` + hook `useToast()` con tipos info/success/error, botón de acción para "Deshacer" y auto-dismiss a 4s.
+- **MOD** `usePantry.ts`, `useListaCompra.ts`, `useDashboard.ts`, `usePlanComidas.ts`, `useRecetaHistorial.ts`, `usePerfiles.ts`: Migrados a `useQuery`/`useMutation` con invalidación cruzada por dominio (`['pantry']`, `['lista-compra']`, etc.).
+- **MOD** `usePantry.ts`: Mutaciones `agotarItem`, `confirmarItem`, `updateQuantity` con actualización optimista de caché y rollback en error.
+- **MOD** `useListaCompra.ts`: Mutaciones `toggleItem`, `deleteItem`, `clearChecked` con actualización optimista; `addItem` con invalidación; todos con Toast de error.
+- **MOD** `useChefChat.ts`: Almacena `consumos_detalle` en el mensaje del chef; nueva función `deshacerConsumos()` que llama a `/restaurar` o `PATCH /pantry/{id}` por ítem; invalida `['pantry']` y muestra Toast de confirmación.
+- **MOD** `ChefChatScreen.tsx`: Botón "Deshacer" visible en burbujas con consumos aplicados — llama a `deshacerConsumos` desde el hook.
+- **MOD** `types/types.ts`: Añadidos `ConsumoAplicado` y campo `consumos_detalle` en `ChefMensaje`/`ChefChatResponse`.
+
+### Backend
+- **ADD** `schemas.py → ConsumoAplicado`: Schema Pydantic con `item_id`, `nombre`, `cantidad_anterior`, `fue_agotado`.
+- **MOD** `schemas.py → ChefChatResponse`: Nuevo campo `consumos_detalle: list[ConsumoAplicado] | None`.
+- **MOD** `api/routers/chef.py`: El bucle de consumos registra también `ConsumoAplicado` estructurado y lo devuelve en `consumos_detalle`.
+- **ADD** `repositories/pantry.py → restaurar()`: Localiza el ítem soft-deleted y lo reactiva (`is_deleted = False`) con row-lock.
+- **ADD** `services/pantry.py → restaurar_item()`: Llama al repo y registra compensación `tipo='compra'`, `origen='undo'` en el ledger.
+- **ADD** `api/routers/pantry.py → POST /pantry/{id}/restaurar`: Endpoint de undo del chef.
+
+---
+
 ## [2026-06-22] — Skeleton Screens (Design System Adoption)
 
 Adopción de los skeleton screens del design system "Tierra Cálida" en la app real. Reemplaza todos los `ActivityIndicator`/`LoadingView` de pantalla completa por ghost-layouts animados que simulan la estructura del contenido.

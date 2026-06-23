@@ -58,11 +58,19 @@ export interface SugerenciaCompra {
 
 export type ChefRol = 'usuario' | 'chef';
 
+export interface ConsumoAplicado {
+  item_id: string;
+  nombre: string;
+  cantidad_anterior: number;
+  fue_agotado: boolean;
+}
+
 export interface ChefMensaje {
   rol: ChefRol;
   texto: string;
   platos?: RecetaSugerida[];
   consumos_aplicados?: string[];
+  consumos_detalle?: ConsumoAplicado[];
 }
 
 export interface ChefChatResponse {
@@ -71,6 +79,7 @@ export interface ChefChatResponse {
   mensaje: string | null;
   platos?: RecetaSugerida[];
   consumos_aplicados?: string[];
+  consumos_detalle?: ConsumoAplicado[];
 }
 
 export interface RecetaSugerida {

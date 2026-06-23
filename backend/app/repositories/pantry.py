@@ -120,6 +120,32 @@ class PantryRepository:
             raise DatabaseIntegrityError(str(e.orig)) from e
         return db_item
 
+    async def restaurar(
+        self, item_id: uuid.UUID, hogar_id: uuid.UUID
+    ) -> InventarioAlimento:
+        """Reactiva un producto soft-deleted (undo de agotado o descuento del chef)."""
+        stmt = (
+            select(InventarioAlimento)
+            .where(
+                InventarioAlimento.id == item_id,
+                InventarioAlimento.hogar_id == hogar_id,
+                InventarioAlimento.is_deleted == True,
+            )
+            .with_for_update()
+        )
+        result = await self.session.execute(stmt)
+        item = result.scalar_one_or_none()
+        if not item:
+            raise ItemNotFoundError(str(item_id), str(hogar_id))
+        item.is_deleted = False
+        try:
+            await self.session.commit()
+            await self.session.refresh(item)
+        except IntegrityError as e:
+            await self.session.rollback()
+            raise DatabaseIntegrityError(str(e.orig)) from e
+        return item
+
     async def purge_expired(self, retention_days: int = 30) -> int:
         """Borrado FÍSICO de los productos con is_deleted=true cuya última
         modificación supera el plazo de retención (RGPD art. 5.1.e).

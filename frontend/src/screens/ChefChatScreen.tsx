@@ -21,7 +21,13 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { haptics } from '../lib/haptics';
 import RecipeChatCard from '../components/chat/RecipeChatCard';
 
-function Burbuja({ mensaje }: { mensaje: ChefMensaje }) {
+function Burbuja({
+  mensaje,
+  onDeshacer,
+}: {
+  mensaje: ChefMensaje;
+  onDeshacer?: (detalle: NonNullable<ChefMensaje['consumos_detalle']>) => void;
+}) {
   const esUsuario = mensaje.rol === 'usuario';
   const navigation = useNavigation<NativeStackNavigationProp<any>>();
 
@@ -51,15 +57,30 @@ function Burbuja({ mensaje }: { mensaje: ChefMensaje }) {
         )}
 
         {!esUsuario && mensaje.consumos_aplicados && mensaje.consumos_aplicados.length > 0 && (
-          <View style={styles.consumosContainer}>
-            {mensaje.consumos_aplicados.map((consumo, idx) => (
-              <View key={idx} style={styles.consumoTag}>
-                <Icon name="checkmark-circle" size={12} color={colors.success} />
-                <AppText variant="micro" color={colors.success} style={{ marginLeft: 4 }}>
-                  {consumo}
+          <View>
+            <View style={styles.consumosContainer}>
+              {mensaje.consumos_aplicados.map((consumo, idx) => (
+                <View key={idx} style={styles.consumoTag}>
+                  <Icon name="checkmark-circle" size={12} color={colors.success} />
+                  <AppText variant="micro" color={colors.success} style={{ marginLeft: 4 }}>
+                    {consumo}
+                  </AppText>
+                </View>
+              ))}
+            </View>
+            {mensaje.consumos_detalle && mensaje.consumos_detalle.length > 0 && onDeshacer && (
+              <Pressable
+                onPress={() => onDeshacer(mensaje.consumos_detalle!)}
+                style={styles.deshacerBtn}
+                accessibilityRole="button"
+                accessibilityLabel="Deshacer descuento de stock"
+              >
+                <Icon name="arrow-undo" size={12} color={colors.inkMuted} />
+                <AppText variant="micro" color={colors.inkMuted} style={{ marginLeft: 4 }}>
+                  Deshacer
                 </AppText>
-              </View>
-            ))}
+              </Pressable>
+            )}
           </View>
         )}
       </View>
@@ -68,7 +89,7 @@ function Burbuja({ mensaje }: { mensaje: ChefMensaje }) {
 }
 
 export default function ChefChatScreen() {
-  const { mensajes, enviando, enviar } = useChefChat();
+  const { mensajes, enviando, enviar, deshacerConsumos } = useChefChat();
   const { startRecording, stopAndTranscribe, isRecording, isTranscribing } = useAudioRecording();
   const [texto, setTexto] = useState('');
   const listRef = useRef<FlatList<ChefMensaje>>(null);
@@ -114,7 +135,7 @@ export default function ChefChatScreen() {
           ref={listRef}
           data={mensajes}
           keyExtractor={(_, i) => String(i)}
-          renderItem={({ item }) => <Burbuja mensaje={item} />}
+          renderItem={({ item }) => <Burbuja mensaje={item} onDeshacer={deshacerConsumos} />}
           contentContainerStyle={styles.list}
           ListHeaderComponent={
             <AIDisclaimerBanner texto="Marce es un asistente de IA y puede equivocarse." />
@@ -287,5 +308,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
     paddingVertical: 4,
     borderRadius: radius.pill,
+  },
+  deshacerBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    marginTop: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 3,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
 });

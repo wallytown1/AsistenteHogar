@@ -1,4 +1,4 @@
-import React, { useEffect, memo } from 'react';
+import React, { memo } from 'react';
 import { FlatList, View } from 'react-native';
 import { RecetaHistorial, Valoracion } from '../types/types';
 import { useRecetaHistorial } from '../hooks/useRecetaHistorial';
@@ -83,10 +83,6 @@ const HistorialRow = memo(function HistorialRow({
 
 export default function HistorialScreen() {
   const { historial, loadingHistorial, fetchHistorial } = useRecetaHistorial();
-
-  useEffect(() => {
-    fetchHistorial();
-  }, [fetchHistorial]);
 
   if (loadingHistorial && historial.length === 0) return <HistorialSkeleton />;
 
