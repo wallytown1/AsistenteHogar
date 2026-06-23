@@ -481,6 +481,10 @@ class ProductoTicketPdf(BaseSchema):
         None,
         description="Precio por unidad del ticket en euros (nullable si no visible)",
     )
+    precio_confiable: bool = Field(
+        True,
+        description="False si el precio_unitario fue anulado por incoherencia con el total de línea (el frontend puede marcarlo visualmente)",
+    )
 
 
 class TicketPdfRequest(BaseSchema):

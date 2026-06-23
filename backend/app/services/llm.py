@@ -1523,11 +1523,13 @@ _TICKET_PDF_RESPONSE_SCHEMA: dict[str, Any] = {
                     "unidad": {"type": "STRING"},
                     "categoria": {"type": "STRING"},
                     "precio_unitario": {"type": "NUMBER"},
+                    "precio_total_linea": {"type": "NUMBER"},
                     "fecha_caducidad": {"type": "STRING"},
                 },
                 "required": ["nombre", "cantidad", "unidad", "categoria"],
             },
         },
+        "importe_total": {"type": "NUMBER"},
     },
     "required": ["productos"],
 }
@@ -1541,10 +1543,12 @@ _TICKET_PDF_SYSTEM = (
     "2. 'cantidad' y 'unidad': número + unidad lógica (1 litro, 500 gramos, 6 unidades).\n"
     "3. 'categoria': una de (Lácteos, Carnes, Pescado, Frutas, Verduras, Bebidas, Congelados, Limpieza, Despensa).\n"
     "4. 'precio_unitario': precio POR UNIDAD en euros (float). Si el ticket muestra precio total de varias unidades, divide. Null si no es legible.\n"
-    "5. 'fecha_caducidad': ISO YYYY-MM-DD estimada desde la fecha de referencia si el producto es perecedero. Cadena vacía si dura meses.\n"
+    "5. 'precio_total_linea': importe TOTAL impreso de esa línea del ticket en euros (float), es decir lo que se pagó por toda la cantidad de ese producto. Cópialo tal cual aparece impreso, NO lo calcules. Null si no es legible.\n"
+    "6. 'fecha_caducidad': ISO YYYY-MM-DD estimada desde la fecha de referencia si el producto es perecedero. Cadena vacía si dura meses.\n"
     "Además:\n"
     "- 'supermercado': nombre del supermercado si aparece en el ticket (ej: 'Mercadona', 'Lidl'). Cadena vacía si no visible.\n"
     "- 'fecha_compra': fecha ISO YYYY-MM-DD del ticket si aparece impresa. Cadena vacía si no visible.\n"
+    "- 'importe_total': importe TOTAL del ticket en euros (float) tal cual aparece impreso. Null si no visible.\n"
     "Si el PDF no contiene un ticket de compra o es ilegible, devuelve productos=[]."
 )
 
@@ -1600,6 +1604,7 @@ async def parse_ticket_pdf(
         data = json.loads(raw_json)
 
         productos: list[ProductoTicketPdf] = []
+        suma_lineas = 0.0  # acumula precio_total_linea para el chequeo global (D)
         for item in data.get("productos", []):
             if not isinstance(item, dict):
                 continue
@@ -1619,6 +1624,51 @@ async def parse_ticket_pdf(
                     precio_unitario = None
             except (TypeError, ValueError):
                 precio_unitario = None
+            # Importe total impreso de la línea (fuente de verdad para validar el unitario).
+            total_raw = item.get("precio_total_linea")
+            try:
+                precio_total_linea = float(total_raw) if total_raw is not None else None
+                if precio_total_linea is not None and precio_total_linea < 0:
+                    precio_total_linea = None
+            except (TypeError, ValueError):
+                precio_total_linea = None
+            if precio_total_linea is not None:
+                suma_lineas += precio_total_linea
+
+            # --- Validación de cordura del precio (B) ---
+            # El € del Informe de Ahorro descansa en precio_unitario; el LLM puede
+            # alucinar (€/kg vs €/ud, leer 1,50 como 150, coger el total). Validamos
+            # contra el importe total impreso de la línea, que es más fiable.
+            precio_confiable = True
+
+            def _cuadra(unit: float, cant: float, total: float) -> bool:
+                # 5% de tolerancia, mínimo 2 céntimos.
+                return abs(unit * cant - total) <= max(0.05 * total, 0.02)
+
+            if (
+                precio_unitario is not None
+                and precio_total_linea is not None
+                and not _cuadra(precio_unitario, cantidad, precio_total_linea)
+            ):
+                # El unitario del LLM no cuadra con el total impreso: no es fiable.
+                precio_unitario = None
+                precio_confiable = False
+
+            # Si no hay unitario fiable pero sí total de línea y cantidad>0,
+            # recalculamos desde el total (fuente más fiable que el unitario del LLM).
+            if (
+                precio_unitario is None
+                and precio_total_linea is not None
+                and cantidad > 0
+            ):
+                recalculado = precio_total_linea / cantidad
+                if _cuadra(recalculado, cantidad, precio_total_linea):
+                    precio_unitario = recalculado
+                else:
+                    # Ni siquiera el recálculo cuadra: no hay precio coherente posible.
+                    precio_unitario = None
+                    precio_confiable = False
+
             fc_raw = (item.get("fecha_caducidad") or "").strip()
             try:
                 fecha_caducidad = (
@@ -1626,6 +1676,8 @@ async def parse_ticket_pdf(
                 )
             except ValueError:
                 fecha_caducidad = None
+            # Mantenemos el producto en la lista aunque precio_unitario sea None
+            # (el usuario lo añade a la despensa; el AhorroService lo excluye solo).
             productos.append(
                 ProductoTicketPdf(
                     nombre=nombre,
@@ -1635,6 +1687,7 @@ async def parse_ticket_pdf(
                     or "Despensa",
                     fecha_caducidad=fecha_caducidad,
                     precio_unitario=precio_unitario,
+                    precio_confiable=precio_confiable,
                 )
             )
 
@@ -1649,6 +1702,27 @@ async def parse_ticket_pdf(
             fecha_compra = None
 
         supermercado_raw = (data.get("supermercado") or "").strip() or None
+
+        # (D) Señal de extracción parcial: la suma de líneas no llega al total impreso.
+        # Solo avisamos por logs, NO bloqueamos ni alteramos los productos.
+        importe_total_raw = data.get("importe_total")
+        try:
+            importe_total = (
+                float(importe_total_raw) if importe_total_raw is not None else None
+            )
+        except (TypeError, ValueError):
+            importe_total = None
+        if (
+            importe_total is not None
+            and importe_total > 0
+            and abs(suma_lineas - importe_total) > 0.10 * importe_total
+        ):
+            logger.warning(
+                "Ticket PDF: la suma de líneas (%.2f€) difiere >10%% del importe total "
+                "impreso (%.2f€); posible extracción parcial de productos.",
+                suma_lineas,
+                importe_total,
+            )
 
         logger.info(
             f"Ticket PDF procesado en {time.time() - start_time:.2f}s. "
