@@ -827,3 +827,61 @@ class TranscribeAudioRequest(BaseSchema):
 class TranscribeAudioResponse(BaseSchema):
     texto: str = Field(..., description="Texto transcrito por el asistente de IA")
     generado_por_ia: bool = Field(False)
+
+
+# --- INFORME DE AHORRO (Fase 3 — North Star premium) ---
+
+
+class AhorroPreviewResponse(BaseSchema):
+    """Free tier: resumen ligero del mes actual para motivar el upgrade a Premium."""
+
+    mes: str = Field(..., description="Mes analizado en formato YYYY-MM")
+    recetas_cocinadas: int = Field(..., description="Recetas cocinadas en el mes")
+    ahorro_estimado_eur: float = Field(
+        ..., description="Ahorro estimado en € (recetas x €3.50 media española)"
+    )
+    tiene_datos_reales: bool = Field(
+        ..., description="True si hay tickets importados con precios reales"
+    )
+    mensaje: str | None = None
+
+
+class DesgloseMensualItem(BaseSchema):
+    """Línea del desglose de ahorro por ingrediente (Premium)."""
+
+    nombre: str
+    cantidad_total: float
+    unidad: str
+    precio_unitario_medio: float
+    valor_total: float = Field(..., description="€ de ese ingrediente aprovechados")
+
+
+class AhorroResumenResponse(BaseSchema):
+    """Premium: informe completo de ahorro del mes."""
+
+    mes: str = Field(..., description="Mes analizado en formato YYYY-MM")
+    recetas_cocinadas: int
+    ahorro_real_eur: float | None = Field(
+        None,
+        description="Ahorro real calculado desde precios de ticket (None si sin datos)",
+    )
+    ahorro_estimado_eur: float = Field(
+        ..., description="Ahorro estimado (siempre presente como fallback)"
+    )
+    tiene_datos_reales: bool
+    kg_no_desperdiciados: float = Field(
+        ..., description="Kg estimados de comida no desperdiciada (recetas x 0.35 kg)"
+    )
+    porcentaje_media_espana: int = Field(
+        ...,
+        description="% de desperdicio medio español evitado (MAPA 2024: 31 kg/persona/año)",
+    )
+    num_comensales: int
+    tickets_analizados: int = Field(
+        ..., description="Número de entradas de compra con precio en el mes"
+    )
+    desglose: list[DesgloseMensualItem] = Field(
+        default_factory=list,
+        description="Top 20 ingredientes consumidos con valor estimado",
+    )
+    mensaje: str | None = None

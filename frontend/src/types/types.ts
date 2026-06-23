@@ -221,3 +221,33 @@ export interface TranscribeAudioResponse {
   texto: string;
   generado_por_ia: boolean;
 }
+
+export interface AhorroPreviewResponse {
+  mes: string; // YYYY-MM
+  recetas_cocinadas: number;
+  ahorro_estimado_eur: number;
+  tiene_datos_reales: boolean;
+  mensaje: string | null;
+}
+
+export interface DesgloseMensualItem {
+  nombre: string;
+  cantidad_total: number;
+  unidad: string;
+  precio_unitario_medio: number;
+  valor_total: number;
+}
+
+export interface AhorroResumenResponse {
+  mes: string; // YYYY-MM
+  recetas_cocinadas: number;
+  ahorro_real_eur: number | null;
+  ahorro_estimado_eur: number;
+  tiene_datos_reales: boolean;
+  kg_no_desperdiciados: number;
+  porcentaje_media_espana: number;
+  num_comensales: number;
+  tickets_analizados: number;
+  desglose: DesgloseMensualItem[];
+  mensaje: string | null;
+}

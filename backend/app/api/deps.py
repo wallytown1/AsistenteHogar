@@ -21,6 +21,7 @@ from app.repositories.prompt_template import PromptTemplateRepository
 from app.repositories.receta_maestra import RecetaMaestraRepository
 from app.repositories.user import UserRepository
 from app.services.admin_auth import AdminAuthService
+from app.services.ahorro import AhorroService
 from app.services.auth import AuthService
 from app.services.dashboard import DashboardService
 from app.services.historial import RecetaHistorialService
@@ -397,3 +398,10 @@ async def get_lista_compra_service(
         PantryRepository(session),
         ListaCompraRepository(session),
     )
+
+
+async def get_ahorro_service(
+    session: AsyncSession = Depends(get_async_session),
+) -> AhorroService:
+    """Provee AhorroService para el cálculo del Informe de Ahorro mensual."""
+    return AhorroService(session)
