@@ -16,8 +16,9 @@ Este documento centraliza el estado de los despliegues, las fases en curso, el r
 
 ## 2. Sesiones Recientes
 
-### ✅ Sesión 2026-06-23 (Parte 3) — Optimización del Carisma del Chef (Marce)
+### ✅ Sesión 2026-06-23 (Parte 3) — Optimización del Chef y Plan de Marketing
 *   **Carisma potenciado**: Modificada la directiva `PERSONA_CHEF` en `llm.py` para dotar a Marce de un tono más coloquial, cercano, informal y entusiasta ("tío cocinillas/amigo de la familia"), utilizando expresiones cotidianas y cálidas españolas, e invitaciones apasionadas al aprovechamiento gastronómico sin perder rigor.
+*   **Estrategia comercial**: Creado el plan integral de marketing, tracción y ventas de bajo coste en `docs/ESTRATEGIA_COMERCIAL.md`.
 *   **Verificación**: Ejecutada la suite de 13 pruebas de humo del backend (SQLite).
 
 ### ✅ Sesión 2026-06-22 (Parte 9) — Skeleton Screens (Adopción Design System)
