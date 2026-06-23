@@ -399,6 +399,10 @@ class MovimientoDespensa(Base):
     fecha: Mapped[datetime] = mapped_column(
         TZDateTime, nullable=False, server_default=utcnow(), index=True
     )
+    # Precio unitario capturado desde ticket (Fase 2). Nullable: movimientos manuales no tienen precio.
+    precio_unitario: Mapped[float | None] = mapped_column(Numeric(10, 4), nullable=True)
+    # Fecha de compra del ticket (puede diferir de fecha de registro del movimiento).
+    fecha_compra: Mapped[date | None] = mapped_column(Date, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         TZDateTime, nullable=False, server_default=utcnow()
     )
