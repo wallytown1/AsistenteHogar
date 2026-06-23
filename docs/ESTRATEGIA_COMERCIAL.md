@@ -2,7 +2,7 @@
 
 Este documento detalla la estrategia comercial, el modelo de monetización y el plan de captación de usuarios para el lanzamiento y escalado de **AsistenteHogar**.
 
-> **Versión:** 1.0 (2026-06-23) — Plan inicial de comercialización y growth hacking orgánico.
+> **Versión:** 1.1 (2026-06-23) — Ampliación Growth Hacker: North Star Metric, viral loop, SEO y canal Reddit.
 
 ---
 

@@ -13,3 +13,4 @@ export * from './EmptyState';
 export * from './Field';
 export * from './Feedback';
 export * from './Toast';
+export * from './ShareRecipeCard';

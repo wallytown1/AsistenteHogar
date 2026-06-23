@@ -1,0 +1,118 @@
+<!-- @dsCard group="Pantallas" name="Despensa" subtitle="Lista de stock · filtros · swipe-to-delete" -->
+<!DOCTYPE html><html lang="es"><head><meta charset="utf-8">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; background: #FAF7F2; }
+.phone { width: 390px; min-height: 844px; background: #FAF7F2; margin: 0 auto; }
+.status-bar { height: 44px; padding: 0 20px; display: flex; align-items: center; justify-content: space-between; }
+.scroll { padding: 0 20px 100px; }
+.page-title { font-size: 28px; font-weight: 800; color: #2C1C0E; letter-spacing: -0.5px; margin-bottom: 16px; }
+.chip-row { display: flex; gap: 8px; margin-bottom: 16px; overflow-x: auto; padding-bottom: 4px; }
+.chip { padding: 9px 14px; border-radius: 999px; font-size: 13px; font-weight: 700; border: 1px solid; cursor: pointer; white-space: nowrap; }
+.chip-active { background: #8B5E3C; color: #fff; border-color: #8B5E3C; }
+.chip-inactive { background: #FFFDF8; color: #7A6045; border-color: #D9CCBC; }
+.section-label { font-size: 11px; font-weight: 800; letter-spacing: 0.6px; text-transform: uppercase; color: #AE9B87; margin: 16px 0 10px; }
+.ingredient-card { background: #FFFDF8; border-radius: 20px; border: 1px solid #EAE0D3; padding: 14px 16px; margin-bottom: 8px; display: flex; align-items: center; gap: 12px; box-shadow: 0 3px 8px rgba(61,43,26,0.05); }
+.ingredient-icon { width: 44px; height: 44px; background: #F6EDE3; border-radius: 14px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.ingredient-name { font-size: 15px; font-weight: 700; color: #2C1C0E; }
+.ingredient-qty { font-size: 12px; font-weight: 500; color: #7A6045; margin-top: 2px; }
+.badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 999px; font-size: 10px; font-weight: 700; margin-top: 4px; }
+.badge-ok      { background: #EBF4EE; color: #3D6B49; }
+.badge-warn    { background: #FAF0E6; color: #9B5A20; }
+.badge-danger  { background: #FAF0EC; color: #8B3318; }
+.ingredient-actions { display: flex; gap: 8px; margin-left: auto; flex-shrink: 0; }
+.action-btn { width: 32px; height: 32px; border-radius: 50%; background: #F9F4EC; border: none; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+.swipe-hint { font-size: 11px; font-weight: 700; color: #AE9B87; text-align: center; padding: 6px 0 12px; }
+.skeleton { background: linear-gradient(90deg, #F9F4EC 0%, #FFFDF8 50%, #F9F4EC 100%); background-size: 200% 100%; animation: shimmer 1.5s infinite; border-radius: 12px; }
+@keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+.fab { position: fixed; bottom: 24px; right: 20px; width: 56px; height: 56px; border-radius: 50%; background: #8B5E3C; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 16px rgba(139,94,60,0.35); }
+</style></head><body>
+
+<div class="phone">
+  <div class="status-bar"><span style="font-size:15px;font-weight:600;color:#2C1C0E">9:41</span></div>
+  <div class="scroll">
+    <div class="page-title">Mi Despensa</div>
+
+    <div class="chip-row">
+      <span class="chip chip-active">Todos</span>
+      <span class="chip chip-inactive">Verduras</span>
+      <span class="chip chip-inactive">Carnes</span>
+      <span class="chip chip-inactive">Lácteos</span>
+      <span class="chip chip-inactive">Frescos</span>
+    </div>
+
+    <div class="section-label">Por caducar pronto</div>
+
+    <div class="ingredient-card">
+      <div class="ingredient-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#8B5E3C" stroke-width="2" stroke-linecap="round"><path d="M12 2a10 10 0 0 0-7.35 16.84L12 22l7.35-3.16A10 10 0 0 0 12 2z"/></svg></div>
+      <div style="flex:1">
+        <div class="ingredient-name">Pollo entero</div>
+        <div class="ingredient-qty">1.2 kg · Nevera</div>
+        <span class="badge badge-warn">Caduca mañana</span>
+      </div>
+      <div class="ingredient-actions">
+        <button class="action-btn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#7A6045" stroke-width="2.5" stroke-linecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
+        <button class="action-btn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#B84B2D" stroke-width="2.5" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/></svg></button>
+      </div>
+    </div>
+
+    <div class="ingredient-card">
+      <div class="ingredient-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#8B5E3C" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/></svg></div>
+      <div style="flex:1">
+        <div class="ingredient-name">Leche entera</div>
+        <div class="ingredient-qty">800 ml · Nevera</div>
+        <span class="badge badge-warn">Caduca en 2 días</span>
+      </div>
+      <div class="ingredient-actions">
+        <button class="action-btn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#7A6045" stroke-width="2.5" stroke-linecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
+        <button class="action-btn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#B84B2D" stroke-width="2.5" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/></svg></button>
+      </div>
+    </div>
+
+    <div class="section-label">Disponibles</div>
+
+    <div class="ingredient-card">
+      <div class="ingredient-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#5C8B68" stroke-width="2" stroke-linecap="round"><path d="M3 6c0 0 4-2 9-2s9 2 9 2"/><path d="M3 12c0 0 4-2 9-2s9 2 9 2"/><path d="M3 18c0 0 4-2 9-2s9 2 9 2"/></svg></div>
+      <div style="flex:1">
+        <div class="ingredient-name">Tomates pera</div>
+        <div class="ingredient-qty">6 unidades · Temperatura ambiente</div>
+        <span class="badge badge-ok">En buen estado</span>
+      </div>
+      <div class="ingredient-actions">
+        <button class="action-btn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#7A6045" stroke-width="2.5" stroke-linecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
+      </div>
+    </div>
+
+    <div class="ingredient-card">
+      <div class="ingredient-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#8B5E3C" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="4"/></svg></div>
+      <div style="flex:1">
+        <div class="ingredient-name">Aceite de oliva virgen</div>
+        <div class="ingredient-qty">500 ml · Despensa</div>
+        <span class="badge badge-ok">Abierto · 3 meses</span>
+      </div>
+      <div class="ingredient-actions">
+        <button class="action-btn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#7A6045" stroke-width="2.5" stroke-linecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
+      </div>
+    </div>
+
+    <div class="ingredient-card">
+      <div class="ingredient-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#B84B2D" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div>
+      <div style="flex:1">
+        <div class="ingredient-name">Huevos camperos</div>
+        <div class="ingredient-qty">0 unidades · Agotado</div>
+        <span class="badge badge-danger">Sin stock</span>
+      </div>
+      <div class="ingredient-actions">
+        <button class="action-btn" style="background:#FAF0EC"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#B84B2D" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+      </div>
+    </div>
+
+    <div class="swipe-hint">← Desliza para eliminar</div>
+  </div>
+
+  <button class="fab" style="bottom: 24px; right: 20px; position: absolute;">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+  </button>
+</div>
+
+</body></html>

@@ -1,0 +1,78 @@
+<!-- @dsCard group="Formularios" name="Toggle / Switch" subtitle="On/off · estados normal, checked, disabled" -->
+<!DOCTYPE html><html lang="es"><head><meta charset="utf-8">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; background: #FAF7F2; padding: 28px; max-width: 390px; }
+.label { font-size: 11px; font-weight: 800; letter-spacing: 0.6px; text-transform: uppercase; color: #AE9B87; margin-bottom: 14px; }
+.section { margin-bottom: 24px; }
+.toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 14px 0; border-bottom: 1px solid #EAE0D3; }
+.toggle-row:last-child { border-bottom: none; }
+.toggle-label { font-size: 15px; font-weight: 500; color: #2C1C0E; }
+.toggle-desc { font-size: 12px; color: #7A6045; margin-top: 2px; }
+.switch { width: 52px; height: 32px; border-radius: 999px; background: #EAE0D3; border: none; cursor: pointer; position: relative; transition: background 0.3s ease; flex-shrink: 0; }
+.switch::after { content: ''; position: absolute; width: 28px; height: 28px; background: #fff; border-radius: 999px; top: 2px; left: 2px; transition: left 0.3s ease; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+.switch:checked { background: #8B5E3C; }
+.switch:checked::after { left: calc(100% - 30px); }
+.switch:disabled { opacity: 0.5; cursor: not-allowed; }
+.switch:focus { outline: 2px solid #8B5E3C; outline-offset: 2px; }
+</style></head><body>
+
+<div class="section">
+  <div class="label">Toggle — Base (desactivado)</div>
+  <div class="toggle-row">
+    <div>
+      <div class="toggle-label">Notificaciones de stock</div>
+      <div class="toggle-desc">Avisos cuando algo se acaba</div>
+    </div>
+    <input type="checkbox" class="switch">
+  </div>
+</div>
+
+<div class="section">
+  <div class="label">Toggle — Activado</div>
+  <div class="toggle-row">
+    <div>
+      <div class="toggle-label">Sugerencias diarias</div>
+      <div class="toggle-desc">Recibe ideas del Chef Marce cada mañana</div>
+    </div>
+    <input type="checkbox" class="switch" checked>
+  </div>
+</div>
+
+<div class="section">
+  <div class="label">Toggle — Desactivado (disabled)</div>
+  <div class="toggle-row">
+    <div>
+      <div class="toggle-label">Historial de búsquedas</div>
+      <div class="toggle-desc">Disponible con Premium</div>
+    </div>
+    <input type="checkbox" class="switch" disabled>
+  </div>
+</div>
+
+<div class="section">
+  <div class="label">Toggle — Múltiples opciones</div>
+  <div class="toggle-row">
+    <div>
+      <div class="toggle-label">Chat con voz</div>
+      <div class="toggle-desc">Habla con el Chef Marce</div>
+    </div>
+    <input type="checkbox" class="switch" checked>
+  </div>
+  <div class="toggle-row">
+    <div>
+      <div class="toggle-label">Entrada de voz nativa</div>
+      <div class="toggle-desc">iOS Tapback recognition</div>
+    </div>
+    <input type="checkbox" class="switch" checked>
+  </div>
+  <div class="toggle-row">
+    <div>
+      <div class="toggle-label">Modo oscuro</div>
+      <div class="toggle-desc">Salvo en la despensa (siempre cálido)</div>
+    </div>
+    <input type="checkbox" class="switch">
+  </div>
+</div>
+
+</body></html>
