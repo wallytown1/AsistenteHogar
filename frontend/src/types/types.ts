@@ -122,6 +122,22 @@ export interface AlimentoInterpretado {
   fecha_caducidad: string | null; // YYYY-MM-DD
 }
 
+export interface ProductoTicketPdf {
+  nombre: string;
+  cantidad: number;
+  unidad: string;
+  categoria: string;
+  fecha_caducidad: string | null; // YYYY-MM-DD
+  precio_unitario: number | null; // € por unidad extraído del ticket
+}
+
+export interface TicketPdfResponse {
+  productos: ProductoTicketPdf[];
+  fecha_compra: string | null; // YYYY-MM-DD
+  supermercado: string | null;
+  mensaje: string | null;
+}
+
 export interface InterpretarDespensaResponse {
   alimentos: AlimentoInterpretado[];
   mensaje: string | null;
@@ -204,4 +220,34 @@ export interface RechazarIngredienteResponse {
 export interface TranscribeAudioResponse {
   texto: string;
   generado_por_ia: boolean;
+}
+
+export interface AhorroPreviewResponse {
+  mes: string; // YYYY-MM
+  recetas_cocinadas: number;
+  ahorro_estimado_eur: number;
+  tiene_datos_reales: boolean;
+  mensaje: string | null;
+}
+
+export interface DesgloseMensualItem {
+  nombre: string;
+  cantidad_total: number;
+  unidad: string;
+  precio_unitario_medio: number;
+  valor_total: number;
+}
+
+export interface AhorroResumenResponse {
+  mes: string; // YYYY-MM
+  recetas_cocinadas: number;
+  ahorro_real_eur: number | null;
+  ahorro_estimado_eur: number;
+  tiene_datos_reales: boolean;
+  kg_no_desperdiciados: number;
+  porcentaje_media_espana: number;
+  num_comensales: number;
+  tickets_analizados: number;
+  desglose: DesgloseMensualItem[];
+  mensaje: string | null;
 }

@@ -1,0 +1,82 @@
+<!-- @dsCard group="Diálogos" name="Modal / Diálogo" subtitle="Overlay con contenido · acciones, cancelar" -->
+<!DOCTYPE html><html lang="es"><head><meta charset="utf-8">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; background: #FAF7F2; padding: 28px; }
+.label { font-size: 11px; font-weight: 800; letter-spacing: 0.6px; text-transform: uppercase; color: #AE9B87; margin-bottom: 14px; }
+.section { margin-bottom: 24px; }
+.modal-container { position: relative; min-height: 600px; background: #FAF7F2; border-radius: 20px; border: 2px dashed #D9CCBC; display: flex; align-items: flex-end; padding: 0; overflow: hidden; }
+.modal-overlay { position: absolute; inset: 0; background: rgba(44, 28, 14, 0.55); border-radius: 20px; z-index: 0; }
+.modal { position: relative; z-index: 1; width: 100%; background: #FFFDF8; border-radius: 32px 32px 0 0; padding: 24px 20px 28px; box-shadow: 0 -8px 24px rgba(61, 43, 26, 0.12); max-width: 390px; margin: 0 auto; }
+.modal-title { font-size: 22px; font-weight: 800; color: #2C1C0E; margin-bottom: 8px; letter-spacing: -0.3px; }
+.modal-desc { font-size: 15px; font-weight: 500; color: #7A6045; margin-bottom: 20px; }
+.modal-content { margin-bottom: 20px; }
+.modal-content-item { font-size: 15px; color: #2C1C0E; padding: 12px 0; border-bottom: 1px solid #EAE0D3; }
+.modal-content-item:last-child { border-bottom: none; }
+.modal-actions { display: flex; flex-direction: column; gap: 10px; }
+.modal-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; border-radius: 999px; cursor: pointer; font-family: inherit; font-weight: 700; border: 1px solid transparent; padding: 13px 20px; font-size: 15px; transition: all 0.2s ease; }
+.modal-btn-primary { background: #8B5E3C; color: #fff; }
+.modal-btn-primary:active { background: #6B4429; }
+.modal-btn-secondary { background: #F6EDE3; color: #6B4429; }
+.modal-btn-secondary:active { background: #EAE0D3; }
+.modal-btn-ghost { background: transparent; color: #2C1C0E; border-color: #D9CCBC; }
+.modal-btn-ghost:active { background: #F9F4EC; }
+.spacer { height: 16px; }
+</style></head><body>
+
+<div class="section">
+  <div class="label">Modal — Confirmación simple</div>
+  <div class="modal-container">
+    <div class="modal-overlay"></div>
+    <div class="modal">
+      <div class="modal-title">¿Estás seguro?</div>
+      <div class="modal-desc">Esto eliminará la receta del historial. No se puede deshacer.</div>
+      <div class="modal-actions">
+        <button class="modal-btn modal-btn-primary">Eliminar</button>
+        <button class="modal-btn modal-btn-ghost">Cancelar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="spacer"></div>
+
+<div class="section">
+  <div class="label">Modal — Con contenido listado</div>
+  <div class="modal-container">
+    <div class="modal-overlay"></div>
+    <div class="modal">
+      <div class="modal-title">Filtrar por categoría</div>
+      <div class="modal-desc">Selecciona qué tipos de recetas mostrar</div>
+      <div class="modal-content">
+        <div class="modal-content-item">Verduras y hortalizas</div>
+        <div class="modal-content-item">Carnes y aves</div>
+        <div class="modal-content-item">Lácteos y quesos</div>
+        <div class="modal-content-item">Arroces y pastas</div>
+      </div>
+      <div class="modal-actions">
+        <button class="modal-btn modal-btn-primary">Aplicar filtros</button>
+        <button class="modal-btn modal-btn-ghost">Cancelar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="spacer"></div>
+
+<div class="section">
+  <div class="label">Modal — Con error</div>
+  <div class="modal-container">
+    <div class="modal-overlay"></div>
+    <div class="modal">
+      <div class="modal-title" style="color:#B84B2D">Error al guardar</div>
+      <div class="modal-desc">La conexión se perdió. Intenta de nuevo en unos momentos.</div>
+      <div class="modal-actions">
+        <button class="modal-btn modal-btn-primary">Reintentar</button>
+        <button class="modal-btn modal-btn-ghost">Cerrar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body></html>

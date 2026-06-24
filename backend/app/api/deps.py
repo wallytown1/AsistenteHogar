@@ -1,4 +1,6 @@
 import uuid
+from collections.abc import Callable, Coroutine
+from typing import Any
 
 import jwt
 from fastapi import Depends, HTTPException, Request, status
@@ -21,6 +23,7 @@ from app.repositories.prompt_template import PromptTemplateRepository
 from app.repositories.receta_maestra import RecetaMaestraRepository
 from app.repositories.user import UserRepository
 from app.services.admin_auth import AdminAuthService
+from app.services.ahorro import AhorroService
 from app.services.auth import AuthService
 from app.services.dashboard import DashboardService
 from app.services.historial import RecetaHistorialService
@@ -189,6 +192,87 @@ async def check_freemium_chat_quota(
             detail="Límite diario superado. Suscríbete para continuar.",
         )
     quota[key] = current_count + 1
+
+
+async def _consumir_cupo_diario(
+    request: Request, hogar_id: str, bucket: str, limit: int
+) -> None:
+    """Consume una unidad del cupo diario por hogar para un bucket de IA dado.
+
+    Mismo patrón dual que check_freemium_chat_quota: Redis si está disponible
+    (compartido entre workers, expira en 48h), con fallback en memoria de proceso.
+    Lanza 429 si el hogar superó el tope del día. El límite es por hogar para que
+    crear cuentas o rotar IPs no evada el coste de la API de Gemini."""
+    import logging
+    from datetime import date
+
+    from app.core.redis_client import get_redis
+
+    _LIMIT_MSG = (
+        "Has alcanzado el límite diario de esta función con IA. "
+        "Vuelve mañana o suscríbete para uso ampliado."
+    )
+    today = date.today().isoformat()
+    key = f"ai_quota:{bucket}:{hogar_id}:{today}"
+    redis = get_redis()
+
+    if redis is not None:
+        try:
+            count = await redis.get(key)
+            if count is not None and int(count) >= limit:
+                raise HTTPException(
+                    status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail=_LIMIT_MSG
+                )
+            await redis.incr(key)
+            if count is None:
+                await redis.expire(key, 86400 * 2)  # Expira en 48h
+            return
+        except HTTPException:
+            raise
+        except Exception as e:
+            logging.getLogger("app.api.deps").warning(
+                f"Error Redis en cupo diario de IA ({bucket}): {e}"
+            )
+            # Fallback en memoria si Redis falla
+
+    if not hasattr(request.app.state, "ai_quota"):
+        request.app.state.ai_quota = {}
+    quota = request.app.state.ai_quota
+    current_count = quota.get(key, 0)
+    if current_count >= limit:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail=_LIMIT_MSG
+        )
+    quota[key] = current_count + 1
+
+
+def daily_ai_quota(bucket: str, limit: int) -> Callable[..., Coroutine[Any, Any, None]]:
+    """Crea una dependencia FastAPI que aplica un cupo diario por hogar al bucket
+    de IA indicado. Los usuarios premium quedan exentos (uso ampliado de pago).
+
+    Acota el coste de las funciones de IA gratuitas (OCR, foto-nevera, voz, texto)
+    introducidas tras el pivote, complementando el rate-limit por IP (que solo frena
+    ráfagas, no el volumen diario sostenido)."""
+
+    async def _dep(
+        request: Request,
+        current_user: Usuario = Depends(get_current_user),
+    ) -> None:
+        from app.services.premium import is_premium
+
+        if await is_premium(str(current_user.id)):
+            return
+        await _consumir_cupo_diario(request, str(current_user.hogar_id), bucket, limit)
+
+    return _dep
+
+
+# Instancias de cupo diario por tipo de función de IA (coste de Gemini).
+vision_daily_quota = daily_ai_quota("vision", core_config.AI_FREE_DAILY_LIMIT_VISION)
+ticket_pdf_daily_quota = daily_ai_quota(
+    "ticket_pdf", core_config.AI_FREE_DAILY_LIMIT_TICKET_PDF
+)
+text_ai_daily_quota = daily_ai_quota("text", core_config.AI_FREE_DAILY_LIMIT_TEXT)
 
 
 async def get_auth_service(
@@ -397,3 +481,10 @@ async def get_lista_compra_service(
         PantryRepository(session),
         ListaCompraRepository(session),
     )
+
+
+async def get_ahorro_service(
+    session: AsyncSession = Depends(get_async_session),
+) -> AhorroService:
+    """Provee AhorroService para el cálculo del Informe de Ahorro mensual."""
+    return AhorroService(session)

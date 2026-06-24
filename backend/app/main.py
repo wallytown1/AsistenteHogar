@@ -19,6 +19,7 @@ from app.api.routers import (
     admin_auth,
     admin_prompts,
     admin_recetario,
+    ahorro,
     auth,
     chef,
     dashboard,
@@ -230,6 +231,7 @@ app.include_router(admin_recetario.router, prefix="/api/v1")
 app.include_router(perfiles.router, prefix="/api/v1")
 app.include_router(lista_compra.router, prefix="/api/v1")
 app.include_router(chef.router, prefix="/api/v1")
+app.include_router(ahorro.router, prefix="/api/v1")
 app.include_router(webhooks.router, prefix="/api/v1")
 
 

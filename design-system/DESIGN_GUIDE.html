@@ -1,0 +1,323 @@
+<!-- @dsCard group="Documentación" name="Guía de Diseño" subtitle="Reglas, anti-patrones, accesibilidad, micro-animaciones" -->
+<!DOCTYPE html><html lang="es"><head><meta charset="utf-8">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; background: #FAF7F2; color: #2C1C0E; line-height: 1.6; }
+.header { background: #8B5E3C; color: #fff; padding: 48px 28px; text-align: center; }
+.header h1 { font-size: 32px; font-weight: 800; margin-bottom: 8px; letter-spacing: -0.5px; }
+.header p { font-size: 16px; font-weight: 500; opacity: 0.9; }
+.container { max-width: 800px; margin: 0 auto; padding: 40px 28px; }
+h2 { font-size: 24px; font-weight: 800; margin-top: 40px; margin-bottom: 16px; letter-spacing: -0.3px; color: #2C1C0E; border-bottom: 3px solid #F6EDE3; padding-bottom: 12px; }
+h3 { font-size: 18px; font-weight: 700; margin-top: 24px; margin-bottom: 12px; color: #2C1C0E; }
+p { margin-bottom: 12px; color: #7A6045; }
+ul, ol { margin: 16px 0 16px 24px; }
+li { margin-bottom: 8px; color: #7A6045; }
+code { background: #F9F4EC; padding: 2px 6px; border-radius: 4px; font-family: 'SF Mono', 'Monaco', monospace; font-size: 13px; color: #6B4429; }
+.example { background: #FFFDF8; border: 1px solid #EAE0D3; border-radius: 16px; padding: 20px; margin: 16px 0; }
+.do-dont { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 20px 0; }
+.do { background: #EBF4EE; padding: 16px; border-radius: 12px; border-left: 4px solid #5C8B68; }
+.dont { background: #FAF0EC; padding: 16px; border-radius: 12px; border-left: 4px solid #B84B2D; }
+.do h4, .dont h4 { margin-top: 0; font-size: 14px; font-weight: 700; }
+.section-label { display: inline-block; background: #F6EDE3; color: #6B4429; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 800; letter-spacing: 0.6px; text-transform: uppercase; margin-bottom: 16px; }
+.token-table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+.token-table th { background: #F6EDE3; padding: 12px; text-align: left; font-weight: 700; font-size: 13px; }
+.token-table td { padding: 10px 12px; border-bottom: 1px solid #EAE0D3; font-size: 13px; }
+.color-swatch { width: 40px; height: 40px; border-radius: 8px; border: 1px solid #D9CCBC; display: inline-block; margin-right: 8px; vertical-align: middle; }
+.animation-guide { background: #EEF3F8; padding: 16px; border-radius: 12px; margin: 16px 0; }
+.spacing-scale { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 16px 0; }
+.spacing-item { background: #FFFDF8; padding: 12px; border-radius: 8px; text-align: center; font-size: 12px; }
+</style></head><body>
+
+<div class="header">
+  <h1>AsistenteHogar</h1>
+  <p>Guía de Diseño · Sistema Tierra Cálida</p>
+</div>
+
+<div class="container">
+
+<h2>Filosofía de Diseño</h2>
+<p>AsistenteHogar es una aplicación móvil premium de cocina y gestión de despensa que combina <strong>minimalismo cálido</strong> con <strong>interactividad nativa de iOS</strong>. Cada componente respeta la identidad visual "Tierra Cálida" mientras proporciona feedback táctil, animaciones fluidas y una accesibilidad irreprochable (WCAG AA).</p>
+
+<div class="example">
+  <strong>Principios nucleares:</strong>
+  <ul>
+    <li><strong>Calidez sin fricción:</strong> Tonos marrones y crema que confortan, interacciones que aceleran.</li>
+    <li><strong>Accesibilidad primero:</strong> Contraste mínimo AA, tamaños de toque ≥44px, estados enfocables por teclado.</li>
+    <li><strong>Micro-animaciones:</strong> Spring physics (no CSS lineales), haptic feedback guides, shared elements.</li>
+    <li><strong>Sin slop:</strong> Nada de gradientes fríos, blanco puro, emoji, NativeWind, o fuentes customizadas.</li>
+  </ul>
+</div>
+
+<h2>Paleta de Colores</h2>
+<div class="section-label">Fundamentos</div>
+
+<h3>Marca — Tierra Cálida</h3>
+<table class="token-table">
+  <tr><th>Token</th><th>Valor</th><th>Uso</th></tr>
+  <tr><td><span class="color-swatch" style="background:#8B5E3C"></span> brand</td><td><code>#8B5E3C</code></td><td>Botones primarios, acciones destacadas, iconos activos</td></tr>
+  <tr><td><span class="color-swatch" style="background:#6B4429"></span> brandDark</td><td><code>#6B4429</code></td><td>Estado hover de brand, fondos alternativos</td></tr>
+  <tr><td><span class="color-swatch" style="background:#F6EDE3"></span> brandSoft</td><td><code>#F6EDE3</code></td><td>Fondos de tarjetas destacadas, botones secundarios</td></tr>
+</table>
+
+<h3>Superficies</h3>
+<table class="token-table">
+  <tr><th>Token</th><th>Valor</th><th>Uso</th></tr>
+  <tr><td><span class="color-swatch" style="background:#FAF7F2"></span> bg</td><td><code>#FAF7F2</code></td><td>Fondo general de la app (lino cálido)</td></tr>
+  <tr><td><span class="color-swatch" style="background:#FFFDF8"></span> card</td><td><code>#FFFDF8</code></td><td>Tarjetas, contenedores principales</td></tr>
+  <tr><td><span class="color-swatch" style="background:#F9F4EC"></span> cardAlt</td><td><code>#F9F4EC</code></td><td>Fondos alternativos, backgrounds secundarios</td></tr>
+</table>
+
+<h3>Semánticos</h3>
+<table class="token-table">
+  <tr><th>Intención</th><th>Color</th><th>Soft</th><th>Uso</th></tr>
+  <tr><td>Success</td><td><span class="color-swatch" style="background:#5C8B68"></span> #5C8B68</td><td><span class="color-swatch" style="background:#EBF4EE"></span> #EBF4EE</td><td>Stock disponible, confirmación, éxito</td></tr>
+  <tr><td>Warning</td><td><span class="color-swatch" style="background:#C8783A"></span> #C8783A</td><td><span class="color-swatch" style="background:#FAF0E6"></span> #FAF0E6</td><td>Caducidad próxima, atención requerida</td></tr>
+  <tr><td>Danger</td><td><span class="color-swatch" style="background:#B84B2D"></span> #B84B2D</td><td><span class="color-swatch" style="background:#FAF0EC"></span> #FAF0EC</td><td>Sin stock, error, acciones destructivas</td></tr>
+  <tr><td>Info</td><td><span class="color-swatch" style="background:#5E7FA8"></span> #5E7FA8</td><td><span class="color-swatch" style="background:#EEF3F8"></span> #EEF3F8</td><td>Información, sugerencias, mensajes</td></tr>
+</table>
+
+<h2>Tipografía</h2>
+<div class="section-label">Sistema nativo</div>
+<p>Todas las fuentes son <strong>nativas del sistema</strong> (SF Pro en iOS, Roboto en Android). <strong>NUNCA</strong> importar fuentes customizadas.</p>
+
+<table class="token-table">
+  <tr><th>Rol</th><th>Tamaño</th><th>Peso</th><th>Tracking</th><th>Uso</th></tr>
+  <tr><td>display</td><td>28px</td><td>800</td><td>−0.5px</td><td>Títulos de pantalla principales</td></tr>
+  <tr><td>title</td><td>22px</td><td>800</td><td>−0.3px</td><td>Títulos de secciones</td></tr>
+  <tr><td>h2</td><td>17px</td><td>700</td><td>−0.2px</td><td>Subtítulos, encabezados</td></tr>
+  <tr><td>bodyStrong</td><td>15px</td><td>700</td><td>0px</td><td>Texto destacado en cuerpo</td></tr>
+  <tr><td>body</td><td>15px</td><td>500</td><td>0px</td><td>Párrafos, cuerpo principal</td></tr>
+  <tr><td>captionStrong</td><td>13px</td><td>700</td><td>0px</td><td>Etiquetas pequeñas destacadas</td></tr>
+  <tr><td>caption</td><td>13px</td><td>500</td><td>0px</td><td>Texto secundario, metadatos</td></tr>
+  <tr><td>label</td><td>11px</td><td>800</td><td>+0.6px</td><td>Etiquetas, encabezados minúsculos</td></tr>
+  <tr><td>micro</td><td>11px</td><td>600</td><td>0px</td><td>Notas mínimas, timestamps</td></tr>
+</table>
+
+<h2>Espaciado</h2>
+<div class="section-label">Scale de espacios</div>
+<div class="spacing-scale">
+  <div class="spacing-item">xs: 4px</div>
+  <div class="spacing-item">sm: 8px</div>
+  <div class="spacing-item">md: 12px</div>
+  <div class="spacing-item">lg: 16px</div>
+  <div class="spacing-item">xl: 20px</div>
+  <div class="spacing-item">xxl: 24px</div>
+  <div class="spacing-item">xxxl: 32px</div>
+</div>
+<p>Usar <code>gap</code> en flex/grid. <strong>NUNCA</strong> margin entre hermanos inline.</p>
+
+<h2>Border Radius</h2>
+<table class="token-table">
+  <tr><th>Token</th><th>Valor</th><th>Componentes</th></tr>
+  <tr><td>sm</td><td>12px</td><td>Inputs pequeños, badges</td></tr>
+  <tr><td>md</td><td>16px</td><td>Inputs, chips</td></tr>
+  <tr><td>lg</td><td>20px</td><td>Modales, toast</td></tr>
+  <tr><td>xl</td><td>24px</td><td>Cards grandes</td></tr>
+  <tr><td>xxl</td><td>32px</td><td>Cards principales, bottom sheets</td></tr>
+  <tr><td>pill</td><td>999px</td><td>Botones, chips, toggles</td></tr>
+</table>
+
+<h2>Sombras</h2>
+<div class="section-label">Elevación cálida — propiedades nativas RN</div>
+<p>En React Native las sombras CSS no funcionan. Usar las propiedades nativas por plataforma:</p>
+<table class="token-table">
+  <tr><th>Nivel</th><th>iOS (shadow*)</th><th>Android</th><th>Uso</th></tr>
+  <tr>
+    <td>Pequeña</td>
+    <td><code>shadowColor: '#3D2B1A'<br>shadowOpacity: 0.10<br>shadowRadius: 8<br>shadowOffset: {width:0, height:2}</code></td>
+    <td><code>elevation: 2</code></td>
+    <td>Inputs, chips activos</td>
+  </tr>
+  <tr>
+    <td>Mediana</td>
+    <td><code>shadowColor: '#3D2B1A'<br>shadowOpacity: 0.07<br>shadowRadius: 14<br>shadowOffset: {width:0, height:6}</code></td>
+    <td><code>elevation: 4</code></td>
+    <td>Cards principales</td>
+  </tr>
+  <tr>
+    <td>Grande</td>
+    <td><code>shadowColor: '#3D2B1A'<br>shadowOpacity: 0.12<br>shadowRadius: 24<br>shadowOffset: {width:0, height:-8}</code></td>
+    <td><code>elevation: 8</code></td>
+    <td>Modales, bottom sheets</td>
+  </tr>
+</table>
+<p><strong>Nota:</strong> <code>shadowColor</code> siempre en marrón oscuro <code>#3D2B1A</code>. NUNCA <code>#000000</code>. En Android solo <code>elevation</code> aplica.</p>
+
+<h2>Componentes</h2>
+
+<h3>Button</h3>
+<div class="do-dont">
+  <div class="do">
+    <h4>✓ Correcto</h4>
+    <ul>
+      <li>Padding vertical 13-16px, horizontal 20px</li>
+      <li>Border-radius: 999px (pill)</li>
+      <li>Transiciones suaves (0.2s ease)</li>
+      <li>Estados: normal, hover, active, focus, disabled</li>
+      <li>Ícono + texto centrados con gap 8px</li>
+    </ul>
+  </div>
+  <div class="dont">
+    <h4>✗ Incorrecto</h4>
+    <ul>
+      <li>Bordes cuadrados o radius pequeños</li>
+      <li>Gradientes fríos o multi-color</li>
+      <li>Sin transiciones o transiciones lineales</li>
+      <li>Touch target &lt;44px</li>
+      <li>Sombras negras puras</li>
+    </ul>
+  </div>
+</div>
+
+<h3>Input</h3>
+<div class="do-dont">
+  <div class="do">
+    <h4>✓ Correcto</h4>
+    <ul>
+      <li>Border 1.5px de color border</li>
+      <li>Focus: outline 3px offset con 0.1 alpha</li>
+      <li>Placeholder: color faint (#AE9B87)</li>
+      <li>Padding: 13px × 16px</li>
+      <li>Error: border danger, soft danger bg</li>
+    </ul>
+  </div>
+  <div class="dont">
+    <h4>✗ Incorrecto</h4>
+    <ul>
+      <li>Borders gruesos o colores genéricos</li>
+      <li>Sin hint text para validación</li>
+      <li>Loading spinner sin icono</li>
+      <li>Altura &lt;44px</li>
+    </ul>
+  </div>
+</div>
+
+<h3>Card</h3>
+<div class="do-dont">
+  <div class="do">
+    <h4>✓ Correcto</h4>
+    <ul>
+      <li>Border-radius: 32px</li>
+      <li>Sombra: 0 6px 14px rgba(..., 0.07)</li>
+      <li>Hover: elevar +2px, sombra mayor</li>
+      <li>Tintes semánticos disponibles</li>
+    </ul>
+  </div>
+  <div class="dont">
+    <h4>✗ Incorrecto</h4>
+    <ul>
+      <li>Fondos blancos puros</li>
+      <li>Bordes visibles innecesarios</li>
+      <li>Sin transiciones al interactuar</li>
+    </ul>
+  </div>
+</div>
+
+<h3>Skeleton Loader</h3>
+<p>Usar cuando datos cargan de IA o API. En React Native <strong>no usar gradientes CSS ni animaciones CSS</strong>. Implementar un pulso de opacidad con <code>Animated.loop</code>:</p>
+<div class="animation-guide">
+  <code>const pulse = useRef(new Animated.Value(0.3)).current;<br><br>useEffect(() => {<br>&nbsp;&nbsp;Animated.loop(<br>&nbsp;&nbsp;&nbsp;&nbsp;Animated.sequence([<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Animated.timing(pulse, { toValue: 0.7, duration: 800, useNativeDriver: true }),<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Animated.timing(pulse, { toValue: 0.3, duration: 800, useNativeDriver: true }),<br>&nbsp;&nbsp;&nbsp;&nbsp;])<br>&nbsp;&nbsp;).start();<br>}, []);<br><br>// Fondo: colors.cardAlt (#F9F4EC) o colors.brandSoft (#F6EDE3)<br>&lt;Animated.View style={{ opacity: pulse, backgroundColor: colors.cardAlt }} /&gt;</code>
+</div>
+<p>Usar <code>useNativeDriver: true</code> siempre para que la animación corra en el hilo nativo y no bloquee el JS thread.</p>
+
+<h2>Micro-Animaciones</h2>
+<div class="section-label">Motion & Haptic</div>
+
+<h3>Spring Physics</h3>
+<div class="animation-guide">
+  <p><strong>Para React Native:</strong> Usar <code>Animated.spring()</code> con <code>useNativeDriver: true</code>.</p>
+  <p><strong>Timing sugerido:</strong> stiffness 120, damping 14 (snappy pero no jarring).</p>
+  <p><strong>Casos:</strong> Presionar botones, escalar cards, desplazar bottom sheets.</p>
+</div>
+
+<h3>Haptic Feedback</h3>
+<div class="animation-guide">
+  <p><strong>iOS:</strong> <code>Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)</code> en toques principales.</p>
+  <p><strong>Casos:</strong></p>
+  <ul>
+    <li>Tap en botón primario → Medium impact</li>
+    <li>Swipe en card → Light impact</li>
+    <li>Confirmación de acción → Success notification</li>
+    <li>Error → Warning notification</li>
+  </ul>
+</div>
+
+<h3>Shared Element Transitions</h3>
+<p>Cuando navegas de lista de recetas a detalle, la tarjeta "viaja" de su posición original a fullscreen. Usar <strong>Reanimated 3 Shared Transitions</strong>: añadir la prop <code>sharedTransitionTag="recipe-card-{id}"</code> al <code>Animated.View</code> tanto en la lista como en el detalle.</p>
+<div class="animation-guide">
+  <code>// Lista<br>&lt;Animated.View sharedTransitionTag={`recipe-card-${item.id}`}&gt;<br><br>// Detalle<br>&lt;Animated.View sharedTransitionTag={`recipe-card-${recipe.id}`}&gt;</code>
+</div>
+
+<h2>Accesibilidad (WCAG AA)</h2>
+<div class="section-label">Checklist</div>
+
+<h3>Contraste</h3>
+<table class="token-table">
+  <tr><th>Texto</th><th>Fondo</th><th>Ratio</th><th>Estado</th></tr>
+  <tr><td>#2C1C0E (ink)</td><td>#FFFDF8 (card)</td><td>18.5:1</td><td>✓ AAA</td></tr>
+  <tr><td>#7A6045 (muted)</td><td>#FFFDF8 (card)</td><td>5.2:1</td><td>✓ AA</td></tr>
+  <tr><td>#fff</td><td>#8B5E3C (brand)</td><td>7.8:1</td><td>✓ AAA</td></tr>
+  <tr><td>#3D6B49 (success dark)</td><td>#EBF4EE (success soft)</td><td>6.2:1</td><td>✓ AA</td></tr>
+</table>
+
+<h3>Tamaños de toque</h3>
+<ul>
+  <li><strong>Botones:</strong> mínimo 44×44px (recomendado 48×48px)</li>
+  <li><strong>Inputs:</strong> altura 44px mínimo, ancho responde</li>
+  <li><strong>Chips/badges:</strong> 32px altura</li>
+  <li><strong>Toggles:</strong> 52×32px (thumb 28×28px)</li>
+</ul>
+
+<h3>Teclado & Focus</h3>
+<ul>
+  <li>Todos los botones/inputs: <code>outline: 2px solid #8B5E3C; outline-offset: 2px;</code></li>
+  <li>Tab order lógico (izq→der, arriba→abajo)</li>
+  <li>Aria-labels en iconos sin texto</li>
+  <li>Aria-live para toasts y notificaciones</li>
+</ul>
+
+<h3>Labels & Hints</h3>
+<ul>
+  <li>Inputs siempre con <code>&lt;label&gt;</code></li>
+  <li>Hint text debajo (color muted, 12px)</li>
+  <li>Error hints: color danger, descriptivo</li>
+</ul>
+
+<h2>Anti-Patrones — NUNCA</h2>
+<div class="section-label">Restricciones del proyecto</div>
+
+<div class="example" style="background:#FAF0EC; border-color:#B84B2D;">
+  <ul>
+    <li>❌ <strong>NativeWind / Tailwind:</strong> Desinstalado. Todo CSS custom en StyleSheet.</li>
+    <li>❌ <strong>Gradientes fríos:</strong> Púrpura, azul frío, blanco-a-gris. Solo tonos tierra.</li>
+    <li>❌ <strong>Blanco puro (#FFFFFF):</strong> Usar crema warmth (#FFFDF8).</li>
+    <li>❌ <strong>Negro puro (#000000):</strong> Usar marrón oscuro (#2C1C0E).</li>
+    <li>❌ <strong>Fuentes customizadas pesadas:</strong> Solo SF Pro (iOS) / Roboto (Android).</li>
+    <li>❌ <strong>Emoji en UI:</strong> Iconografía limpia vía @expo/vector-icons.</li>
+    <li>❌ <strong>Sombras negras:</strong> Usar rgba(44, 28, 14, ...).</li>
+    <li>❌ <strong>Borders gruesos genéricos:</strong> 1-1.5px, color #D9CCBC / #EAE0D3.</li>
+  </ul>
+</div>
+
+<h2>Archivo de Implementación</h2>
+<p>Todos los tokens se definen en <code>src/theme/tokens.ts</code>. Referencia este archivo en tus componentes React Native:</p>
+<div class="example">
+  <code>import { colors, spacing, typography, radius } from '../theme/tokens';</code>
+</div>
+
+<h2>Contacto & Iteración</h2>
+<p>Esta guía evoluciona con el producto. Al añadir nuevos componentes, confirmar que respetan:</p>
+<ol>
+  <li>Paleta Tierra Cálida (sin excepciones)</li>
+  <li>Tipografía nativa del sistema</li>
+  <li>Espaciado en múltiplos de 4px</li>
+  <li>Sombras cálidas y transiciones suaves</li>
+  <li>WCAG AA mínimo</li>
+  <li>Spring physics en Animated</li>
+  <li>Haptic feedback en interacciones</li>
+</ol>
+
+</div>
+
+</body></html>

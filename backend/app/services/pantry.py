@@ -1,6 +1,6 @@
 import logging
 import uuid
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 
 from app.repositories.movimientos import MovimientoDespensaRepository
 from app.repositories.pantry import PantryRepository
@@ -31,6 +31,8 @@ class PantryService:
         cantidad: float | None,
         unidad: str | None,
         origen: str,
+        precio_unitario: float | None = None,
+        fecha_compra: date | None = None,
     ) -> None:
         """Registra el movimiento en el ledger. Best-effort: un fallo aquí NUNCA debe
         romper la operación de despensa (el ledger es para aprender hábitos, no crítico)."""
@@ -38,7 +40,14 @@ class PantryService:
             return
         try:
             await self.movimientos_repo.registrar(
-                hogar_id, nombre, tipo, cantidad, unidad, origen
+                hogar_id,
+                nombre,
+                tipo,
+                cantidad,
+                unidad,
+                origen,
+                precio_unitario=precio_unitario,
+                fecha_compra=fecha_compra,
             )
         except Exception as e:  # — best-effort
             logger.warning(f"No se pudo registrar el movimiento de despensa: {e}")
@@ -49,10 +58,20 @@ class PantryService:
         schema: InventarioAlimentoCreate,
         origen: str = "manual",
     ) -> InventarioAlimentoResponse:
-        """Crea un nuevo alimento en la despensa y lo registra como 'compra'."""
+        """Crea un nuevo alimento en la despensa y lo registra como 'compra'.
+
+        Si el alta viene de un ticket parseado (trae precio_unitario), el precio y la
+        fecha de compra se persisten en el ledger para alimentar el Informe de Ahorro."""
         item = await self.pantry_repo.create(hogar_id, schema)
         await self._registrar_movimiento(
-            hogar_id, item.nombre, "compra", float(item.cantidad), item.unidad, origen
+            hogar_id,
+            item.nombre,
+            "compra",
+            float(item.cantidad),
+            item.unidad,
+            origen,
+            precio_unitario=schema.precio_unitario,
+            fecha_compra=schema.fecha_compra,
         )
         return InventarioAlimentoResponse.model_validate(item)
 

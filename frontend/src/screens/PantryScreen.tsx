@@ -347,13 +347,7 @@ export default function PantryScreen() {
   const diasUmbral = usePantrySettingsStore((s) => s.diasUmbral);
   const navigation = useNavigation<NativeStackNavigationProp<any>>();
 
-  const checkPremiumGate = () => {
-    if (!isPremium) {
-      navigation.navigate('Paywall');
-      return false;
-    }
-    return true;
-  };
+  const checkPremiumGate = () => true;
 
   const [filtroCategoria, setFiltroCategoria] = useState('');
   const [soloBajoStock, setSoloBajoStock] = useState(false);
@@ -522,6 +516,10 @@ export default function PantryScreen() {
             });
             procesarImagenParaRevision(result);
           },
+        },
+        {
+          text: 'PDF Mercadona',
+          onPress: () => navigation.navigate('TicketImportPdf'),
         },
       ]);
     } catch {
@@ -1039,12 +1037,24 @@ export default function PantryScreen() {
   const listEmptyComponent = (
     <Card style={{ marginBottom: spacing.lg }}>
       <EmptyState
-        icon="basket-outline"
-        accent={colors.pantry}
-        accentSoft={colors.pantrySoft}
-        title="Sin productos"
-        subtitle="Pulsa + para añadir el primer producto a tu despensa."
+        icon="camera-outline"
+        accent={colors.success}
+        accentSoft={colors.successSoft}
+        title="Empieza por aquí"
+        subtitle="Fotografía tu nevera o importa el ticket de Mercadona y dejamos tu despensa lista en segundos. Marce cocinará con lo que tengas."
       />
+      <View style={{ gap: spacing.sm, marginTop: spacing.sm }}>
+        <Button label="Fotografiar la nevera" icon="camera-outline" onPress={handleFotoNevera} />
+        <Button
+          label="Importar ticket de Mercadona"
+          icon="receipt-outline"
+          variant="secondary"
+          onPress={() => {
+            if (!checkPremiumGate()) return;
+            navigation.navigate('TicketImportPdf');
+          }}
+        />
+      </View>
     </Card>
   );
 
@@ -1101,30 +1111,14 @@ export default function PantryScreen() {
         ) : null}
 
         {!sugerenciasLoading && recetas.length === 0 && !recetasMensaje ? (
-          isPremium ? (
-            <AppText
-              variant="caption"
-              color={colors.inkFaint}
-              center
-              style={{ paddingVertical: spacing.md, lineHeight: 18 }}
-            >
-              Pulsa «Sugerir con IA» para recibir recetas que aprovechen tu despensa, priorizando lo
-              que caduca pronto.
-            </AppText>
-          ) : (
-            <View style={{ paddingVertical: spacing.md, gap: spacing.sm }}>
-              <AppText variant="caption" color={colors.inkFaint} center style={{ lineHeight: 18 }}>
-                Activa Premium para recetas IA personalizadas según tu despensa.
-              </AppText>
-              <Button
-                label="Ver catálogo de recetas"
-                variant="secondary"
-                size="sm"
-                icon="book-outline"
-                onPress={fetchRecetasBasicas}
-              />
-            </View>
-          )
+          <AppText
+            variant="caption"
+            color={colors.inkFaint}
+            center
+            style={{ paddingVertical: spacing.md, lineHeight: 18 }}
+          >
+            Pulsa «Sugerir con IA» para recibir recetas personalizadas según tu despensa.
+          </AppText>
         ) : null}
 
         {!sugerenciasLoading && recetas.length > 0 && recetasGeneradasPorIA ? (

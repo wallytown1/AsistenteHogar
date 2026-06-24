@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Pressable } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useQuery } from '@tanstack/react-query';
 import { useDashboard } from '../hooks/useDashboard';
 import { getDiasParaCaducar } from '../hooks/usePantry';
 import { getSemaforoCaducidad } from '../lib/caducidad';
@@ -13,12 +14,131 @@ import { Screen, Card, Badge, AppText, Icon, FoodIcon, Button } from '../compone
 import { DashboardBriefingSkeleton } from '../components/skeletons';
 import { getCategoriaIcon } from '../lib/categoria';
 import { FadeInView } from '../animations';
+import { apiRequest, TIMEOUT } from '../api/api';
+import { AhorroPreviewResponse } from '../types/types';
 
 type NavProp = NativeStackNavigationProp<{
   PlanComidas: undefined;
   Historial: undefined;
-  Paywall: undefined;
+  Paywall: { motivo?: string } | undefined;
+  Ahorro: undefined;
 }>;
+
+function useAhorroPreview() {
+  return useQuery({
+    queryKey: ['ahorro', 'preview'],
+    queryFn: () =>
+      apiRequest<AhorroPreviewResponse>('/ahorro/resumen/preview', { timeoutMs: TIMEOUT.DEFAULT }),
+    staleTime: 10 * 60 * 1000,
+    retry: false,
+  });
+}
+
+function AhorroPreviewCard({ isPremium }: { isPremium: boolean }) {
+  const navigation = useNavigation<NavProp>();
+  const { data } = useAhorroPreview();
+
+  const ahorro = data?.ahorro_estimado_eur ?? 0;
+  const recetas = data?.recetas_cocinadas ?? 0;
+  const tieneAhorro = ahorro > 0;
+
+  // Para usuarios NO premium, este teaser es el motor de conversión: enseña el
+  // ahorro estimado gratis y dispara el paywall en el momento de valor, pasando
+  // un motivo contextual para personalizar el encabezado del paywall.
+  const handlePress = () => {
+    if (isPremium) {
+      navigation.navigate('Ahorro');
+      return;
+    }
+    const motivo = tieneAhorro
+      ? `Has aprovechado ~${ahorro.toFixed(0)} € este mes. Desbloquea el informe completo y tu proyección de ahorro anual.`
+      : undefined;
+    navigation.navigate('Paywall', motivo ? { motivo } : undefined);
+  };
+
+  // Copy de valor para usuarios NO premium. Mantenemos honesto el "estimado".
+  const subtitle = isPremium
+    ? recetas > 0
+      ? `${recetas} receta${recetas === 1 ? '' : 's'} · ~${ahorro.toFixed(0)} € est. cocinado este mes`
+      : 'Sin recetas cocinadas este mes'
+    : tieneAhorro
+      ? `Has aprovechado ~${ahorro.toFixed(0)} € este mes · desbloquea el informe completo`
+      : 'Mide en € lo que aprovechas y deja de tirar comida';
+
+  const cta = isPremium ? null : tieneAhorro ? 'Ver mi ahorro real' : 'Probar gratis';
+
+  return (
+    <Pressable
+      onPress={handlePress}
+      accessibilityLabel={isPremium ? 'Ver informe de ahorro' : 'Desbloquear el informe de ahorro'}
+      style={({ pressed }) => ({
+        backgroundColor: colors.card,
+        borderWidth: 1,
+        borderColor: isPremium ? colors.border : colors.success,
+        borderRadius: radius.lg,
+        paddingHorizontal: spacing.xl,
+        paddingVertical: spacing.lg,
+        marginTop: spacing.xl,
+        opacity: pressed ? 0.7 : 1,
+      })}
+    >
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+        }}
+      >
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md, flex: 1 }}>
+          <View
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: radius.md,
+              backgroundColor: colors.successSoft,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Icon name="leaf-outline" size={18} color={colors.success} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <AppText variant="captionStrong">Informe de Ahorro</AppText>
+            <AppText variant="micro" color={colors.inkFaint}>
+              {subtitle}
+            </AppText>
+          </View>
+        </View>
+        <Icon
+          name={isPremium ? 'chevron-forward' : 'lock-closed-outline'}
+          size={18}
+          color={isPremium ? colors.inkFaint : colors.success}
+        />
+      </View>
+
+      {cta ? (
+        <View
+          style={{
+            marginTop: spacing.md,
+            alignSelf: 'flex-start',
+            backgroundColor: colors.successSoft,
+            borderRadius: radius.sm,
+            paddingHorizontal: spacing.md,
+            paddingVertical: spacing.xs,
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: spacing.xs,
+          }}
+        >
+          <Icon name="sparkles" size={13} color={colors.success} />
+          <AppText variant="micro" style={{ color: colors.success, fontWeight: '700' }}>
+            {cta}
+          </AppText>
+        </View>
+      ) : null}
+    </Pressable>
+  );
+}
 
 function formatFechaCorta(iso?: string): string {
   const d = iso ? new Date(iso) : new Date();
@@ -30,6 +150,7 @@ export default function DashboardScreen() {
   const usuario = useAuthStore((s) => s.usuario);
   const navigation = useNavigation<NavProp>();
   const isFamilia = usePurchasesStore((s) => s.isFamilia);
+  const isPremium = usePurchasesStore((s) => s.isPremium);
 
   const alertas = briefing?.alertas_despensa?.alertas_caducidad ?? [];
 
@@ -222,6 +343,11 @@ export default function DashboardScreen() {
             </AppText>
           )}
         </Card>
+      </FadeInView>
+
+      {/* Informe de Ahorro mensual — teaser de conversión para usuarios no premium */}
+      <FadeInView delay={200}>
+        <AhorroPreviewCard isPremium={isPremium} />
       </FadeInView>
 
       {/* Acceso al plan de la semana — exclusivo Familia */}

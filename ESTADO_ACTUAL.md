@@ -16,6 +16,11 @@ Este documento centraliza el estado de los despliegues, las fases en curso, el r
 
 ## 2. Sesiones Recientes
 
+### ✅ Sesión 2026-06-23 (Parte 3) — Optimización del Chef y Plan de Marketing
+*   **Carisma potenciado**: Modificada la directiva `PERSONA_CHEF` en `llm.py` para dotar a Marce de un tono más coloquial, cercano, informal y entusiasta ("tío cocinillas/amigo de la familia"), utilizando expresiones cotidianas y cálidas españolas, e invitaciones apasionadas al aprovechamiento gastronómico sin perder rigor.
+*   **Estrategia comercial**: Creado el plan integral de marketing, tracción y ventas de bajo coste en `docs/ESTRATEGIA_COMERCIAL.md`.
+*   **Verificación**: Ejecutada la suite de 13 pruebas de humo del backend (SQLite).
+
 ### ✅ Sesión 2026-06-22 (Parte 9) — Skeleton Screens (Adopción Design System)
 *   **Skeleton helpers**: Extendido `Skeleton.tsx` con 7 helpers de composición (`SkeletonText`, `SkeletonCard`, `SkeletonImage`, `SkeletonChip`, `SkeletonStatCard`, `SkeletonRecipeRow`, `SkeletonSteps`). Todos animan en hilo nativo vía Moti.
 *   **5 skeleton screens**: Creados en `frontend/src/components/skeletons/` — `DashboardSkeleton`, `PantrySkeleton`, `ShoppingListSkeleton`, `PlanComidaSkeleton`, `HistorialSkeleton`. Ghost-layouts que simulan la estructura real del contenido.
@@ -76,6 +81,15 @@ Este documento centraliza el estado de los despliegues, las fases en curso, el r
 *   **Mutaciones optimistas**: `toggleItem`/`deleteItem`/`clearChecked` en lista de la compra y `agotarItem`/`confirmarItem`/`updateQuantity` en despensa actualizan la UI al instante con rollback automático si falla la red.
 *   **Toast reutilizable**: Componente `ToastProvider` + `useToast()` con tipos info/success/error y botón de acción "Deshacer". Todos los errores de mutación se notifican visualmente.
 *   **Undo del Chef**: Cumple CLAUDE.md §6.2.5 (escrituras IA reversibles). El backend devuelve `consumos_detalle` estructurado por cada descuento aplicado; el frontend muestra botón "Deshacer" en la burbuja del chef que llama a `POST /pantry/{id}/restaurar` (reactiva soft-deleted + compensa ledger).
+
+### ✅ Sesión 2026-06-23 — Auditoría de Calidad y Seguridad de la Agencia (Clean Slate)
+*   **Reality Checker (QA)**:
+    *   **TypeScript check**: Verificados `frontend/` y `admin-web/` mediante `npm run ts:check`. Resultado: **0 errores de compilación**.
+    *   **Backend Smoke Tests**: Ejecutada la suite completa de 13 pruebas de humo en el backend de FastAPI. Resultado: **100% de éxito**. Todos los tests (auth, pantry, chef, legal, admin, perfiles, etc.) pasaron correctamente sobre SQLite.
+*   **Application Security Engineer (Seguridad)**:
+    *   **JWT Multi-tenant isolation**: Verificado en `deps.py`. El `hogar_id` se extrae de forma hermética a nivel de base de datos a partir del token firmado, anulando cualquier intento de manipulación IDOR/BOLA por headers o cuerpo de petición del cliente.
+    *   **CORS**: Verificado en `main.py`. Restringido en producción a la lista explícita de `ALLOWED_ORIGINS` (evitando orígenes por defecto y mitigando ataques CSRF/Cross-site).
+    *   **Bóveda local de secretos**: Inicializado el almacenamiento externo seguro en `C:\Users\navar\.gemini\agency-vault\AsistenteHogar\.env`, aislando las claves y tokens sensibles del control de Git y eliminando riesgos de fuga en repositorios remotos.
 
 ---
 

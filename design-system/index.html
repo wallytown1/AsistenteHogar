@@ -1,0 +1,490 @@
+<!DOCTYPE html><html lang="es"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AsistenteHogar · Design System</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; background: #FAF7F2; color: #2C1C0E; min-height: 100vh; }
+
+/* ── Top nav ── */
+.nav { position: sticky; top: 0; z-index: 100; background: rgba(250,247,242,0.92); backdrop-filter: blur(16px); border-bottom: 1px solid #EAE0D3; padding: 0 32px; height: 56px; display: flex; align-items: center; justify-content: space-between; }
+.nav-brand { display: flex; align-items: center; gap: 10px; }
+.nav-logo { width: 32px; height: 32px; border-radius: 10px; background: #8B5E3C; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.nav-title { font-size: 15px; font-weight: 800; color: #2C1C0E; letter-spacing: -0.2px; }
+.nav-sub { font-size: 13px; color: #AE9B87; font-weight: 500; }
+.nav-links { display: flex; gap: 4px; }
+.nav-link { padding: 6px 12px; border-radius: 999px; font-size: 13px; font-weight: 600; color: #7A6045; text-decoration: none; transition: all 0.2s ease; }
+.nav-link:hover { background: #F6EDE3; color: #2C1C0E; }
+.nav-link.active { background: #F6EDE3; color: #6B4429; }
+
+/* ── Hero ── */
+.hero { background: #2C1C0E; padding: 64px 32px 56px; position: relative; overflow: hidden; }
+.hero::before { content: ''; position: absolute; top: -80px; left: 50%; transform: translateX(-50%); width: 600px; height: 400px; background: radial-gradient(ellipse, rgba(139,94,60,0.4) 0%, transparent 70%); pointer-events: none; }
+.hero-inner { max-width: 860px; margin: 0 auto; position: relative; }
+.hero-label { font-size: 11px; font-weight: 800; letter-spacing: 0.6px; text-transform: uppercase; color: rgba(255,253,248,0.45); margin-bottom: 16px; }
+.hero-title { font-size: 48px; font-weight: 800; color: #FFFDF8; letter-spacing: -1px; line-height: 1.05; margin-bottom: 16px; }
+.hero-title span { color: #C8783A; }
+.hero-desc { font-size: 17px; color: rgba(255,253,248,0.6); font-weight: 500; line-height: 1.6; max-width: 520px; margin-bottom: 32px; }
+.hero-stats { display: flex; gap: 32px; flex-wrap: wrap; }
+.hero-stat { }
+.hero-stat-num { font-size: 28px; font-weight: 800; color: #FFFDF8; letter-spacing: -0.5px; }
+.hero-stat-label { font-size: 12px; color: rgba(255,253,248,0.45); font-weight: 600; margin-top: 2px; }
+
+/* ── Filtros ── */
+.filters { padding: 28px 32px 0; max-width: 860px; margin: 0 auto; display: flex; gap: 8px; flex-wrap: wrap; }
+.filter-chip { padding: 8px 16px; border-radius: 999px; font-size: 13px; font-weight: 700; border: 1.5px solid #D9CCBC; background: #FFFDF8; color: #7A6045; cursor: pointer; transition: all 0.2s ease; text-decoration: none; }
+.filter-chip:hover { background: #F6EDE3; border-color: #C8BAAA; color: #2C1C0E; }
+.filter-chip.active { background: #8B5E3C; border-color: #8B5E3C; color: #fff; }
+
+/* ── Secciones ── */
+.section { max-width: 860px; margin: 0 auto; padding: 40px 32px 0; }
+.section:last-child { padding-bottom: 80px; }
+.section-header { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 20px; }
+.section-title { font-size: 22px; font-weight: 800; color: #2C1C0E; letter-spacing: -0.3px; }
+.section-count { font-size: 13px; color: #AE9B87; font-weight: 600; }
+
+/* ── Grid de cards ── */
+.grid { display: grid; gap: 12px; }
+.grid-3 { grid-template-columns: repeat(3, 1fr); }
+.grid-2 { grid-template-columns: repeat(2, 1fr); }
+
+/* ── Card ── */
+.card { background: #FFFDF8; border: 1px solid #EAE0D3; border-radius: 24px; padding: 20px; text-decoration: none; color: inherit; display: flex; flex-direction: column; gap: 12px; transition: all 0.2s ease; box-shadow: 0 3px 8px rgba(61,43,26,0.05); }
+.card:hover { box-shadow: 0 8px 20px rgba(61,43,26,0.10); transform: translateY(-2px); border-color: #D9CCBC; }
+.card:active { transform: translateY(0); }
+
+.card-icon { width: 44px; height: 44px; border-radius: 14px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.icon-token    { background: #F6EDE3; }
+.icon-comp     { background: #EEF3F8; }
+.icon-screen   { background: #EBF4EE; }
+.icon-doc      { background: #FAF0E6; }
+
+.card-body { flex: 1; }
+.card-group { font-size: 11px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase; color: #AE9B87; margin-bottom: 4px; }
+.card-name { font-size: 16px; font-weight: 700; color: #2C1C0E; margin-bottom: 4px; }
+.card-sub { font-size: 13px; color: #7A6045; font-weight: 500; line-height: 1.4; }
+
+.card-arrow { display: flex; align-items: center; justify-content: flex-end; }
+.card-arrow svg { color: #AE9B87; transition: transform 0.2s ease, color 0.2s ease; }
+.card:hover .card-arrow svg { transform: translateX(3px); color: #8B5E3C; }
+
+/* Card pantalla — más grande, con mini preview */
+.card-screen { grid-column: span 1; }
+.card-screen .preview { height: 80px; border-radius: 14px; background: #F9F4EC; border: 1px solid #EAE0D3; margin-bottom: 4px; display: flex; align-items: center; justify-content: center; overflow: hidden; position: relative; }
+.preview-bar  { position: absolute; top: 0; left: 0; right: 0; height: 16px; background: #F0E8DE; display: flex; align-items: center; justify-content: space-between; padding: 0 8px; }
+.preview-dot  { font-size: 6px; color: #AE9B87; }
+.preview-lines { padding: 20px 10px 8px; width: 100%; display: flex; flex-direction: column; gap: 5px; }
+.preview-line { height: 5px; border-radius: 999px; background: #E0D4C6; }
+
+/* Card doc — especial */
+.card-doc { background: #F6EDE3; border-color: #D9CCBC; }
+.card-doc .card-name { color: #6B4429; }
+.card-doc .card-sub  { color: #8B5E3C; }
+.card-doc .card-arrow svg { color: #C8BAAA; }
+.card-doc:hover { background: #EAD8C6; }
+
+/* Divider */
+.divider { height: 1px; background: #EAE0D3; max-width: 860px; margin: 0 auto 0; }
+
+/* Footer */
+.footer { border-top: 1px solid #EAE0D3; padding: 24px 32px; text-align: center; font-size: 12px; color: #AE9B87; font-weight: 500; }
+</style>
+</head><body>
+
+<!-- ── NAV ── -->
+<nav class="nav">
+  <div class="nav-brand">
+    <div class="nav-logo">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+    </div>
+    <div>
+      <div class="nav-title">AsistenteHogar</div>
+      <div class="nav-sub">Design System · Tierra Cálida</div>
+    </div>
+  </div>
+  <div class="nav-links">
+    <a href="#tokens"     class="nav-link">Tokens</a>
+    <a href="#componentes" class="nav-link">Componentes</a>
+    <a href="#pantallas"  class="nav-link">Pantallas</a>
+    <a href="#docs"       class="nav-link">Guía</a>
+  </div>
+</nav>
+
+<!-- ── HERO ── -->
+<div class="hero">
+  <div class="hero-inner">
+    <div class="hero-label">Sistema de diseño v1.0</div>
+    <div class="hero-title">Tierra <span>Cálida</span><br>Design System</div>
+    <div class="hero-desc">Sistema visual completo para AsistenteHogar. Paleta cálida, tipografía nativa iOS/Android, micro-animaciones con Moti y Reanimated, accesibilidad WCAG AA.</div>
+    <div class="hero-stats">
+      <div class="hero-stat">
+        <div class="hero-stat-num">3</div>
+        <div class="hero-stat-label">Token files</div>
+      </div>
+      <div class="hero-stat">
+        <div class="hero-stat-num">8</div>
+        <div class="hero-stat-label">Componentes</div>
+      </div>
+      <div class="hero-stat">
+        <div class="hero-stat-num">7</div>
+        <div class="hero-stat-label">Pantallas</div>
+      </div>
+      <div class="hero-stat">
+        <div class="hero-stat-num">20</div>
+        <div class="hero-stat-label">Tokens de color</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── FILTROS ── -->
+<div class="filters">
+  <a href="#tokens"      class="filter-chip">Tokens</a>
+  <a href="#componentes" class="filter-chip">Acciones</a>
+  <a href="#componentes" class="filter-chip">Formularios</a>
+  <a href="#componentes" class="filter-chip">Contenedores</a>
+  <a href="#componentes" class="filter-chip">Etiquetas</a>
+  <a href="#componentes" class="filter-chip">Estados</a>
+  <a href="#pantallas"   class="filter-chip">Pantallas</a>
+  <a href="#docs"        class="filter-chip">Guía</a>
+</div>
+
+<!-- ── TOKENS ── -->
+<section class="section" id="tokens">
+  <div class="section-header">
+    <div class="section-title">Fundamentos</div>
+    <div class="section-count">3 archivos</div>
+  </div>
+  <div class="grid grid-3">
+
+    <a href="tokens/colors.html" class="card">
+      <div class="card-icon icon-token">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#8B5E3C" stroke-width="2" stroke-linecap="round"><circle cx="13.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="10.5" r="2.5"/><circle cx="8.5" cy="7.5" r="2.5"/><circle cx="6.5" cy="12.5" r="2.5"/><path d="M12 22c5 0 10-4.5 10-9.5 0-3-2-5.5-5.5-6.5"/></svg>
+      </div>
+      <div class="card-body">
+        <div class="card-group">Fundamentos</div>
+        <div class="card-name">Paleta de colores</div>
+        <div class="card-sub">20 tokens · brand, superficies, semánticos, bordes</div>
+      </div>
+      <div class="card-arrow"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></div>
+    </a>
+
+    <a href="tokens/typography.html" class="card">
+      <div class="card-icon icon-token">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#8B5E3C" stroke-width="2" stroke-linecap="round"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>
+      </div>
+      <div class="card-body">
+        <div class="card-group">Fundamentos</div>
+        <div class="card-name">Tipografía</div>
+        <div class="card-sub">9 variantes · display → micro · SF Pro / Roboto</div>
+      </div>
+      <div class="card-arrow"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></div>
+    </a>
+
+    <a href="tokens/spacing.html" class="card">
+      <div class="card-icon icon-token">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#8B5E3C" stroke-width="2" stroke-linecap="round"><line x1="21" y1="10" x2="3" y2="10"/><line x1="21" y1="6" x2="3" y2="6"/><line x1="21" y1="14" x2="3" y2="14"/><line x1="21" y1="18" x2="3" y2="18"/></svg>
+      </div>
+      <div class="card-body">
+        <div class="card-group">Fundamentos</div>
+        <div class="card-name">Espaciado y Radio</div>
+        <div class="card-sub">7 tokens spacing · 6 tokens radius · 4px base unit</div>
+      </div>
+      <div class="card-arrow"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></div>
+    </a>
+
+  </div>
+</section>
+
+<div class="divider" style="margin-top:40px;"></div>
+
+<!-- ── COMPONENTES ── -->
+<section class="section" id="componentes">
+  <div class="section-header">
+    <div class="section-title">Componentes</div>
+    <div class="section-count">8 archivos</div>
+  </div>
+  <div class="grid grid-3">
+
+    <a href="components/button.html" class="card">
+      <div class="card-icon icon-comp">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#5E7FA8" stroke-width="2" stroke-linecap="round"><rect x="3" y="8" width="18" height="8" rx="4"/></svg>
+      </div>
+      <div class="card-body">
+        <div class="card-group">Acciones</div>
+        <div class="card-name">Button</div>
+        <div class="card-sub">4 variantes × 3 tamaños · hover, focus, active, disabled</div>
+      </div>
+      <div class="card-arrow"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></div>
+    </a>
+
+    <a href="components/input.html" class="card">
+      <div class="card-icon icon-comp">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#5E7FA8" stroke-width="2" stroke-linecap="round"><rect x="3" y="5" width="18" height="14" rx="3"/><line x1="7" y1="12" x2="10" y2="12"/></svg>
+      </div>
+      <div class="card-body">
+        <div class="card-group">Formularios</div>
+        <div class="card-name">Input</div>
+        <div class="card-sub">Text, email, number · focus, error, disabled, loading</div>
+      </div>
+      <div class="card-arrow"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></div>
+    </a>
+
+    <a href="components/toggle.html" class="card">
+      <div class="card-icon icon-comp">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#5E7FA8" stroke-width="2" stroke-linecap="round"><rect x="1" y="8" width="22" height="8" rx="4"/><circle cx="16" cy="12" r="3" fill="#5E7FA8"/></svg>
+      </div>
+      <div class="card-body">
+        <div class="card-group">Formularios</div>
+        <div class="card-name">Toggle / Switch</div>
+        <div class="card-sub">On/off · checked, disabled · listas de ajustes</div>
+      </div>
+      <div class="card-arrow"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></div>
+    </a>
+
+    <a href="components/card.html" class="card">
+      <div class="card-icon icon-comp">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#5E7FA8" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="6"/></svg>
+      </div>
+      <div class="card-body">
+        <div class="card-group">Contenedores</div>
+        <div class="card-name">Card</div>
+        <div class="card-sub">Superficie base · tinte · presionable · StatCard</div>
+      </div>
+      <div class="card-arrow"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></div>
+    </a>
+
+    <a href="components/badge-chip.html" class="card">
+      <div class="card-icon icon-comp">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#5E7FA8" stroke-width="2" stroke-linecap="round"><rect x="2" y="9" width="20" height="6" rx="3"/></svg>
+      </div>
+      <div class="card-body">
+        <div class="card-group">Etiquetas</div>
+        <div class="card-name">Badge y Chip</div>
+        <div class="card-sub">Badge semántico · chip filtro activo/inactivo con icono</div>
+      </div>
+      <div class="card-arrow"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></div>
+    </a>
+
+    <a href="components/modal.html" class="card">
+      <div class="card-icon icon-comp">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#5E7FA8" stroke-width="2" stroke-linecap="round"><rect x="3" y="11" width="18" height="11" rx="4"/><path d="M3 15h18"/></svg>
+      </div>
+      <div class="card-body">
+        <div class="card-group">Diálogos</div>
+        <div class="card-name">Modal / Diálogo</div>
+        <div class="card-sub">Bottom sheet · overlay · confirmación, lista, error</div>
+      </div>
+      <div class="card-arrow"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></div>
+    </a>
+
+    <a href="components/toast.html" class="card">
+      <div class="card-icon icon-comp">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#5E7FA8" stroke-width="2" stroke-linecap="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+      </div>
+      <div class="card-body">
+        <div class="card-group">Notificaciones</div>
+        <div class="card-name">Toast</div>
+        <div class="card-sub">Éxito, error, info, warning, marca · con cierre</div>
+      </div>
+      <div class="card-arrow"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></div>
+    </a>
+
+    <a href="components/skeleton-loader.html" class="card">
+      <div class="card-icon icon-comp">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#5E7FA8" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="4" rx="2"/><rect x="3" y="11" width="12" height="4" rx="2"/><rect x="3" y="18" width="15" height="4" rx="2"/></svg>
+      </div>
+      <div class="card-body">
+        <div class="card-group">Estados</div>
+        <div class="card-name">Skeleton Loader</div>
+        <div class="card-sub">Pulso de opacidad · Animated.loop · anti-parpadeo IA</div>
+      </div>
+      <div class="card-arrow"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></div>
+    </a>
+
+  </div>
+</section>
+
+<div class="divider" style="margin-top:40px;"></div>
+
+<!-- ── PANTALLAS ── -->
+<section class="section" id="pantallas">
+  <div class="section-header">
+    <div class="section-title">Pantallas</div>
+    <div class="section-count">7 archivos · estados cargado + skeleton + código RN</div>
+  </div>
+  <div class="grid grid-2">
+
+    <a href="components/dashboard-screen.html" class="card">
+      <div class="preview">
+        <div class="preview-bar"><span class="preview-dot">9:41</span></div>
+        <div class="preview-lines">
+          <div class="preview-line" style="width:60%;background:#C8A882;"></div>
+          <div class="preview-line" style="width:100%;height:18px;border-radius:8px;background:#E8D8C4;"></div>
+          <div style="display:flex;gap:5px;margin-top:2px;"><div class="preview-line" style="width:50%;height:12px;border-radius:6px;background:#EAD8C4;"></div><div class="preview-line" style="width:44%;height:12px;border-radius:6px;background:#EAD8C4;"></div></div>
+          <div class="preview-line" style="width:85%;background:#D4C4B0;"></div>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="card-group">Pantallas</div>
+        <div class="card-name">DashboardScreen</div>
+        <div class="card-sub">Inicio · sugerencia Marce · stats · hold-to-talk</div>
+      </div>
+      <div class="card-arrow"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></div>
+    </a>
+
+    <a href="components/despensa-screen.html" class="card">
+      <div class="preview">
+        <div class="preview-bar"><span class="preview-dot">9:41</span></div>
+        <div class="preview-lines">
+          <div style="display:flex;gap:4px;margin-bottom:2px;"><div class="preview-line" style="width:36px;height:10px;border-radius:999px;background:#8B5E3C;"></div><div class="preview-line" style="width:36px;height:10px;border-radius:999px;"></div><div class="preview-line" style="width:36px;height:10px;border-radius:999px;"></div></div>
+          <div class="preview-line" style="width:100%;height:14px;border-radius:8px;background:#E8D8C4;"></div>
+          <div class="preview-line" style="width:100%;height:14px;border-radius:8px;background:#EAD8C4;"></div>
+          <div class="preview-line" style="width:100%;height:14px;border-radius:8px;background:#EAD8C4;"></div>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="card-group">Pantallas</div>
+        <div class="card-name">DespensaScreen</div>
+        <div class="card-sub">Ingredientes · badges caducidad · swipe-to-delete</div>
+      </div>
+      <div class="card-arrow"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></div>
+    </a>
+
+    <a href="components/chat-screen.html" class="card">
+      <div class="preview">
+        <div class="preview-bar"><span class="preview-dot">9:41</span></div>
+        <div class="preview-lines">
+          <div class="preview-line" style="width:70%;height:16px;border-radius:10px;background:#E8D8C4;"></div>
+          <div class="preview-line" style="width:55%;height:16px;border-radius:10px;background:#8B5E3C;align-self:flex-end;margin-left:auto;"></div>
+          <div class="preview-line" style="width:65%;height:16px;border-radius:10px;background:#E8D8C4;"></div>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="card-group">Pantallas</div>
+        <div class="card-name">ChatScreen</div>
+        <div class="card-sub">Conversación con Marce · typing · receta inline</div>
+      </div>
+      <div class="card-arrow"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></div>
+    </a>
+
+    <a href="components/recipe-detail-screen.html" class="card">
+      <div class="preview">
+        <div class="preview-bar"><span class="preview-dot">9:41</span></div>
+        <div class="preview-lines">
+          <div class="preview-line" style="width:100%;height:22px;border-radius:6px;background:#E0D0BE;margin-bottom:2px;"></div>
+          <div class="preview-line" style="width:80%;background:#D4C4B0;"></div>
+          <div class="preview-line" style="width:100%;height:12px;border-radius:8px;background:#E8D8C4;"></div>
+          <div class="preview-line" style="width:90%;height:12px;border-radius:8px;background:#EAD8C4;"></div>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="card-group">Pantallas</div>
+        <div class="card-name">RecipeDetailScreen</div>
+        <div class="card-sub">Hero · ingredientes con stock · pasos · shared transition</div>
+      </div>
+      <div class="card-arrow"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></div>
+    </a>
+
+    <a href="components/shopping-list-screen.html" class="card">
+      <div class="preview">
+        <div class="preview-bar"><span class="preview-dot">9:41</span></div>
+        <div class="preview-lines">
+          <div class="preview-line" style="width:100%;height:5px;border-radius:999px;background:#E0D0BE;margin-bottom:4px;"><div style="width:36%;height:100%;background:#5C8B68;border-radius:999px;"></div></div>
+          <div class="preview-line" style="width:100%;height:12px;border-radius:8px;background:#E8D8C4;"></div>
+          <div class="preview-line" style="width:100%;height:12px;border-radius:8px;background:#EAD8C4;"></div>
+          <div class="preview-line" style="width:100%;height:12px;border-radius:8px;background:#EAD8C4;opacity:0.5;"></div>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="card-group">Pantallas</div>
+        <div class="card-name">ShoppingListScreen</div>
+        <div class="card-sub">Lista predictiva · checkboxes · progreso · compartir</div>
+      </div>
+      <div class="card-arrow"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></div>
+    </a>
+
+    <a href="components/plan-comida-screen.html" class="card">
+      <div class="preview">
+        <div class="preview-bar"><span class="preview-dot">9:41</span></div>
+        <div class="preview-lines">
+          <div style="display:flex;gap:3px;margin-bottom:4px;">
+            <div style="width:22px;height:28px;border-radius:999px;background:#8B5E3C;flex-shrink:0;"></div>
+            <div style="width:22px;height:28px;border-radius:999px;background:#EAD8C4;flex-shrink:0;"></div>
+            <div style="width:22px;height:28px;border-radius:999px;background:#EAD8C4;flex-shrink:0;"></div>
+            <div style="width:22px;height:28px;border-radius:999px;background:#EAD8C4;flex-shrink:0;"></div>
+          </div>
+          <div class="preview-line" style="width:100%;height:14px;border-radius:8px;background:#F0E4D4;"></div>
+          <div class="preview-line" style="width:100%;height:14px;border-radius:8px;background:#EAD8C4;"></div>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="card-group">Pantallas</div>
+        <div class="card-name">PlanComidaScreen</div>
+        <div class="card-sub">Menú semanal · 7 días · slots comida · regenerar</div>
+      </div>
+      <div class="card-arrow"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></div>
+    </a>
+
+    <a href="components/paywall-screen.html" class="card">
+      <div class="preview" style="background:#2C1C0E;">
+        <div class="preview-bar" style="background:#3D2B1A;"><span class="preview-dot" style="color:#AE9B87;">9:41</span></div>
+        <div class="preview-lines">
+          <div style="width:28px;height:28px;border-radius:8px;background:#8B5E3C;margin:0 auto 6px;"></div>
+          <div class="preview-line" style="width:70%;background:#4A3222;margin:0 auto 4px;"></div>
+          <div class="preview-line" style="width:50%;background:#3D2B1A;margin:0 auto;"></div>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="card-group">Pantallas</div>
+        <div class="card-name">PaywallScreen</div>
+        <div class="card-sub">Premium · toggle mensual/anual · features · StoreKit</div>
+      </div>
+      <div class="card-arrow"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></div>
+    </a>
+
+  </div>
+</section>
+
+<div class="divider" style="margin-top:40px;"></div>
+
+<!-- ── DOCUMENTACIÓN ── -->
+<section class="section" id="docs">
+  <div class="section-header">
+    <div class="section-title">Documentación</div>
+    <div class="section-count">1 archivo</div>
+  </div>
+  <div class="grid grid-3">
+
+    <a href="DESIGN_GUIDE.html" class="card card-doc" style="grid-column: span 2;">
+      <div class="card-icon icon-doc">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#C8783A" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+      </div>
+      <div class="card-body">
+        <div class="card-group" style="color:#C8783A;">Documentación</div>
+        <div class="card-name">Guía de Diseño completa</div>
+        <div class="card-sub">Paleta · tipografía · sombras nativas RN · micro-animaciones (Moti, Reanimated 3) · accesibilidad WCAG AA · anti-patrones · reglas del proyecto</div>
+      </div>
+      <div class="card-arrow"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></div>
+    </a>
+
+    <div class="card" style="background:#F9F4EC; border-color:#D9CCBC; cursor:default;">
+      <div class="card-icon icon-doc">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#AE9B87" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      </div>
+      <div class="card-body">
+        <div class="card-group" style="color:#D9CCBC;">Próximamente</div>
+        <div class="card-name" style="color:#AE9B87;">Changelog</div>
+        <div class="card-sub" style="color:#C8BAAA;">Historial de versiones y cambios del sistema</div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ── FOOTER ── -->
+<footer class="footer">
+  <div>AsistenteHogar Design System · Tierra Cálida v1.0 · Expo / React Native · WCAG AA</div>
+</footer>
+
+</body></html>

@@ -1,0 +1,94 @@
+<!-- @dsCard group="Formularios" name="Input" subtitle="Text, email, number · estados focus, error, disabled, loading" -->
+<!DOCTYPE html><html lang="es"><head><meta charset="utf-8">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; background: #FAF7F2; padding: 28px; max-width: 390px; }
+.label { font-size: 11px; font-weight: 800; letter-spacing: 0.6px; text-transform: uppercase; color: #AE9B87; margin-bottom: 14px; }
+.section { margin-bottom: 24px; }
+.input-group { margin-bottom: 16px; }
+.input-label { font-size: 13px; font-weight: 700; color: #2C1C0E; margin-bottom: 6px; display: block; }
+.input-wrapper { position: relative; display: flex; align-items: center; }
+.input { width: 100%; padding: 13px 16px; border-radius: 16px; border: 1.5px solid #EAE0D3; background: #FFFDF8; font-family: inherit; font-size: 15px; color: #2C1C0E; transition: all 0.2s ease; }
+.input::placeholder { color: #AE9B87; }
+.input:focus { outline: none; border-color: #8B5E3C; background: #FFFDF8; box-shadow: 0 0 0 3px rgba(139, 94, 60, 0.1); }
+.input:disabled { background: #F9F4EC; color: #AE9B87; cursor: not-allowed; }
+.input.error { border-color: #B84B2D; background: #FAF0EC; }
+.input.error:focus { box-shadow: 0 0 0 3px rgba(184, 75, 45, 0.1); }
+.input-hint { font-size: 12px; color: #7A6045; margin-top: 6px; }
+.input.error ~ .input-hint { color: #B84B2D; }
+.input-icon { position: absolute; right: 14px; width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; color: #AE9B87; pointer-events: none; }
+.input.loading ~ .input-icon { animation: spin 1s linear infinite; }
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+</style></head><body>
+
+<div class="section">
+  <div class="label">Input — Base (estado normal)</div>
+  <div class="input-group">
+    <label class="input-label">Ingrediente a buscar</label>
+    <input class="input" type="text" placeholder="Tomate, cebolla, pollo...">
+    <div class="input-hint">Escribe para buscar en tu despensa</div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="label">Input — Con focus</div>
+  <div class="input-group">
+    <label class="input-label">Nombre del plato</label>
+    <input class="input" type="text" placeholder="Gazpacho andaluz" style="border-color:#8B5E3C; box-shadow: 0 0 0 3px rgba(139, 94, 60, 0.1);">
+    <div class="input-hint">Nombre descriptivo para recordarlo</div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="label">Input — Con error</div>
+  <div class="input-group">
+    <label class="input-label">Cantidad</label>
+    <input class="input error" type="number" placeholder="500" value="abc">
+    <div class="input-hint">Solo números. Mín. 1, máx. 9999</div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="label">Input — Desactivado</div>
+  <div class="input-group">
+    <label class="input-label">Fecha de caducidad</label>
+    <input class="input" type="text" placeholder="24 de Junio, 2026" disabled>
+    <div class="input-hint">Calculado automáticamente</div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="label">Input — Con icono (loading)</div>
+  <div class="input-group">
+    <label class="input-label">Buscar en recetas</label>
+    <div class="input-wrapper">
+      <input class="input loading" type="text" placeholder="Escribiendo...">
+      <div class="input-icon">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+          <circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>
+        </svg>
+      </div>
+    </div>
+    <div class="input-hint">Buscando en nuestro base de datos...</div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="label">Input — Email</div>
+  <div class="input-group">
+    <label class="input-label">Correo electrónico</label>
+    <input class="input" type="email" placeholder="tu@email.com">
+    <div class="input-hint">Para notificaciones de stock bajo</div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="label">Input — Number</div>
+  <div class="input-group">
+    <label class="input-label">Número de raciones</label>
+    <input class="input" type="number" placeholder="4" min="1" max="12">
+    <div class="input-hint">Para escalar la receta</div>
+  </div>
+</div>
+
+</body></html>

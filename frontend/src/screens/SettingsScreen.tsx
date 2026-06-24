@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Modal, Alert, Pressable } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAuthStore } from '../state/authStore';
 import { usePantrySettingsStore, OPCIONES_UMBRAL } from '../state/pantrySettingsStore';
 import { usePurchasesStore } from '../state/purchasesStore';
@@ -18,7 +20,12 @@ import { haptics } from '../lib/haptics';
  * igual en iOS, Android y web, y porque el backend exige re-autenticar con la
  * contraseña: el campo tiene que estar en pantalla de todos modos.
  */
+type SettingsNav = NativeStackNavigationProp<{
+  Legal: { documento: 'privacidad' | 'terminos' | 'legal' };
+}>;
+
 export default function SettingsScreen() {
+  const navigation = useNavigation<SettingsNav>();
   const usuario = useAuthStore((s) => s.usuario);
   const hogar = useAuthStore((s) => s.hogar);
   const logout = useAuthStore((s) => s.logout);
@@ -625,6 +632,46 @@ export default function SettingsScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Tarjeta: Privacidad y condiciones (RGPD art. 13 · LSSI · LGDCU) */}
+      <Card style={{ marginBottom: spacing.lg }}>
+        <View
+          style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: spacing.sm }}
+        >
+          <Icon name="shield-checkmark-outline" size={18} color={colors.brand} />
+          <AppText variant="h2">Privacidad y condiciones</AppText>
+        </View>
+        {(
+          [
+            { doc: 'privacidad', label: 'Política de Privacidad', icon: 'lock-closed-outline' },
+            { doc: 'terminos', label: 'Términos de Servicio', icon: 'document-text-outline' },
+            { doc: 'legal', label: 'Información legal', icon: 'business-outline' },
+          ] as const
+        ).map((row, i) => (
+          <Pressable
+            key={row.doc}
+            onPress={() => {
+              haptics.light();
+              navigation.navigate('Legal', { documento: row.doc });
+            }}
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: spacing.md,
+              paddingVertical: spacing.sm + 2,
+              borderTopWidth: i === 0 ? 0 : 1,
+              borderTopColor: colors.border,
+            }}
+            accessibilityLabel={row.label}
+          >
+            <Icon name={row.icon} size={17} color={colors.inkMuted} />
+            <AppText variant="body" style={{ flex: 1 }}>
+              {row.label}
+            </AppText>
+            <Icon name="chevron-forward" size={16} color={colors.inkFaint} />
+          </Pressable>
+        ))}
+      </Card>
 
       {/* Tarjeta: Zona de peligro */}
       <Card borderColor={colors.dangerSoft} tint={colors.card}>

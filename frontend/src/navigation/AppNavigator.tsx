@@ -22,6 +22,9 @@ import PaywallScreen from '../screens/PaywallScreen';
 import RecipeDetailScreen from '../screens/RecipeDetailScreen';
 import PlanComidaScreen from '../screens/PlanComidaScreen';
 import HistorialScreen from '../screens/HistorialScreen';
+import AhorroScreen from '../screens/AhorroScreen';
+import TicketImportScreen from '../screens/TicketImportScreen';
+import LegalScreen from '../screens/LegalScreen';
 import { RecetaSugerida } from '../types/types';
 import { useAuthStore } from '../state/authStore';
 import { usePurchasesStore } from '../state/purchasesStore';
@@ -43,6 +46,9 @@ type RootStackParamList = {
   RecetaDetalle: { receta: RecetaSugerida };
   PlanComidas: undefined;
   Historial: undefined;
+  TicketImportPdf: undefined;
+  Ahorro: undefined;
+  Legal: { documento: 'privacidad' | 'terminos' | 'legal' };
 };
 
 const Tab = createBottomTabNavigator<RootTabParamList>();
@@ -172,6 +178,21 @@ function AuthedApp() {
       <Stack.Screen
         name="Historial"
         component={HistorialScreen}
+        options={{ animation: 'slide_from_right' }}
+      />
+      <Stack.Screen
+        name="TicketImportPdf"
+        component={TicketImportScreen}
+        options={{ animation: 'slide_from_right' }}
+      />
+      <Stack.Screen
+        name="Ahorro"
+        component={AhorroScreen}
+        options={{ animation: 'slide_from_right' }}
+      />
+      <Stack.Screen
+        name="Legal"
+        component={LegalScreen}
         options={{ animation: 'slide_from_right' }}
       />
     </Stack.Navigator>

@@ -1,0 +1,61 @@
+<!-- @dsCard group="Etiquetas" name="Badge y Chip" subtitle="Badge de estado · Chip de filtro activo/inactivo" -->
+<!DOCTYPE html><html lang="es"><head><meta charset="utf-8">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; background: #FAF7F2; padding: 28px; max-width: 390px; }
+.label { font-size: 11px; font-weight: 800; letter-spacing: 0.6px; text-transform: uppercase; color: #AE9B87; margin-bottom: 14px; }
+.section { margin-bottom: 28px; }
+.row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
+.badge { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 999px; font-size: 11px; font-weight: 700; }
+.chip  { display: inline-flex; align-items: center; gap: 6px; padding: 9px 14px; border-radius: 999px; font-size: 13px; font-weight: 700; border: 1px solid; cursor: pointer; transition: all 0.2s ease; }
+.chip-active   { background: #8B5E3C; color: #fff; border-color: #8B5E3C; box-shadow: 0 2px 8px rgba(139, 94, 60, 0.2); }
+.chip-active:hover { background: #6B4429; box-shadow: 0 4px 12px rgba(139, 94, 60, 0.3); }
+.chip-inactive { background: #FFFDF8; color: #7A6045; border-color: #D9CCBC; }
+.chip-inactive:hover { background: #F9F4EC; border-color: #C8BAAA; }
+</style></head><body>
+
+<div class="section">
+  <div class="label">Badge — variantes semánticas</div>
+  <div class="row">
+    <span class="badge" style="background:#F6EDE3;color:#6B4429">Marca</span>
+    <span class="badge" style="background:#EBF4EE;color:#3D6B49">Disponible</span>
+    <span class="badge" style="background:#FAF0E6;color:#9B5A20">Por caducar</span>
+    <span class="badge" style="background:#FAF0EC;color:#8B3318">Sin stock</span>
+    <span class="badge" style="background:#EEF3F8;color:#3F5E82">Info</span>
+  </div>
+  <div class="row">
+    <span class="badge" style="background:#EBF4EE;color:#3D6B49">
+      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+      Confirmado
+    </span>
+    <span class="badge" style="background:#FAF0E6;color:#9B5A20">
+      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      Incierto
+    </span>
+    <span class="badge" style="background:#FAF0EC;color:#8B3318">
+      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      Agotado
+    </span>
+  </div>
+</div>
+
+<div class="section">
+  <div class="label">Chip — filtro activo / inactivo</div>
+  <div class="row">
+    <span class="chip chip-active">Todos</span>
+    <span class="chip chip-inactive">Verduras</span>
+    <span class="chip chip-inactive">Carnes</span>
+    <span class="chip chip-inactive">Lácteos</span>
+  </div>
+  <div class="row">
+    <span class="chip chip-active">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+      Con icono
+    </span>
+    <span class="chip chip-inactive">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#7A6045" stroke-width="2.5" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      Buscar
+    </span>
+  </div>
+</div>
+</body></html>

@@ -1,0 +1,91 @@
+<!-- @dsCard group="Pantallas" name="Detalle de Receta" subtitle="Hero · ingredientes con stock · pasos step-by-step" -->
+<!DOCTYPE html><html lang="es"><head><meta charset="utf-8">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; background: #FAF7F2; }
+.phone { width: 390px; min-height: 844px; background: #FAF7F2; margin: 0 auto; position: relative; overflow: hidden; }
+.hero { height: 220px; background: linear-gradient(135deg, #F6EDE3, #EAE0D3); display: flex; align-items: center; justify-content: center; position: relative; }
+.hero-text { font-size: 56px; }
+.back-btn { position: absolute; top: 52px; left: 20px; width: 36px; height: 36px; background: rgba(255,253,248,0.85); border-radius: 50%; border: none; display: flex; align-items: center; justify-content: center; cursor: pointer; backdrop-filter: blur(8px); }
+.scroll { padding: 0 20px 100px; }
+.recipe-title { font-size: 28px; font-weight: 800; color: #2C1C0E; letter-spacing: -0.5px; margin: 20px 0 8px; }
+.chip-row { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+.chip { padding: 7px 12px; border-radius: 999px; font-size: 12px; font-weight: 700; border: 1px solid; }
+.chip-brand { background: #F6EDE3; color: #6B4429; border-color: #D9CCBC; }
+.chip-ok { background: #EBF4EE; color: #3D6B49; border-color: #C0DCCA; }
+.marce-note { background: #F6EDE3; border-radius: 20px; border: 1px solid #D9CCBC; padding: 14px 16px; margin-bottom: 20px; font-size: 14px; font-weight: 500; color: #6B4429; font-style: italic; }
+.section-label { font-size: 11px; font-weight: 800; letter-spacing: 0.6px; text-transform: uppercase; color: #AE9B87; margin: 16px 0 10px; }
+.ingredient-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid #EAE0D3; }
+.ingredient-row:last-child { border-bottom: none; }
+.stock-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.stock-ok   { background: #5C8B68; }
+.stock-warn { background: #C8783A; }
+.stock-miss { background: #B84B2D; }
+.ingredient-name { flex: 1; font-size: 15px; font-weight: 500; color: #2C1C0E; }
+.ingredient-qty { font-size: 13px; font-weight: 700; color: #7A6045; }
+.step-card { background: #FFFDF8; border-radius: 24px; border: 1px solid #EAE0D3; padding: 16px; margin-bottom: 10px; display: flex; gap: 14px; align-items: flex-start; box-shadow: 0 3px 8px rgba(61,43,26,0.04); transition: all 0.2s ease; }
+.step-card.done { background: #EBF4EE; border-color: #C0DCCA; }
+.step-number { width: 32px; height: 32px; border-radius: 50%; background: #8B5E3C; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 800; flex-shrink: 0; }
+.step-number.done { background: #5C8B68; }
+.step-text { font-size: 14px; font-weight: 500; color: #2C1C0E; line-height: 1.5; }
+.step-text.done { color: #3D6B49; text-decoration: line-through; opacity: 0.7; }
+.cta-btn { background: #8B5E3C; color: #fff; border: none; border-radius: 999px; padding: 14px 20px; font-size: 15px; font-weight: 700; cursor: pointer; width: 100%; margin-top: 16px; }
+.skeleton { background: linear-gradient(90deg, #F9F4EC 0%, #FFFDF8 50%, #F9F4EC 100%); background-size: 200% 100%; animation: shimmer 1.5s infinite; border-radius: 12px; }
+@keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+</style></head><body>
+
+<div class="phone">
+  <div class="hero">
+    <div class="hero-text">🍗</div>
+    <button class="back-btn">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2C1C0E" stroke-width="2.5" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+    </button>
+  </div>
+  <div class="scroll">
+    <div class="recipe-title">Pollo al ajillo</div>
+    <div class="chip-row">
+      <span class="chip chip-brand">35 min</span>
+      <span class="chip chip-brand">4 personas</span>
+      <span class="chip chip-ok">Tienes todo</span>
+      <span class="chip chip-brand">Fácil</span>
+    </div>
+
+    <div class="marce-note">"Este plato es la esencia de la cocina española. El truco está en el sofrito lento y el ajo bien dorado —sin quemarse. Recuerda sellar el pollo a fuego alto primero."</div>
+
+    <div class="section-label">Ingredientes</div>
+    <div style="background:#FFFDF8; border-radius:24px; border:1px solid #EAE0D3; padding:8px 16px; box-shadow: 0 3px 8px rgba(61,43,26,0.04);">
+      <div class="ingredient-row"><div class="stock-dot stock-ok"></div><div class="ingredient-name">Pollo troceado</div><div class="ingredient-qty">1.2 kg</div></div>
+      <div class="ingredient-row"><div class="stock-dot stock-ok"></div><div class="ingredient-name">Dientes de ajo</div><div class="ingredient-qty">8 uds</div></div>
+      <div class="ingredient-row"><div class="stock-dot stock-ok"></div><div class="ingredient-name">Aceite de oliva VORE</div><div class="ingredient-qty">4 cdas</div></div>
+      <div class="ingredient-row"><div class="stock-dot stock-ok"></div><div class="ingredient-name">Vino blanco seco</div><div class="ingredient-qty">100 ml</div></div>
+      <div class="ingredient-row"><div class="stock-dot stock-warn"></div><div class="ingredient-name">Perejil fresco</div><div class="ingredient-qty">Al gusto</div></div>
+      <div class="ingredient-row"><div class="stock-dot stock-miss"></div><div class="ingredient-name">Patatas para acompañar</div><div class="ingredient-qty">500 g</div></div>
+    </div>
+
+    <div class="section-label">Elaboración</div>
+    <div class="step-card done">
+      <div class="step-number done"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg></div>
+      <div class="step-text done">Seca el pollo con papel de cocina y salpimienta generosamente.</div>
+    </div>
+    <div class="step-card">
+      <div class="step-number">2</div>
+      <div class="step-text">Calienta el aceite en cazuela a fuego alto. Añade el pollo y dora bien por todos los lados, unos 8-10 minutos.</div>
+    </div>
+    <div class="step-card">
+      <div class="step-number">3</div>
+      <div class="step-text">Añade los ajos enteros sin pelar. Baja a fuego medio y sofríe 3 minutos hasta que se doren levemente.</div>
+    </div>
+    <div class="step-card">
+      <div class="step-number">4</div>
+      <div class="step-text">Vierte el vino blanco y deja evaporar el alcohol 2 minutos.</div>
+    </div>
+    <div class="step-card">
+      <div class="step-number">5</div>
+      <div class="step-text">Tapa y cocina a fuego bajo 25 minutos. Comprueba punto de sal y sirve con perejil picado.</div>
+    </div>
+
+    <button class="cta-btn">Marcar como cocinado</button>
+  </div>
+</div>
+
+</body></html>

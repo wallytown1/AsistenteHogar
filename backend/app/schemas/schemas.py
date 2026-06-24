@@ -160,6 +160,19 @@ class InventarioAlimentoCreate(BaseSchema):
     categoria: str = Field(
         ..., min_length=1, max_length=50, description="Categoría de clasificación"
     )
+    precio_unitario: float | None = Field(
+        None,
+        ge=0,
+        description=(
+            "Precio por unidad en euros (capturado del ticket). Se guarda en el "
+            "ledger de movimientos para alimentar el Informe de Ahorro. Nullable "
+            "en altas manuales sin precio."
+        ),
+    )
+    fecha_compra: date | None = Field(
+        None,
+        description="Fecha de compra del ticket (puede diferir del alta en la app)",
+    )
 
     @field_validator("fecha_caducidad")
     @classmethod
@@ -451,6 +464,60 @@ class TicketOcrResponse(BaseSchema):
     mensaje: str | None = Field(
         None, description="Motivo cuando no se pudo extraer la información"
     )
+
+
+# --- PARSER DE TICKET PDF (Fase 2 — Mercadona / supermercados) ---
+
+
+class ProductoTicketPdf(BaseSchema):
+    """Producto extraído de un ticket PDF. Incluye precio para el AhorroService."""
+
+    nombre: str = Field(..., min_length=1, max_length=200)
+    cantidad: float = Field(1.0, gt=0)
+    unidad: str = Field("unidades", max_length=30)
+    categoria: str = Field("Despensa", max_length=50)
+    fecha_caducidad: date | None = None
+    precio_unitario: float | None = Field(
+        None,
+        description="Precio por unidad del ticket en euros (nullable si no visible)",
+    )
+    precio_confiable: bool = Field(
+        True,
+        description="False si el precio_unitario fue anulado por incoherencia con el total de línea (el frontend puede marcarlo visualmente)",
+    )
+
+
+class TicketPdfRequest(BaseSchema):
+    pdf_base64: str = Field(
+        ...,
+        description="Archivo PDF del ticket de compra codificado en Base64 (máx. 10 MB)",
+    )
+    fecha_referencia: date = Field(
+        ...,
+        description="Fecha actual del dispositivo para resolver caducidades relativas",
+    )
+
+    @field_validator("pdf_base64")
+    @classmethod
+    def validar_tamano_pdf(cls, v: str) -> str:
+        # 10 MB decodificado ≈ 13.6 MB en base64
+        if len(v) > 14_000_000:
+            raise ValueError("El PDF supera el límite de 10 MB.")
+        return v
+
+
+class TicketPdfResponse(BaseSchema):
+    productos: list[ProductoTicketPdf] = Field(
+        default_factory=list,
+        description="Productos propuestos por la IA (el usuario confirma antes de añadir)",
+    )
+    fecha_compra: date | None = Field(
+        None, description="Fecha de compra extraída del ticket"
+    )
+    supermercado: str | None = Field(
+        None, description="Nombre del supermercado detectado"
+    )
+    mensaje: str | None = Field(None)
 
 
 # --- PERFILES INDIVIDUALES (Fase 3) ---
@@ -777,3 +844,61 @@ class TranscribeAudioRequest(BaseSchema):
 class TranscribeAudioResponse(BaseSchema):
     texto: str = Field(..., description="Texto transcrito por el asistente de IA")
     generado_por_ia: bool = Field(False)
+
+
+# --- INFORME DE AHORRO (Fase 3 — North Star premium) ---
+
+
+class AhorroPreviewResponse(BaseSchema):
+    """Free tier: resumen ligero del mes actual para motivar el upgrade a Premium."""
+
+    mes: str = Field(..., description="Mes analizado en formato YYYY-MM")
+    recetas_cocinadas: int = Field(..., description="Recetas cocinadas en el mes")
+    ahorro_estimado_eur: float = Field(
+        ..., description="Ahorro estimado en € (recetas x €3.50 media española)"
+    )
+    tiene_datos_reales: bool = Field(
+        ..., description="True si hay tickets importados con precios reales"
+    )
+    mensaje: str | None = None
+
+
+class DesgloseMensualItem(BaseSchema):
+    """Línea del desglose de ahorro por ingrediente (Premium)."""
+
+    nombre: str
+    cantidad_total: float
+    unidad: str
+    precio_unitario_medio: float
+    valor_total: float = Field(..., description="€ de ese ingrediente aprovechados")
+
+
+class AhorroResumenResponse(BaseSchema):
+    """Premium: informe completo de ahorro del mes."""
+
+    mes: str = Field(..., description="Mes analizado en formato YYYY-MM")
+    recetas_cocinadas: int
+    ahorro_real_eur: float | None = Field(
+        None,
+        description="Ahorro real calculado desde precios de ticket (None si sin datos)",
+    )
+    ahorro_estimado_eur: float = Field(
+        ..., description="Ahorro estimado (siempre presente como fallback)"
+    )
+    tiene_datos_reales: bool
+    kg_no_desperdiciados: float = Field(
+        ..., description="Kg estimados de comida no desperdiciada (recetas x 0.35 kg)"
+    )
+    porcentaje_media_espana: int = Field(
+        ...,
+        description="% de desperdicio medio español evitado (MAPA 2024: 31 kg/persona/año)",
+    )
+    num_comensales: int
+    tickets_analizados: int = Field(
+        ..., description="Número de entradas de compra con precio en el mes"
+    )
+    desglose: list[DesgloseMensualItem] = Field(
+        default_factory=list,
+        description="Top 20 ingredientes consumidos con valor estimado",
+    )
+    mensaje: str | None = None

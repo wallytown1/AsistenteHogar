@@ -1,16 +1,25 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { Alert, View, ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRoute, useNavigation, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
+import ViewShot from 'react-native-view-shot';
 import { RechazarIngredienteResponse, RecetaSugerida, Valoracion } from '../types/types';
 import { useRecetaHistorial } from '../hooks/useRecetaHistorial';
 import { usePerfiles } from '../hooks/usePerfiles';
 import { apiRequest } from '../api/api';
 import { colors, spacing, radius } from '../theme/tokens';
-import { Card, Button, IconButton, AppText, SectionHeader } from '../components/ui';
+import {
+  Card,
+  Button,
+  IconButton,
+  AppText,
+  SectionHeader,
+  ShareRecipeCard,
+} from '../components/ui';
 import { haptics } from '../lib/haptics';
+import { compartirRecetaImagen, compartirRecetaTexto } from '../lib/share';
 
 type NavProp = NativeStackNavigationProp<any>;
 
@@ -21,9 +30,33 @@ export default function RecipeDetailScreen() {
   const { receta } = route.params;
   const { registrarAccion, isLoading } = useRecetaHistorial();
   const { perfiles } = usePerfiles();
+  const shotRef = useRef<ViewShot>(null);
+
+  const handleCompartir = async () => {
+    haptics.light();
+    try {
+      if (shotRef.current) {
+        const uri = await (shotRef.current as any).capture();
+        await compartirRecetaImagen(uri);
+      } else {
+        await compartirRecetaTexto(receta.titulo, receta.ingredientes_usados, receta.tiempo_min);
+      }
+    } catch {
+      // Fallback silencioso a texto si la captura falla
+      try {
+        await compartirRecetaTexto(receta.titulo, receta.ingredientes_usados, receta.tiempo_min);
+      } catch {
+        /* el usuario canceló */
+      }
+    }
+  };
 
   const guardarCocinada = async (valoracion: Valoracion) => {
     await registrarAccion(receta.titulo, 'cocinada', valoracion);
+    // Al máximo nivel de satisfacción, ofrecemos compartir antes de salir
+    if (valoracion === 'me_encanto') {
+      await handleCompartir();
+    }
     navigation.goBack();
   };
 
@@ -105,7 +138,17 @@ export default function RecipeDetailScreen() {
         <AppText variant="h2" style={styles.headerTitle} numberOfLines={2}>
           {receta.titulo}
         </AppText>
+        <IconButton name="share-social-outline" onPress={handleCompartir} />
       </View>
+
+      {/* Tarjeta capturada para compartir en TikTok/Instagram — renderizada fuera de pantalla */}
+      <ViewShot ref={shotRef} options={{ format: 'png', quality: 1 }} style={styles.offscreen}>
+        <ShareRecipeCard
+          titulo={receta.titulo}
+          ingredientes={receta.ingredientes_usados}
+          tiempoMin={receta.tiempo_min}
+        />
+      </ViewShot>
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <View style={styles.metaRow}>
@@ -248,5 +291,11 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: colors.border,
     backgroundColor: colors.card,
+  },
+  offscreen: {
+    position: 'absolute',
+    left: -9999,
+    top: 0,
+    opacity: 0,
   },
 });

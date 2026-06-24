@@ -1,5 +1,5 @@
 import uuid
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from typing import Any, cast
 
 from sqlalchemy import CursorResult, delete, func, select
@@ -24,9 +24,14 @@ class MovimientoDespensaRepository:
         cantidad: float | None = None,
         unidad: str | None = None,
         origen: str = "manual",
+        precio_unitario: float | None = None,
+        fecha_compra: date | None = None,
     ) -> MovimientoDespensa:
         """Registra un movimiento (compra/consumo/caducado/ajuste). El nombre se
-        normaliza a minúsculas para que los agregados no se fragmenten por mayúsculas."""
+        normaliza a minúsculas para que los agregados no se fragmenten por mayúsculas.
+
+        precio_unitario y fecha_compra solo se rellenan en compras provenientes de
+        tickets parseados: son la materia prima del Informe de Ahorro."""
         mov = MovimientoDespensa(
             hogar_id=hogar_id,
             nombre=nombre.strip().lower(),
@@ -34,6 +39,8 @@ class MovimientoDespensaRepository:
             cantidad=cantidad,
             unidad=unidad,
             origen=origen,
+            precio_unitario=precio_unitario,
+            fecha_compra=fecha_compra,
         )
         self.session.add(mov)
         await self.session.commit()

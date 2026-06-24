@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { View, StyleSheet, ScrollView, ActivityIndicator, Alert } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { PurchasesPackage, PACKAGE_TYPE } from 'react-native-purchases';
+import { PurchasesPackage, PACKAGE_TYPE, PurchasesStoreProduct } from 'react-native-purchases';
 import { AppText } from '../components/ui/AppText';
 import { Button } from '../components/ui/Button';
 import { IconButton } from '../components/ui/IconButton';
@@ -30,10 +30,11 @@ const TIERS: TierConfig[] = [
     color: colors.inkFaint,
     colorSoft: colors.cardAlt,
     features: [
-      'Despensa manual (CRUD)',
-      'Briefing diario',
+      'OCR de tickets de compra',
+      'Foto de nevera con IA',
+      'Añadir por voz o texto IA',
       'Recetas del catálogo',
-      'Lista de la compra',
+      'Chat con Marce (10/día)',
     ],
   },
   {
@@ -42,12 +43,13 @@ const TIERS: TierConfig[] = [
     sublabel: 'Mensual',
     color: colors.brand,
     colorSoft: colors.brandSoft,
+    badge: 'MÁS POPULAR',
     features: [
+      'Informe de Ahorro mensual en € que tiras y aprovechas',
+      'Proyección de tu ahorro anual',
+      'Recetas IA personalizadas con lo que tienes',
+      'Chat con Marce sin límites',
       'Todo lo del plan Gratis',
-      'Recetas IA personalizadas',
-      'OCR de tickets de compra',
-      'Añadir por audio o texto IA',
-      'Foto de nevera con IA',
     ],
   },
   {
@@ -58,16 +60,57 @@ const TIERS: TierConfig[] = [
     colorSoft: colors.successSoft,
     badge: 'MEJOR VALOR',
     features: [
-      'Todo lo del plan Premium',
+      'Todo el Informe de Ahorro, incluido',
       'Plan semanal de comidas IA',
       'Perfiles individuales por miembro',
       'Personalización máxima',
+      'Todo lo del plan Premium',
     ],
   },
 ];
 
+// Traduce la unidad de periodo de RevenueCat (DAY/WEEK/MONTH/YEAR) a español.
+function periodoUnitLabel(unit: string, n: number): string {
+  const plural = n !== 1;
+  switch (unit) {
+    case 'DAY':
+      return plural ? 'días' : 'día';
+    case 'WEEK':
+      return plural ? 'semanas' : 'semana';
+    case 'MONTH':
+      return plural ? 'meses' : 'mes';
+    case 'YEAR':
+      return plural ? 'años' : 'año';
+    default:
+      return '';
+  }
+}
+
+// Devuelve el texto de oferta de introducción SOLO si RevenueCat la expone.
+// Nunca inventa "gratis": el texto de prueba gratuita solo aparece si el precio
+// de introducción es 0. La oferta real se configura en App Store Connect/RevenueCat.
+function getIntroOfferText(product: PurchasesStoreProduct): string | null {
+  const intro = product.introPrice;
+  if (!intro) return null;
+
+  const total = intro.periodNumberOfUnits * Math.max(intro.cycles, 1);
+  const unidad = periodoUnitLabel(intro.periodUnit, total);
+  if (!unidad) return null;
+
+  // Prueba gratuita real (precio de introducción = 0).
+  if (intro.price === 0) {
+    return `${total} ${unidad} gratis, luego ${product.priceString}`;
+  }
+  // Precio de introducción reducido (no es gratis): lo mostramos como tal.
+  return `${intro.priceString} los primeros ${total} ${unidad}, luego ${product.priceString}`;
+}
+
+type PaywallRouteParams = { motivo?: string };
+
 export default function PaywallScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<any>>();
+  const route = useRoute<RouteProp<Record<string, PaywallRouteParams | undefined>, string>>();
+  const motivo = route.params?.motivo;
   const packages = usePurchasesStore((s) => s.packages);
   const loadPackages = usePurchasesStore((s) => s.loadPackages);
   const purchasePackage = usePurchasesStore((s) => s.purchasePackage);
@@ -134,11 +177,21 @@ export default function PaywallScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        {motivo ? (
+          <View style={styles.motivoBanner}>
+            <Icon name="trending-up-outline" size={18} color={colors.success} />
+            <AppText variant="captionStrong" style={{ flex: 1, color: colors.success }}>
+              {motivo}
+            </AppText>
+          </View>
+        ) : null}
+
         <AppText variant="display" style={styles.title}>
-          Elige tu plan
+          {motivo ? 'Llévate el informe completo' : 'Elige tu plan'}
         </AppText>
         <AppText variant="body" color="inkFaint" style={styles.subtitle}>
-          Desbloquea la IA para cocinar mejor con lo que tienes en casa.
+          La IA para añadir stock es gratis. Premium convierte lo que cocinas en un Informe de
+          Ahorro mensual en € y proyecta tu ahorro anual.
         </AppText>
 
         {loading ? (
@@ -150,6 +203,19 @@ export default function PaywallScreen() {
               const pack =
                 tier.key === 'premium' ? premiumPack : tier.key === 'familia' ? familiaPack : null;
               const price = pack ? pack.product.priceString : tier.key === 'free' ? 'Gratis' : null;
+
+              // Oferta de prueba/introducción real (si RevenueCat la expone).
+              const introText = pack ? getIntroOfferText(pack.product) : null;
+
+              // Ancla de valor para el plan anual: precio mensual equivalente que
+              // ofrece RevenueCat (pricePerMonthString). No inventamos cifras; si el
+              // dato no está disponible en runtime, usamos un mensaje cualitativo.
+              const anclaMensualAnual =
+                tier.key === 'familia' && pack ? pack.product.pricePerMonthString : null;
+              const anclaCualitativa =
+                tier.key === 'familia' && !anclaMensualAnual
+                  ? 'Paga una vez al año y ahorra frente al plan mensual'
+                  : null;
 
               return (
                 <View
@@ -191,11 +257,36 @@ export default function PaywallScreen() {
                       </AppText>
                     </View>
                     {price && (
-                      <AppText variant="captionStrong" style={{ color: tier.color }}>
-                        {price}
-                      </AppText>
+                      <View style={{ alignItems: 'flex-end' }}>
+                        <AppText variant="captionStrong" style={{ color: tier.color }}>
+                          {price}
+                        </AppText>
+                        {anclaMensualAnual ? (
+                          <AppText variant="micro" color="inkFaint">
+                            ≈ {anclaMensualAnual}/mes
+                          </AppText>
+                        ) : null}
+                      </View>
                     )}
                   </View>
+
+                  {anclaCualitativa ? (
+                    <AppText
+                      variant="micro"
+                      style={{ color: tier.color, marginBottom: spacing.sm, fontWeight: '600' }}
+                    >
+                      {anclaCualitativa}
+                    </AppText>
+                  ) : null}
+
+                  {introText ? (
+                    <View style={[styles.introPill, { backgroundColor: tier.colorSoft }]}>
+                      <Icon name="gift-outline" size={13} color={tier.color} />
+                      <AppText variant="micro" style={{ color: tier.color, fontWeight: '700' }}>
+                        {introText}
+                      </AppText>
+                    </View>
+                  ) : null}
 
                   <View style={styles.featureList}>
                     {tier.features.map((f) => (
@@ -216,7 +307,11 @@ export default function PaywallScreen() {
                     </View>
                   ) : pack ? (
                     <Button
-                      label={`Suscribirse · ${pack.product.priceString}`}
+                      label={
+                        introText && pack.product.introPrice?.price === 0
+                          ? 'Empezar prueba gratis'
+                          : `Suscribirse · ${pack.product.priceString}`
+                      }
                       onPress={() => handlePurchase(pack)}
                       loading={purchasingId === pack.identifier}
                       disabled={busy && purchasingId !== pack.identifier}
@@ -239,9 +334,31 @@ export default function PaywallScreen() {
         />
 
         <AppText variant="micro" color="inkFaint" style={styles.legal}>
-          Los precios pueden variar por región. Las suscripciones se renuevan automáticamente.
-          Puedes cancelar en cualquier momento desde los ajustes de tu cuenta.
+          Precios con IVA incluido, según la pantalla de compra. Las suscripciones son de pago
+          recurrente y se renuevan automáticamente al final de cada periodo salvo que las canceles
+          al menos 24 h antes, desde los ajustes de App Store o Google Play. El cobro lo gestiona la
+          tienda de aplicaciones. Servicio para mayores de 14 años.
         </AppText>
+
+        <View style={styles.legalLinks}>
+          <AppText
+            variant="micro"
+            style={styles.legalLink}
+            onPress={() => navigation.navigate('Legal', { documento: 'terminos' })}
+          >
+            Términos de Servicio
+          </AppText>
+          <AppText variant="micro" color="inkFaint">
+            {'  ·  '}
+          </AppText>
+          <AppText
+            variant="micro"
+            style={styles.legalLink}
+            onPress={() => navigation.navigate('Legal', { documento: 'privacidad' })}
+          >
+            Política de Privacidad
+          </AppText>
+        </View>
       </ScrollView>
     </View>
   );
@@ -256,6 +373,26 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
   },
   content: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxxl },
+  motivoBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    backgroundColor: colors.successSoft,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    marginTop: spacing.md,
+  },
+  introPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    alignSelf: 'flex-start',
+    borderRadius: radius.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    marginBottom: spacing.md,
+  },
   title: { textAlign: 'center', marginBottom: spacing.sm, marginTop: spacing.md },
   subtitle: { textAlign: 'center', paddingHorizontal: spacing.md, marginBottom: spacing.xl },
   tiersContainer: { gap: spacing.md },
@@ -305,4 +442,11 @@ const styles = StyleSheet.create({
   },
   restoreButton: { marginTop: spacing.xl },
   legal: { textAlign: 'center', marginTop: spacing.lg, paddingHorizontal: spacing.md },
+  legalLinks: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: spacing.sm,
+  },
+  legalLink: { color: colors.brand, fontWeight: '600' },
 });

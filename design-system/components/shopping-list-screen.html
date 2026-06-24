@@ -1,0 +1,129 @@
+<!-- @dsCard group="Pantallas" name="Lista de Compra" subtitle="Progreso · ítems marcados · banner Marce · compartir" -->
+<!DOCTYPE html><html lang="es"><head><meta charset="utf-8">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; background: #FAF7F2; }
+.phone { width: 390px; min-height: 844px; background: #FAF7F2; margin: 0 auto; position: relative; overflow: hidden; }
+.header { background: #FFFDF8; border-bottom: 1px solid #EAE0D3; padding: 44px 20px 16px; display: flex; align-items: center; justify-content: space-between; }
+.page-title { font-size: 22px; font-weight: 800; color: #2C1C0E; letter-spacing: -0.3px; }
+.share-btn { width: 36px; height: 36px; background: #F6EDE3; border-radius: 12px; border: none; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+.scroll { padding: 0 20px 100px; }
+.progress-section { padding: 16px 0; }
+.progress-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+.progress-label { font-size: 13px; font-weight: 700; color: #7A6045; }
+.progress-count { font-size: 13px; font-weight: 700; color: #5C8B68; }
+.progress-track { height: 8px; background: #EAE0D3; border-radius: 999px; overflow: hidden; }
+.progress-fill { height: 100%; background: #5C8B68; border-radius: 999px; transition: width 0.4s ease; }
+.marce-banner { background: #F6EDE3; border-radius: 20px; border: 1px solid #D9CCBC; padding: 12px 16px; margin: 12px 0; display: flex; gap: 10px; align-items: flex-start; }
+.marce-icon { width: 32px; height: 32px; background: #8B5E3C; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.marce-text { font-size: 13px; font-weight: 500; color: #6B4429; line-height: 1.4; }
+.section-label { font-size: 11px; font-weight: 800; letter-spacing: 0.6px; text-transform: uppercase; color: #AE9B87; margin: 16px 0 10px; }
+.item-card { background: #FFFDF8; border-radius: 20px; border: 1px solid #EAE0D3; padding: 14px 16px; margin-bottom: 8px; display: flex; align-items: center; gap: 12px; box-shadow: 0 2px 6px rgba(61,43,26,0.04); transition: all 0.2s ease; cursor: pointer; }
+.item-card.checked { background: #EBF4EE; border-color: #C0DCCA; }
+.checkbox { width: 24px; height: 24px; border-radius: 8px; border: 2px solid #D9CCBC; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.2s ease; }
+.checkbox.checked { background: #5C8B68; border-color: #5C8B68; }
+.item-name { font-size: 15px; font-weight: 500; color: #2C1C0E; flex: 1; transition: all 0.2s ease; }
+.item-name.checked { color: #5C8B68; text-decoration: line-through; opacity: 0.7; }
+.item-qty { font-size: 12px; font-weight: 700; color: #AE9B87; }
+.badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 7px; border-radius: 999px; font-size: 10px; font-weight: 700; margin-left: 6px; }
+.badge-chef { background: #F6EDE3; color: #6B4429; }
+.badge-self { background: #EEF3F8; color: #3F5E82; }
+.skeleton { background: linear-gradient(90deg, #F9F4EC 0%, #FFFDF8 50%, #F9F4EC 100%); background-size: 200% 100%; animation: shimmer 1.5s infinite; border-radius: 12px; }
+@keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+</style></head><body>
+
+<div class="phone">
+  <div class="header">
+    <div class="page-title">Lista de compra</div>
+    <button class="share-btn">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6B4429" stroke-width="2" stroke-linecap="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+    </button>
+  </div>
+
+  <div class="scroll">
+    <div class="progress-section">
+      <div class="progress-header">
+        <span class="progress-label">Progreso de la lista</span>
+        <span class="progress-count">3 de 8 completados</span>
+      </div>
+      <div class="progress-track">
+        <div class="progress-fill" style="width: 37.5%"></div>
+      </div>
+    </div>
+
+    <div class="marce-banner">
+      <div class="marce-icon">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      </div>
+      <div class="marce-text">Añadí patatas a la lista porque te faltan para el pollo al ajillo de esta noche. ¡No olvides coger las de la variedad monalisa!</div>
+    </div>
+
+    <div class="section-label">Por comprar</div>
+
+    <div class="item-card">
+      <div class="checkbox"></div>
+      <div style="flex:1">
+        <span class="item-name">Patatas monalisa</span>
+        <span class="badge badge-chef">Marce</span>
+      </div>
+      <span class="item-qty">500 g</span>
+    </div>
+    <div class="item-card">
+      <div class="checkbox"></div>
+      <div style="flex:1">
+        <span class="item-name">Perejil fresco</span>
+        <span class="badge badge-chef">Marce</span>
+      </div>
+      <span class="item-qty">1 ramo</span>
+    </div>
+    <div class="item-card">
+      <div class="checkbox"></div>
+      <div style="flex:1">
+        <span class="item-name">Pan de hogaza</span>
+        <span class="badge badge-self">Yo</span>
+      </div>
+      <span class="item-qty">1 ud</span>
+    </div>
+    <div class="item-card">
+      <div class="checkbox"></div>
+      <div style="flex:1">
+        <span class="item-name">Yogur natural sin azúcar</span>
+        <span class="badge badge-self">Yo</span>
+      </div>
+      <span class="item-qty">4 uds</span>
+    </div>
+    <div class="item-card">
+      <div class="checkbox"></div>
+      <div style="flex:1">
+        <span class="item-name">Manzanas fuji</span>
+      </div>
+      <span class="item-qty">1 kg</span>
+    </div>
+
+    <div class="section-label">Completados</div>
+
+    <div class="item-card checked">
+      <div class="checkbox checked">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+      </div>
+      <span class="item-name checked">Leche semidesnatada</span>
+      <span class="item-qty" style="color:#5C8B68">1 L</span>
+    </div>
+    <div class="item-card checked">
+      <div class="checkbox checked">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+      </div>
+      <span class="item-name checked">Aceite oliva VORE</span>
+      <span class="item-qty" style="color:#5C8B68">500 ml</span>
+    </div>
+    <div class="item-card checked">
+      <div class="checkbox checked">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+      </div>
+      <span class="item-name checked">Sal marina gruesa</span>
+      <span class="item-qty" style="color:#5C8B68">1 pq</span>
+    </div>
+  </div>
+</div>
+
+</body></html>

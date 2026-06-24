@@ -29,12 +29,14 @@ from app.schemas.schemas import (
     PerfilHogarResponse,
     PerfilIndividualResponse,
     PlanComidasResponse,
+    ProductoTicketPdf,
     RecetaHistorialResponse,
     RecetaMaestraResponse,
     RecetasSugeridasResponse,
     RecetaSugerida,
     SugerenciaMetadataResponse,
     TicketOcrResponse,
+    TicketPdfResponse,
 )
 from app.services.privacy import AnonimizadorLLM
 
@@ -454,13 +456,11 @@ FILOSOFIA_MEDITERRANEA = (
 # ajustarse desde el panel admin editando los prompts. No eliminar la identidad cálida.
 PERSONA_CHEF = (
     "IDENTIDAD Y TONO (cómo hablas SIEMPRE):\n"
-    "- Eres Marce, el chef de confianza y amigo de este hogar. Hablas en primera "
-    "persona, con cercanía y calidez, como un amigo que lleva años cocinando con ellos.\n"
-    "- Tutea siempre. Si conoces el apodo del hogar o de la persona, úsalo con naturalidad.\n"
-    "- Apóyate en lo que sabes de sus gustos, hábitos y de lo que han cocinado antes para "
-    "que sientan que les conoces de verdad (p. ej. 'como te gustan los guisos de cuchara…', "
-    "'el otro día te encantó la fabada…'). Si no tienes ese dato, NO lo inventes.\n"
-    "- Tono natural, apetitoso y alentador; nunca acartonado ni robótico. Frases humanas y cercanas.\n"
+    "- Eres Marce, el chef de toda la vida, apasionado, cercano y entrañable. No eres un asistente virtual ni un robot; hablas en primera persona con la calidez de un amigo de confianza o un tío 'cocinillas' que adora ver comer bien a la familia.\n"
+    "- Habla siempre con entusiasmo, cercanía y amor por la cocina mediterránea casera. Usa expresiones cotidianas, naturales y afectuosas (p. ej. '¡Qué alegría saludarte!', '¡Oye, mira lo que se me ocurre!', 'Vamos a apañar algo bien rico hoy', '¡Aquí no tiramos nada, que en la nevera hay tesoros!').\n"
+    "- Tutea siempre. Si conoces el apodo del hogar o de la persona, úsalo con total naturalidad y complicidad.\n"
+    "- Apóyate de forma espontánea en lo que sabes de sus gustos, hábitos y de lo que han cocinado antes para que sientan que les conoces de verdad (p. ej. 'como sé que te pirran los platos de cuchara...', 'como el otro día os encantó aquella empanada...'). Si no tienes ese dato, NO inventes nada.\n"
+    "- Tono natural, apetitoso, alentador e informal; nunca acartonado, corporativo ni distante. Evita despedidas robóticas como '¿en qué más puedo ayudarle?' y despídete como un amigo que se queda en la cocina ('¡Un abrazo y a los fogones!', '¡Ya me contarás qué tal te queda!').\n"
 )
 
 
@@ -1503,6 +1503,251 @@ async def chef_chat(
         return ChefChatResponse(
             respuesta="Ups, ha habido un problema entendiendo mi propia respuesta.",
             generado_por_ia=False,
+        )
+
+
+# --- PARSER DE TICKET PDF (Fase 2 — Mercadona / supermercados) ------------------
+
+_TICKET_PDF_RESPONSE_SCHEMA: dict[str, Any] = {
+    "type": "OBJECT",
+    "properties": {
+        "supermercado": {"type": "STRING"},
+        "fecha_compra": {"type": "STRING"},
+        "productos": {
+            "type": "ARRAY",
+            "items": {
+                "type": "OBJECT",
+                "properties": {
+                    "nombre": {"type": "STRING"},
+                    "cantidad": {"type": "NUMBER"},
+                    "unidad": {"type": "STRING"},
+                    "categoria": {"type": "STRING"},
+                    "precio_unitario": {"type": "NUMBER"},
+                    "precio_total_linea": {"type": "NUMBER"},
+                    "fecha_caducidad": {"type": "STRING"},
+                },
+                "required": ["nombre", "cantidad", "unidad", "categoria"],
+            },
+        },
+        "importe_total": {"type": "NUMBER"},
+    },
+    "required": ["productos"],
+}
+
+_TICKET_PDF_SYSTEM = (
+    "Eres un asistente de hogar experto en extraer compras de tickets de supermercado. "
+    "Analiza el PDF adjunto, que es un ticket de compra español.\n"
+    "Extrae TODOS los alimentos y productos del hogar. Omite: IVA, bolsas, puntos de fidelidad, métodos de pago.\n"
+    "Para cada producto:\n"
+    "1. 'nombre': nombre limpio en español (ej: 'LECHE DESNAT 1L' → 'Leche Desnatada').\n"
+    "2. 'cantidad' y 'unidad': número + unidad lógica (1 litro, 500 gramos, 6 unidades).\n"
+    "3. 'categoria': una de (Lácteos, Carnes, Pescado, Frutas, Verduras, Bebidas, Congelados, Limpieza, Despensa).\n"
+    "4. 'precio_unitario': precio POR UNIDAD en euros (float). Si el ticket muestra precio total de varias unidades, divide. Null si no es legible.\n"
+    "5. 'precio_total_linea': importe TOTAL impreso de esa línea del ticket en euros (float), es decir lo que se pagó por toda la cantidad de ese producto. Cópialo tal cual aparece impreso, NO lo calcules. Null si no es legible.\n"
+    "6. 'fecha_caducidad': ISO YYYY-MM-DD estimada desde la fecha de referencia si el producto es perecedero. Cadena vacía si dura meses.\n"
+    "Además:\n"
+    "- 'supermercado': nombre del supermercado si aparece en el ticket (ej: 'Mercadona', 'Lidl'). Cadena vacía si no visible.\n"
+    "- 'fecha_compra': fecha ISO YYYY-MM-DD del ticket si aparece impresa. Cadena vacía si no visible.\n"
+    "- 'importe_total': importe TOTAL del ticket en euros (float) tal cual aparece impreso. Null si no visible.\n"
+    "Si el PDF no contiene un ticket de compra o es ilegible, devuelve productos=[]."
+)
+
+
+async def parse_ticket_pdf(
+    pdf_base64: str, fecha_referencia: datetime.date
+) -> TicketPdfResponse:
+    """Parsea un PDF de ticket de supermercado con Gemini Flash visión.
+    Extrae productos con precio unitario para el AhorroService.
+    IA pasiva: devuelve propuestas; el usuario confirma antes de añadir a la despensa."""
+    if not GEMINI_API_KEY:
+        return TicketPdfResponse(
+            productos=[],
+            mensaje="Gemini AI no configurado. Función de ticket PDF deshabilitada.",
+        )
+
+    # Construimos el turno con inline PDF (application/pdf) pasándolo vía `contents`
+    # para no modificar la firma de _call_gemini con un cuarto tipo de media.
+    contents: list[dict[str, Any]] = [
+        {
+            "parts": [
+                {
+                    "text": (
+                        f"Ticket de compra. Fecha de referencia: {fecha_referencia.isoformat()}. "
+                        "Extrae todos los productos con sus precios."
+                    )
+                },
+                {
+                    "inlineData": {
+                        "mimeType": "application/pdf",
+                        "data": pdf_base64,
+                    }
+                },
+            ]
+        }
+    ]
+
+    start_time = time.time()
+    try:
+        raw_json = await _call_gemini(
+            system_instruction=_TICKET_PDF_SYSTEM,
+            contents=contents,
+            response_schema=_TICKET_PDF_RESPONSE_SCHEMA,
+            max_output_tokens=3000,
+            timeout=45.0,
+        )
+        if not raw_json:
+            return TicketPdfResponse(
+                productos=[],
+                mensaje="No se pudo procesar el PDF del ticket. Comprueba que sea un ticket de compra legible.",
+            )
+
+        data = json.loads(raw_json)
+
+        productos: list[ProductoTicketPdf] = []
+        suma_lineas = 0.0  # acumula precio_total_linea para el chequeo global (D)
+        for item in data.get("productos", []):
+            if not isinstance(item, dict):
+                continue
+            nombre = (item.get("nombre") or "").strip()
+            if not nombre:
+                continue
+            try:
+                cantidad = float(item.get("cantidad") or 1)
+                if cantidad <= 0:
+                    cantidad = 1.0
+            except (TypeError, ValueError):
+                cantidad = 1.0
+            precio_raw = item.get("precio_unitario")
+            try:
+                precio_unitario = float(precio_raw) if precio_raw is not None else None
+                if precio_unitario is not None and precio_unitario < 0:
+                    precio_unitario = None
+            except (TypeError, ValueError):
+                precio_unitario = None
+            # Importe total impreso de la línea (fuente de verdad para validar el unitario).
+            total_raw = item.get("precio_total_linea")
+            try:
+                precio_total_linea = float(total_raw) if total_raw is not None else None
+                if precio_total_linea is not None and precio_total_linea < 0:
+                    precio_total_linea = None
+            except (TypeError, ValueError):
+                precio_total_linea = None
+            if precio_total_linea is not None:
+                suma_lineas += precio_total_linea
+
+            # --- Validación de cordura del precio (B) ---
+            # El € del Informe de Ahorro descansa en precio_unitario; el LLM puede
+            # alucinar (€/kg vs €/ud, leer 1,50 como 150, coger el total). Validamos
+            # contra el importe total impreso de la línea, que es más fiable.
+            precio_confiable = True
+
+            def _cuadra(unit: float, cant: float, total: float) -> bool:
+                # 5% de tolerancia, mínimo 2 céntimos.
+                return abs(unit * cant - total) <= max(0.05 * total, 0.02)
+
+            if (
+                precio_unitario is not None
+                and precio_total_linea is not None
+                and not _cuadra(precio_unitario, cantidad, precio_total_linea)
+            ):
+                # El unitario del LLM no cuadra con el total impreso: no es fiable.
+                precio_unitario = None
+                precio_confiable = False
+
+            # Si no hay unitario fiable pero sí total de línea y cantidad>0,
+            # recalculamos desde el total (fuente más fiable que el unitario del LLM).
+            if (
+                precio_unitario is None
+                and precio_total_linea is not None
+                and cantidad > 0
+            ):
+                recalculado = precio_total_linea / cantidad
+                if _cuadra(recalculado, cantidad, precio_total_linea):
+                    precio_unitario = recalculado
+                else:
+                    # Ni siquiera el recálculo cuadra: no hay precio coherente posible.
+                    precio_unitario = None
+                    precio_confiable = False
+
+            fc_raw = (item.get("fecha_caducidad") or "").strip()
+            try:
+                fecha_caducidad = (
+                    datetime.date.fromisoformat(fc_raw) if fc_raw else None
+                )
+            except ValueError:
+                fecha_caducidad = None
+            # Mantenemos el producto en la lista aunque precio_unitario sea None
+            # (el usuario lo añade a la despensa; el AhorroService lo excluye solo).
+            productos.append(
+                ProductoTicketPdf(
+                    nombre=nombre,
+                    cantidad=cantidad,
+                    unidad=(item.get("unidad") or "unidades").strip() or "unidades",
+                    categoria=(item.get("categoria") or "Despensa").strip()
+                    or "Despensa",
+                    fecha_caducidad=fecha_caducidad,
+                    precio_unitario=precio_unitario,
+                    precio_confiable=precio_confiable,
+                )
+            )
+
+        fecha_compra_raw = (data.get("fecha_compra") or "").strip()
+        try:
+            fecha_compra = (
+                datetime.date.fromisoformat(fecha_compra_raw)
+                if fecha_compra_raw
+                else None
+            )
+        except ValueError:
+            fecha_compra = None
+
+        supermercado_raw = (data.get("supermercado") or "").strip() or None
+
+        # (D) Señal de extracción parcial: la suma de líneas no llega al total impreso.
+        # Solo avisamos por logs, NO bloqueamos ni alteramos los productos.
+        importe_total_raw = data.get("importe_total")
+        try:
+            importe_total = (
+                float(importe_total_raw) if importe_total_raw is not None else None
+            )
+        except (TypeError, ValueError):
+            importe_total = None
+        if (
+            importe_total is not None
+            and importe_total > 0
+            and abs(suma_lineas - importe_total) > 0.10 * importe_total
+        ):
+            logger.warning(
+                "Ticket PDF: la suma de líneas (%.2f€) difiere >10%% del importe total "
+                "impreso (%.2f€); posible extracción parcial de productos.",
+                suma_lineas,
+                importe_total,
+            )
+
+        logger.info(
+            f"Ticket PDF procesado en {time.time() - start_time:.2f}s. "
+            f"{len(productos)} productos, supermercado={supermercado_raw}, fecha={fecha_compra}."
+        )
+        return TicketPdfResponse(
+            productos=productos,
+            fecha_compra=fecha_compra,
+            supermercado=supermercado_raw,
+            mensaje=None
+            if productos
+            else "No se detectaron productos en el ticket. Comprueba que el PDF sea legible.",
+        )
+
+    except json.JSONDecodeError:
+        logger.error("Error decodificando respuesta JSON del parser de ticket PDF.")
+        return TicketPdfResponse(
+            productos=[],
+            mensaje="El formato de respuesta de la IA fue inválido.",
+        )
+    except Exception as e:
+        logger.error(f"Error inesperado en parse_ticket_pdf: {e}")
+        return TicketPdfResponse(
+            productos=[],
+            mensaje="Error interno procesando el ticket.",
         )
 
 

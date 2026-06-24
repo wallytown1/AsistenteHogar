@@ -38,7 +38,17 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
 
 # Límite de mensajes de chat con el chef por día para usuarios freemium
-CHEF_FREE_DAILY_LIMIT = int(os.getenv("CHEF_FREE_DAILY_LIMIT", "5"))
+CHEF_FREE_DAILY_LIMIT = int(os.getenv("CHEF_FREE_DAILY_LIMIT", "10"))
+
+# Topes diarios por hogar para las funciones de IA gratuitas con coste de Gemini.
+# Tras el pivote, OCR/foto-nevera/voz/texto pasaron a gratis: sin un tope diario,
+# un pico viral o una cuenta abusiva pueden disparar el gasto de la API. Estos
+# límites acotan el coste unitario por hogar/día. Los usuarios premium quedan
+# exentos. Generosos para uso normal (poblar la despensa son ráfagas puntuales),
+# estrictos frente al abuso sostenido. Por hogar, no por IP (evita farming de IPs).
+AI_FREE_DAILY_LIMIT_VISION = int(os.getenv("AI_FREE_DAILY_LIMIT_VISION", "15"))
+AI_FREE_DAILY_LIMIT_TICKET_PDF = int(os.getenv("AI_FREE_DAILY_LIMIT_TICKET_PDF", "10"))
+AI_FREE_DAILY_LIMIT_TEXT = int(os.getenv("AI_FREE_DAILY_LIMIT_TEXT", "60"))
 
 # Redis. Opcional: sin ella la caché y el rate-limit operan en memoria (instancia
 # única). En producción con múltiples workers debe apuntar a un Redis compartido.
