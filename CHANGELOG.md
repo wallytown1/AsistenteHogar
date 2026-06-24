@@ -6,6 +6,68 @@ Formato: `[FECHA] [ÁREA] [TIPO] Descripción`
 
 ---
 
+## [2026-06-24] v1.8.0 — Pivote 2: Informe de Ahorro, Ticket PDF, Inversión del Gate Freemium
+
+Lanzamiento de los módulos de monetización basados en el valor real de la app (PR #10). El
+informe de ahorro cruza precios del ledger con recetas cocinadas para mostrar cuánto ha
+ahorrado el hogar frente al restaurante. El gate freemium se invierte: las funciones de
+captura (OCR/foto/voz/texto) pasan a free; el informe completo es el nuevo motor de conversión
+a premium.
+
+Auditoría NEXUS previa al merge: 15/15 smoke tests PASS · TypeScript limpio (frontend +
+admin-web) · Pre-commit (Ruff + Mypy) limpio.
+
+### Backend
+
+- **ADD** `AhorroService` (`services/ahorro.py`) — cruza `precio_unitario` del ledger con las
+  recetas cocinadas en `recetas_historial` para calcular el ahorro real acumulado por hogar
+  (coste estimado en restaurante vs. coste real de ingredientes).
+- **ADD** `GET /ahorro/resumen` (requiere tier premium) — informe completo de ahorro: total
+  ahorrado, desglose por receta y período, media mensual.
+- **ADD** `GET /ahorro/preview` (free) — preview limitada del informe de ahorro, motor de
+  conversión a premium.
+- **ADD** `POST /pantry/ticket/pdf` — parser de ticket PDF Mercadona con Gemini Flash visión:
+  extrae productos, cantidades y precios unitarios desde imagen del PDF.
+- **ADD** Migración Alembic `b2c4d6e8f0a1` — campos `precio_unitario` (Decimal) y
+  `fecha_compra` (Date) en tabla `movimientos_despensa`; alimentan el informe de ahorro y
+  las sugerencias de cadencia.
+- **ADD** Topes diarios de IA por hogar (exentos para tier premium): visión 15/día,
+  ticket PDF 10/día, texto 60/día. Devuelve HTTP 429 con `Retry-After` al superarlos.
+- **FIX** Cadena de precio ticket→ledger→informe: antes devolvía 0€/null por deserialización
+  incorrecta del campo `precio_unitario` extraído por Gemini; ahora validado con sanity-check
+  de rango y parseado como `Decimal` antes de persistir.
+- **MOD** `CHEF_FREE_DAILY_LIMIT` 5 → 10 mensajes/día (inversión del gate freemium).
+
+### Frontend
+
+- **ADD** `AhorroScreen.tsx` — pantalla de Informe de Ahorro: preview para usuarios free
+  (cifra parcial + CTA a paywall) y resumen completo con gráfico de barras por mes para premium.
+- **ADD** `TicketImportScreen.tsx` — pantalla de importación de ticket PDF: selector de archivo
+  PDF, envío a `POST /pantry/ticket/pdf`, revisión de productos con checkboxes y confirmación
+  en lote al despensa.
+- **MOD** Gate freemium invertido: OCR de ticket, foto de nevera, voz al chef y entrada de
+  texto NL pasan a funciones **free**. El informe de ahorro completo (`AhorroScreen`) es el
+  nuevo incentivo de conversión a premium.
+- **ADD** Tarjeta viral compartible de recetas — botón "Compartir" en `RecipeDetailScreen`
+  genera una card con foto, nombre e ingredientes preparada para TikTok/Instagram
+  (`expo-sharing` + `react-native-view-shot`).
+- **ADD** `LegalScreen.tsx` — pantalla de información legal in-app con Política de Privacidad,
+  Términos y Condiciones e Info Legal (cumplimiento RGPD art. 13 / LSSI). Enlazada desde
+  `SettingsScreen` y `PaywallScreen`.
+- **MOD** `PaywallScreen.tsx` — disclosure de IA añadido y enlace a `LegalScreen` (requisito
+  App Store / Google Play).
+- **MOD** `OnboardingScreen.tsx` — slide anti-desperdicio añadido; mejoras de
+  descubribilidad de las funciones de captura (OCR, foto, voz).
+
+### Tests y CI
+
+- **ADD** `smoke_test_ahorro.py` — cobertura del `AhorroService` y endpoints `/ahorro/resumen`
+  y `/ahorro/preview` (happy path, gate premium, aislamiento multi-tenant).
+- **MOD** `.github/workflows/ci.yml` — `smoke_test_ahorro` añadido al job `backend`.
+  Total: 15 suites de smoke tests en CI.
+
+---
+
 ## [2026-06-23] — Calidad UX: React Query, Toast y Undo del Chef
 
 Refactorización completa de la capa de datos del frontend hacia React Query y corrección del incumplimiento de escrituras IA reversibles (CLAUDE.md §6.2.5).
@@ -1057,73 +1119,5 @@ Ver `MEJORAS_PENDIENTES.md` para el backlog completo con estimaciones de esfuerz
 
 ### Verificación: 122/122 smoke tests en verde (modo degradado sin Redis); ruff + mypy + ruff-format OK; 0 errores TypeScript frontend.
 
----
 
-## [2026-06-11] — Reenfoque: agente personal honesto (eliminación de funciones imposibles)
-
-### Decisiones clave
-- La app NO tiene integraciones de hardware: se eliminó toda la UI que fingía tenerlas (consumo energético,
-  domótica, seguridad, cámaras, clima falso, notificaciones inventadas, escáner de códigos). Alcance real:
-  **comida (despensa), eventos (calendario) y tareas**, asistidos por IA pasiva.
-- El "evento rápido" del calendario pasa de simulación a IA real: nuevo `POST /calendar/interpretar` con
-  Gemini interpreta lenguaje natural ("cena con mis padres el viernes a las 21h") y devuelve una PROPUESTA
-  con fecha/hora resueltas; el usuario siempre confirma antes de crear (IA pasiva). Sin caché (cada texto es único).
-- Clima eliminado también del backend (no hay proveedor real): fuera de `DashboardUnifiedContext`, del
-  briefing IA y del fallback.
-- Despensa: estado de stock ahora calculado de datos reales (caducidad + cantidad), no de un mock por id;
-  recomendaciones de compra derivadas del stock bajo real; fotos unsplash → emoji por categoría.
-- Calendario: fecha y contadores reales en cabecera; filtros por participantes derivados de los eventos
-  (iniciales, sin fotos falsas); fuera tabs Día/Semana/Mes sin función, mockupEventos, "Reprogramar" falso
-  e "Integraciones" simuladas; eje horario ampliado 07:00–22:00.
-
-### Archivos
-- `ADD` backend: `interpret_event_text()` en services/llm.py (+schema estructurado, validación fin>inicio),
-  `POST /calendar/interpretar` en routers/calendar.py, schemas `InterpretarEventoRequest/EventoInterpretado/InterpretarEventoResponse`.
-- `MOD` backend: schemas.py y llm.py sin campos de clima.
-- `MOD` frontend/src/types/types.ts — fuera clima; +EventoInterpretado, InterpretarEventoResponse.
-- `MOD` frontend/src/screens/{DashboardScreen,PantryScreen,CalendarScreen}.tsx — limpieza completa descrita arriba.
-
-### Verificación: E2E real — "viernes a las 21h" → 2026-06-12T21:00 (+1h por defecto) OK; texto sin sentido → mensaje sin evento OK; sin token → 401 OK; smoke test 12/12; `ts:check` 0 errores.
-### Qué sigue: **F4 — Modelo freemium** (requiere cuenta RevenueCat).
-
----
-
-## [2026-06-11] — FASE IA: Integración real de Gemini (briefing + recetas)
-
-### Decisiones clave
-- `gemini-1.5-flash` ya no existe en la API (el briefing caía siempre al fallback sin saberlo). Modelo
-  actualizado a `gemini-2.5-flash`, configurable vía `GEMINI_MODEL`; `thinkingBudget=0` (menos latencia/coste).
-- Caché TTL en memoria por hash de datos: briefing 30 min, recetas 1 h. Cambian los datos → se regenera.
-  Deuda: migrar a Redis junto con el rate limiter si hay varias réplicas.
-- Nueva función IA: `GET /pantry/recetas` — sugiere hasta 3 recetas desde el inventario real, priorizando
-  caducidades (salida JSON estructurada con `responseSchema`). IA pasiva: solo sugiere.
-
-### Archivos
-- `MOD` backend/app/services/llm.py — rewrite: helper `_call_gemini`, caché, `generate_recipe_suggestions`.
-- `MOD` backend/app/{core/config.py (+GEMINI_API_KEY/GEMINI_MODEL), schemas/schemas.py (+RecetaSugerida), api/routers/pantry.py (+/pantry/recetas), .env.example}.
-- `MOD` frontend/src/{types/types.ts (+RecetaSugerida), screens/PantryScreen.tsx — mock de recetas hardcodeado sustituido por IA real con botón "Sugerir con IA"}.
-
-### Verificación: E2E con API real — briefing IA OK; 3 recetas coherentes con inventario; caché 2ª llamada 7 ms; smoke test 12/12; `ts:check` 0 errores.
-
----
-
-## [2026-06-11] — Auditoría: corrección de bugs y deuda técnica
-
-### Correcciones (auditoría exhaustiva pre-producción)
-- `FIX` backend/app/services/llm.py — la API key de Gemini iba como query param en la URL y se filtraba
-  en logs de errores de red; movida al header `x-goog-api-key`. Eliminado "(Madrid)" hardcodeado del fallback.
-- `FIX` backend/app/repositories/{exceptions.py (+TaskNotFoundError), task.py (ValueError → TaskNotFoundError), user.py (+rollback si refresh falla tras commit)}.
-- `FIX` backend/app/api/routers/{tasks.py (captura TaskNotFoundError, no ValueError genérico), dashboard.py (docstring obsoleto X-Hogar-ID, clima duplicado)}.
-- `FIX` backend/app/services/dashboard.py — sanitización vía `model_copy()`: ya no muta DTOs Pydantic in-place.
-- `ADD` backend/app/core/utils.py — `sanitize_text` única (estaba duplicada en tasks.py y dashboard.py).
-- `ADD` backend/alembic/versions/3e8f2a1b9c7d — índices: tareas_hogar(hogar_id,estado,is_deleted), eventos_calendario(hogar_id,fecha_inicio/fin).
-- `MOD` backend/app/services/calendar.py — comentario de complejidad corregido (O(N²) peor caso, no O(N log N)).
-
-### Verificación: smoke test 12/12 OK; migración de índices aplicada; imports verificados.
-
----
-
-Ver [[CHANGELOG_ARCHIVE.md]] para historial de F0, F1, F2, F3 y setup inicial.
-
-### Correcciones TypeScript (tsc --noEmit: 0 errores)
-- `FIX` [frontend/src/navigation/AppNavigator.tsx](file:///p:/AsistenteHogar/frontend/src/navigation/AppNavigator.tsx) — Añadidos tipos explícitos (`RouteProp<RootTabParamList>`, `BottomTabNavigationOptions`, `{ focused: boolean }`) para resolver errores TS7031 (implicit `any`).
+> Historial anterior a 2026-06-11 → ver [CHANGELOG_ARCHIVE.md](CHANGELOG_ARCHIVE.md)

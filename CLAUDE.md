@@ -1,5 +1,7 @@
 # CLAUDE.md
 
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
 > **How-To operativo**: comandos de consola, flujo git y directrices de calidad de este monorepo.
 > Para arquitectura/conceptos → `01_CONTEXTO_Y_ARQUITECTURA_APP.md`. Para estado/roadmap → `ESTADO_ACTUAL.md`.
 
@@ -102,6 +104,8 @@ uv run python smoke_test_chef.py
 uv run python smoke_test_movimientos.py
 uv run python smoke_test_lista_inteligente.py
 uv run python smoke_test_confianza.py
+uv run python smoke_test_ahorro.py
+uv run python smoke_test_premium.py
 ```
 
 ### 2.2 Escudo de Calidad (Husky + pre-commit)
@@ -170,6 +174,7 @@ Este proyecto cuenta con un grafo de conocimiento en `graphify-out/` que mapea r
 *   **context7 (Documentación de Librerías)**: Utilízalo antes de adivinar firmas de métodos o tipos del Expo SDK, FastAPI, SQLAlchemy 2.0 o Pydantic v2.
 *   **github**: Usa el plugin de github para la creación de Pull Requests, issues y revisión de checks del CI de GitHub Actions, evitando el uso redundante del CLI de `gh`.
 *   **Higgsfield (Generador de Arte)**: Utilízalo para generar o rediseñar activos de imagen en `frontend/assets/` (splash, icon, adaptive-icon) bajo demanda.
+*   **Biblioteca de Agentes Globales (agency-*)**: Este entorno dispone de una biblioteca con 217 agentes especializados en `C:/Users/navar/.gemini/antigravity/skills` (patrón `agency-<rol>`). Consulta [.agents/agency-atlas.json](file:///p:/AsistenteHogar/.agents/agency-atlas.json) y el archivo `SKILL.md` de la carpeta del agente deseado para asimilar sus reglas y flujos óptimos de desarrollo.
 
 ---
 
@@ -227,22 +232,12 @@ Router (api/routers/) → Service (services/) → Repository (repositories/) →
   (máx. 12); la continuidad de largo plazo vive en `memoria_gustos`.
 - Sin API key: todas las funciones devuelven fallback estático — la app funciona sin clave.
 
-### 6.5 Estado de fases (actualizar en ESTADO_ACTUAL.md)
+### 6.5 Estado de fases
 
-**Completado (CI verde, Fase 3 terminada):**
-- Chef amigo: `_PERSONA_CHEF`, `memoria_gustos`, `POST /chef/chat`, `ChefChatScreen`.
-- Stock Fase 1: ledger `movimientos_despensa` + hábitos en memoria destilada.
-- Stock Fase 2A: `GET /lista-compra/sugerencias` (cadencia, sin IA).
-- Stock Fase 2B: `ultima_confirmacion` + `incierto` + `agotar`/`confirmar` de un toque.
-- Chat accionable y Cupo Freemium: structured output `platos`, descuento automático de stock, límite `CHEF_FREE_DAILY_LIMIT` de 5 mensajes/día, y upsell a `PaywallScreen` en error 402.
-- Briefing Personalizado: inyección de memoria destilada en el saludo matutino del Dashboard.
-- Voz al Chef: botón hold-to-talk, API `POST /chef/transcribe` base64 y soporte nativo de audio en Gemini.
-- Chef Proactivo: notificaciones push locales generadas por IA, programación diaria vía `expo-notifications`, deep-linking y bienvenida contextual.
+Estado completo, historial y roadmap → [`ESTADO_ACTUAL.md`](ESTADO_ACTUAL.md).
 
-**Próximo paso — Fase 5: Integración Comercial y Publicación:**
-- Definir `REVENUECAT_SECRET_KEY` en producción (Railway) para cerrar el gate premium.
-- Configurar productos y offerings en App Store Connect, Google Play Console y RevenueCat.
-- Realizar las builds nativas finales de producción y EAS Submit.
+**Próximo paso inmediato — Fase 5: Integración Comercial y Publicación:**
+- Definir `REVENUECAT_SECRET_KEY` en Railway, configurar productos en App Store Connect / Google Play Console / RevenueCat y realizar las builds nativas de producción con EAS Submit.
 
 ### 6.6 Variables de entorno clave (backend)
 

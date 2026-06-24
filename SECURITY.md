@@ -1,7 +1,7 @@
 # SECURITY.md — Asistente del Hogar IA
 
 Documento de seguridad derivado de la revisión del código fuente (F-QA2 Bloque 5, 2026-06-18).
-Actualizado 2026-06-20: Fase 3 (perfiles individuales), lista de la compra, HistorialScreen.
+Actualizado 2026-06-24: Pivote 2 completo — gate freemium invertido, AhorroService (premium), parser ticket Mercadona (free).
 Cubre modelo de autenticación, aislamiento multi-tenant, LLM, RGPD y riesgos aceptados.
 
 ---
@@ -100,6 +100,8 @@ Ventana deslizante en Redis (Sorted Sets). Degradación graceful a memoria si Re
 | `POST /pantry/interpretar`, `/audio` | 20 / 5 min | compartido |
 | `POST /pantry/sugerir-metadata` | 40 / 5 min | por IP |
 | `POST /pantry/foto-nevera`, `/ocr-ticket` | 10 / hora | por IP |
+| `POST /chef/chat` | 15 / día (free) · 60 / día (premium) | por hogar |
+| `GET /ahorro/resumen` | 10 / día | por hogar (premium) |
 
 **Nota:** los endpoints `/admin/*` no tienen rate limit propio. Están protegidos por el secreto
 JWT separado y no son públicos, pero en un despliegue con red accesible se recomienda añadir
@@ -112,10 +114,13 @@ límites (ver §5.4).
 ### 5.1. Superficie de prompt injection
 
 Los endpoints que aceptan texto libre del usuario son:
-- `POST /pantry/interpretar` — campo `texto`
-- `POST /pantry/audio` — campo `texto`
-- `POST /pantry/ocr-ticket` — imagen en base64 (no texto libre)
-- `POST /pantry/foto-nevera` — imagen en base64
+- `POST /pantry/interpretar` — campo `texto` (**gratis** desde Pivote 2)
+- `POST /pantry/audio` — campo `texto` (**gratis** desde Pivote 2)
+- `POST /pantry/ocr-ticket` — imagen en base64 (**gratis** desde Pivote 2)
+- `POST /pantry/foto-nevera` — imagen en base64 (**gratis** desde Pivote 2)
+- `POST /pantry/ticket/pdf` — archivo PDF multipart (**gratis**; parser Mercadona)
+- `POST /chef/chat` — campo `mensaje` (limitado por cupo diario free/premium)
+- `GET /ahorro/resumen` — solo lectura; **gateado premium** (`requiere_premium`)
 
 El webhook de RevenueCat (`POST /webhooks/revenuecat`) verifica el secreto compartido
 (`Authorization: Bearer <REVENUECAT_WEBHOOK_SECRET>`) con `hmac.compare_digest` (tiempo constante);
