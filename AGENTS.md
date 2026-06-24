@@ -102,6 +102,8 @@ uv run python smoke_test_chef.py
 uv run python smoke_test_movimientos.py
 uv run python smoke_test_lista_inteligente.py
 uv run python smoke_test_confianza.py
+uv run python smoke_test_ahorro.py
+uv run python smoke_test_premium.py
 ```
 
 ### 2.2 Escudo de Calidad (Husky + pre-commit)
@@ -170,6 +172,7 @@ Este proyecto cuenta con un grafo de conocimiento en `graphify-out/` que mapea r
 *   **context7 (Documentación de Librerías)**: Utilízalo antes de adivinar firmas de métodos o tipos del Expo SDK, FastAPI, SQLAlchemy 2.0 o Pydantic v2.
 *   **github**: Usa el plugin de github para la creación de Pull Requests, issues y revisión de checks del CI de GitHub Actions, evitando el uso redundante del CLI de `gh`.
 *   **Higgsfield (Generador de Arte)**: Utilízalo para generar o rediseñar activos de imagen en `frontend/assets/` (splash, icon, adaptive-icon) bajo demanda.
+*   **Biblioteca de Agentes Globales (agency-*)**: Este entorno dispone de una biblioteca con 217 agentes especializados en `C:/Users/navar/.gemini/antigravity/skills` (patrón `agency-<rol>`). Consulta [.agents/agency-atlas.json](file:///p:/AsistenteHogar/.agents/agency-atlas.json) y el archivo `SKILL.md` de la carpeta del agente deseado para asimilar sus reglas y flujos óptimos de desarrollo.
 
 ---
 
@@ -234,7 +237,7 @@ Router (api/routers/) → Service (services/) → Repository (repositories/) →
 - Stock Fase 1: ledger `movimientos_despensa` + hábitos en memoria destilada.
 - Stock Fase 2A: `GET /lista-compra/sugerencias` (cadencia, sin IA).
 - Stock Fase 2B: `ultima_confirmacion` + `incierto` + `agotar`/`confirmar` de un toque.
-- Chat accionable y Cupo Freemium: structured output `platos`, descuento automático de stock, límite `CHEF_FREE_DAILY_LIMIT` de 5 mensajes/día, y upsell a `PaywallScreen` en error 402.
+- Chat accionable y Cupo Freemium: structured output `platos`, descuento automático de stock, límite `CHEF_FREE_DAILY_LIMIT` de 10 mensajes/día (subido de 5 en Pivote 2), y upsell a `PaywallScreen` en error 402.
 - Briefing Personalizado: inyección de memoria destilada en el saludo matutino del Dashboard.
 - Voz al Chef: botón hold-to-talk, API `POST /chef/transcribe` base64 y soporte nativo de audio en Gemini.
 - Chef Proactivo: notificaciones push locales generadas por IA, programación diaria vía `expo-notifications`, deep-linking y bienvenida contextual.
@@ -266,7 +269,7 @@ Cada vez que crees, modifiques o consultes documentación en este repositorio, d
 1. ¿Es una EXPLICACIÓN (Conceptos, decisiones de diseño, arquitectura, justificación legal RGPD/AI Act)?
    👉 Enrútalo SIEMPRE a: `01_CONTEXTO_Y_ARQUITECTURA_APP.md` (Prohibido meter comandos prácticos aquí).
 2. ¿Es un HOW-TO (Comandos de consola, cómo correr tests, flujos prácticos de desarrollo)?
-   👉 Enrútalo SIEMPRE a: `AGENTS.md`.
+   👉 Enrútalo SIEMPRE a: `AGENTS.md` (y sincronizar con `CLAUDE.md`).
 3. ¿Es el ESTADO TEMPORAL (Fases del proyecto, bugs actuales, roadmap de mejoras, historial)?
    👉 Enrútalo SIEMPRE a: `ESTADO_ACTUAL.md`.
 4. ¿Es una REFERENCIA ATÓMICA (Especificaciones técnicas de APIs/endpoints)?
@@ -278,7 +281,7 @@ Cada vez que crees, modifiques o consultes documentación en este repositorio, d
 6. ¿Es el CHANGELOG detallado (entradas fechadas por área/tipo)?
    👉 Enrútalo a: `CHANGELOG.md` (historial pre-2026-06-11 en `CHANGELOG_ARCHIVE.md`).
 
-> **Nota:** los ficheros bajo `.Codex/skills/graphify/references/` son documentación interna de
+> **Nota:** los ficheros bajo `.claude/skills/graphify/references/` son documentación interna de
 > la skill graphify (referenciada por path exacto desde `SKILL.md`). **No tocar ni consolidar.**
 
 [Restricción]: Queda prohibido crear nuevos archivos .md en la raíz del monorepo sin confirmación explícita del usuario.

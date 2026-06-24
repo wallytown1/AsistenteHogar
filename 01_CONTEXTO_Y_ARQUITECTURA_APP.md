@@ -2,7 +2,7 @@
 
 Este documento especifica de manera integral la arquitectura del sistema, el mapa de directorios, el esquema de datos, el sistema de diseño visual y la arquitectura de cumplimiento legal (RGPD / AI Act) para el **Asistente del Hogar IA**. Es la fuente de verdad conceptual del proyecto.
 
-> **Versión:** 4.0 (2026-06-22) — **Pivote 2 implementado**: App exclusivamente orientada a comida, despensa y recetas mediterráneas. Se eliminaron por completas las tareas domésticas y la agenda/calendario.
+> **Versión:** 4.1 (2026-06-24) — **Pivote 2 implementado**: App exclusivamente orientada a comida, despensa y recetas mediterráneas. Se eliminaron las tareas domésticas y la agenda/calendario. Gate freemium invertido: OCR/foto/voz/texto son gratis; Premium = Informe de Ahorro + recetas IA avanzadas. AhorroService y parser de ticket Mercadona en producción.
 
 ---
 
@@ -17,18 +17,18 @@ AsistenteHogar/
 ├── backend/
 │   ├── app/
 │   │   ├── api/
-│   │   │   ├── routers/           # auth, dashboard, pantry, perfiles, chef, lista_compra
+│   │   │   ├── routers/           # auth, dashboard, pantry, perfiles, chef, lista_compra, ahorro
 │   │   │   └── deps.py            # Inyección: DB sessions, get_current_user, requiere_premium/familia
 │   │   ├── core/                  # config, security (JWT/bcrypt), rate_limit, token_blocklist
 │   │   ├── models/                # Modelos SQLAlchemy 2.0 async (models.py)
 │   │   ├── repositories/          # Patrón Repositorio y exceptions tipadas
-│   │   ├── services/              # Lógica de negocio: llm.py, premium.py, memoria.py
+│   │   ├── services/              # Lógica de negocio: llm.py, premium.py, memoria.py, ahorro.py, ticket_parser.py
 │   │   │   └── privacy.py         # AnonimizadorLLM (saneo y tokenización de prompts)
 │   │   ├── jobs/                  # scheduled jobs: purga física programada (purge.py)
 │   │   ├── database.py            # Async engine + Declarative Base
 │   │   └── main.py                # Entrada FastAPI y Lifespan (migrations + HTTP handlers)
 │   ├── alembic/versions/          # Migraciones Alembic
-│   ├── smoke_test_*.py            # Suite de pruebas de humo (13 test suites individuales)
+│   ├── smoke_test_*.py            # Suite de pruebas de humo (15 test suites individuales)
 │   ├── Procfile                   # Comando de arranque (Railway)
 │   └── requirements.txt
 ├── frontend/
@@ -81,6 +81,7 @@ graph TB
         RHist["/pantry/recetas/historial (feedback)"]
         RLista["/lista-compra (CRUD lista compra) ✅"]
         RChef["/chef/chat (chat estructurado)"]
+        RAhorro["/ahorro (informe de ahorro — preview gratis / resumen premium)"]
         PromptSvc["PromptConfigService (BD + caché TTL 5m)"]
         LLM["services/llm.py (Gemini 2.5 Flash)"]
         Premium["premium.py (RevenueCat status)"]
@@ -119,6 +120,8 @@ graph TB
     RHist --> Thist
     RLista --> Tlista
     RDash --> Tstock
+    RAhorro --> Tmov
+    RAhorro --> Premium
     RChef --> Tmem & Tmov
 ```
 
@@ -298,3 +301,12 @@ Para evitar que se envíe información de identificación personal (PII) a la AP
 
 ### 5.3 Transparencia de IA (EU AI Act art. 50)
 Cualquier fragmento de texto o plan de la app generado por un modelo LLM debe incluir en la interfaz el componente `<AIDisclaimerBanner />` (*«Este resumen ha sido generado por IA y puede contener imprecisiones.»*). El banner se renderiza de forma condicional basándose en los flags `generado_por_ia` de los payloads REST, evitando etiquetar como IA las respuestas estáticas de fallback.
+
+### 5.4 Alineamiento con la Ley 1/2025 de Prevención del Desperdicio Alimentario (España)
+
+La Ley 1/2025, de 9 de enero, establece obligaciones para agentes de la cadena alimentaria en materia de reducción del desperdicio. La app actúa como herramienta de apoyo al ciudadano con el objetivo de:
+- Planificar el consumo a partir del stock real de la despensa (módulo de recetas de aprovechamiento).
+- Alertar sobre caducidades próximas para priorizar el consumo antes del vencimiento.
+- Cuantificar el impacto en euros y kilogramos mediante el `AhorroService` (North Star Metric: kg de desperdicio evitado/mes por hogar activo, referencia MAPA 2024: 31 kg/persona/año).
+
+La app no es un operador de la cadena alimentaria bajo la definición de la Ley, sino una herramienta de consumidor final; no obstante, el posicionamiento comercial y los textos legales deben hacer referencia explícita a este propósito para reforzar la narrativa anti-desperdicio ante Apple/Google y usuarios.

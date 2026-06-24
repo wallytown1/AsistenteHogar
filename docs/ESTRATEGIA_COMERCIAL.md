@@ -16,14 +16,15 @@ Implementamos un modelo **Freemium híbrido** diseñado para maximizar la virali
 |---|---|---|
 | **Gestión de Despensa** | Manual (añadir, editar, agotar) | Manual + Automatizado |
 | **Sugerencias de Recetas** | Básicas (hasta 3 platos simples) | Avanzadas (recetas complejas y de temporada) |
-| **Chef Marce Chat** | **Máximo 5 mensajes al día** | **Mensajes ilimitados** |
-| **OCR de Tickets** | No disponible | **Ilimitado** (Gemini Vision) |
-| **Foto-Nevera** | No disponible | **Ilimitado** (Gemini Vision) |
+| **Chef Marce Chat** | **Máximo 10 mensajes al día** | **Mensajes ilimitados** |
+| **OCR de Tickets** | **Gratis (15/día)** | **Ilimitado** (Gemini Vision) |
+| **Foto-Nevera** | **Gratis (15/día compartido con OCR)** | **Ilimitado** (Gemini Vision) |
+| **Informe de Ahorro** | Preview limitada (cifra parcial) | **Completo** (desglose por receta y período) |
 | **Planificador de Menús** | No disponible | **Semanal completo** (7 días) |
 
 ### 1.2 Integración Comercial (RevenueCat)
 *   **Gate Premium Server-Side:** Validado mediante webhooks y comprobación de estado de suscripción con `REVENUECAT_SECRET_KEY` en el backend.
-*   **Conversión:** Al superar el mensaje 5 del día en el chat con Marce, el servidor responde con un código de estado `402 Payment Required`, que navega automáticamente en el frontend a la pantalla de pago (`PaywallScreen`).
+*   **Conversión:** Al superar el mensaje 10 del día en el chat con Marce, el servidor responde con un código de estado `402 Payment Required`, que navega automáticamente en el frontend a la pantalla de pago (`PaywallScreen`). El motor principal de conversión es el **Informe de Ahorro**: los usuarios free ven una preview con la cifra parcial; el desglose completo requiere premium.
 *   **Estrategia de Precios (Baja Fricción):**
     *   **Mensual:** 2,99 €/mes (compra impulsiva, ideal para probar la comodidad del OCR).
     *   **Anual:** 19,99 €/año (descuento del ~45% sobre el mensual; ayuda al flujo de caja inicial).

@@ -8,7 +8,7 @@ Este documento centraliza el estado de los despliegues, las fases en curso, el r
 
 | Servicio | URL / Host | Estado | Notas |
 |---|---|---|---|
-| **Backend Railway** | `https://asistentehogar-production.up.railway.app` | ✅ En línea | Despliegue automático desde rama `main`. Postgres y Redis conectados. |
+| **Backend Railway** | `https://asistentehogar-production.up.railway.app` | ✅ En línea | Despliegue automático desde `main`. Postgres y Redis conectados. Redesplegando tras merge PR #10 (`alembic upgrade head` requerido). |
 | **Admin panel Vercel** | `https://admin-web-theta-pink.vercel.app` | ✅ En línea | Next.js 15. `ALLOWED_ORIGINS` configurado en Railway. |
 | **Admin Bootstrap** | `navaroruiz2000@gmail.com` | ✅ Inicializado | Bootstrapped con contraseña segura. |
 
@@ -16,102 +16,102 @@ Este documento centraliza el estado de los despliegues, las fases en curso, el r
 
 ## 2. Sesiones Recientes
 
-### ✅ Sesión 2026-06-23 (Parte 3) — Optimización del Chef y Plan de Marketing
-*   **Carisma potenciado**: Modificada la directiva `PERSONA_CHEF` en `llm.py` para dotar a Marce de un tono más coloquial, cercano, informal y entusiasta ("tío cocinillas/amigo de la familia"), utilizando expresiones cotidianas y cálidas españolas, e invitaciones apasionadas al aprovechamiento gastronómico sin perder rigor.
-*   **Estrategia comercial**: Creado el plan integral de marketing, tracción y ventas de bajo coste en `docs/ESTRATEGIA_COMERCIAL.md`.
-*   **Verificación**: Ejecutada la suite de 13 pruebas de humo del backend (SQLite).
+### ✅ Sesión 2026-06-24 — Pivote 2 (PR #10) + Auditoría NEXUS
 
-### ✅ Sesión 2026-06-22 (Parte 9) — Skeleton Screens (Adopción Design System)
-*   **Skeleton helpers**: Extendido `Skeleton.tsx` con 7 helpers de composición (`SkeletonText`, `SkeletonCard`, `SkeletonImage`, `SkeletonChip`, `SkeletonStatCard`, `SkeletonRecipeRow`, `SkeletonSteps`). Todos animan en hilo nativo vía Moti.
-*   **5 skeleton screens**: Creados en `frontend/src/components/skeletons/` — `DashboardSkeleton`, `PantrySkeleton`, `ShoppingListSkeleton`, `PlanComidaSkeleton`, `HistorialSkeleton`. Ghost-layouts que simulan la estructura real del contenido.
-*   **Integración en pantallas**: Reemplazados todos los `ActivityIndicator`/`LoadingView` de pantalla completa en las 5 pantallas principales.
-*   **Token `shadow.small`**: Añadido nivel de sombra pequeño para inputs/chips.
-*   **Verificación**: `ts:check` 0 errores · `lint` 0 errores · 3 warnings pre-existentes sin relación.
+**PR #10 mergeada a `main`**: "Pivote 2: gate freemium invertido + ticket PDF + Informe de Ahorro + 3 fixes de riesgo" (11 commits, rama `feat/gate-inversion-fase1`).
 
-### ✅ Sesión 2026-06-22 (Parte 8) — Sistema de Diseño "Tierra Cálida"
-*   **Design System completo**: 20 archivos HTML en `design-system/` importados desde claude.ai Design. Incluye tokens (colores, tipografía, espaciado), 8 componentes base (button, input, toggle, card, badge-chip, modal, toast, skeleton-loader) y 7 mocks de pantalla (dashboard, despensa, chat, recipe-detail, shopping-list, plan-comida, paywall).
-*   **Guía de diseño**: `DESIGN_GUIDE.html` documenta la filosofía "Tierra Cálida", anti-patrones, sombras nativas RN, micro-animaciones (spring physics, haptics, shared transitions) y checklist WCAG AA.
-*   **Verificación**: Backend (smoke tests auth/modules/chef/dashboard/movimientos/legal), Frontend TypeScript y Admin-web TypeScript: todos limpios. ESLint frontend: 0 errores, 3 warnings pre-existentes irrelevantes.
+**Contenido de la PR:**
 
-### ✅ Sesión 2026-06-22 (Parte 6) — Inicialización Automática de Prompts IA
-*   **Siembra Idempotente**: Implementado el método `seed_default_templates` en `PromptConfigService` para poblar automáticamente los prompts por defecto (`"recetas"` y `"plan_comidas"`) si están ausentes de la BD.
-*   **Lógica Concurrente Lifespan**: Integrado el sembrado en el hook `lifespan` de FastAPI durante el arranque. Diseñado para atrapar errores de integridad (`IntegrityError`) y prevenir caídas en despliegues con contenedores concurrentes (clusters de Railway).
-*   **Seed Manual**: Actualizado el script `seed_recetario.py` para incluir el sembrado síncrono de los prompts iniciales.
-*   **Suite de Humo**: Adaptado `smoke_test_admin.py` para sincronizar las aserciones de la versión del prompt (v1 sembrado ➔ v2/v3 tras modificaciones). Todas las 13 suites de smoke tests pasaron con éxito.
+*   **Gate freemium invertido (Fase 1)**: OCR/foto/voz/texto/metadata GRATIS. Chat aumentado de 5→10 mensajes/día. Premium = Informe de Ahorro + recetas IA. Familia = plan semanal + multi-perfil.
+*   **Parser de ticket PDF (Fase 2)**: Migración `b2c4d6e8f0a1` añade `precio_unitario` y `fecha_compra` a `movimientos_despensa`. Nuevo endpoint `POST /pantry/ticket/pdf` con Gemini Flash visión. Nueva pantalla `TicketImportScreen` en frontend.
+*   **Informe de Ahorro (Fase 3)**: `AhorroService` cruza precios reales del ledger con recetas cocinadas. Endpoints `GET /ahorro/resumen` (premium, informe completo) y `GET /ahorro/preview` (free, cifra tentadora). Nueva `AhorroScreen` con tarjeta viral compartible (TikTok/Instagram).
+*   **Fix 1 — Cadena de precio**: Precio soldado ticket→ledger→informe; verificado 2 kg × 1,80 € = 3,60 €.
+*   **Fix 2 — Tope diario de IA por hogar**: Límites vision 15/día, ticket PDF 10/día, texto 60/día.
+*   **Fix 3 — Pantallas legales RGPD**: Pantallas de privacidad/términos/info legal con 7 marcadores `[COMPLETAR]` para identidad jurídica del fundador.
 
-### ✅ Sesión 2026-06-22 — Inteligencia de stock (Fases 2A & 2B) + Fix SQLite Migración
-*   **Confianza de Stock (Fase 2B)**: Campo `ultima_confirmacion` en alimentos + flag `incierto` calculado en metrics si transcurren los días de cadencia media sin confirmarse. Endpoints `POST /pantry/{id}/agotar` y `/confirmar`.
-*   **Lista inteligente (Fase 2A)**: Sugerencias en `ShoppingListScreen` según el ledger de compras (100% SQL, sin coste IA).
-*   **Fix SQLite**: Se reparó la migración `f3b8d2e6a1c9` para evitar fallos locales con defaults no constantes en SQLite `ALTER TABLE`.
-
-### ✅ Sesión 2026-06-21 — Ledger de movimientos + Chef amigo
-*   **Ledger (Fase 1)**: Tabla `movimientos_despensa` que registra compras/consumos para calcular cadencias medias de compra.
-*   **Chef amigo**: Persona `_PERSONA_CHEF` ("Marce"), tabla `memoria_gustos` y endpoint `/chef/chat` multi-turno.
-
-### ✅ Sesión 2026-06-20 — Webhooks, JTI blocklist e Historial
-*   **Logout real**: JTI blocklist en Redis para invalidar tokens en `POST /auth/logout`.
-*   **Suscripción**: Webhook de RevenueCat para invalidación automática de caché de tier.
-*   **HistorialScreen**: FlatList en frontend con badges de cocinada/rechazada y valoraciones.
-
-### ✅ Sesión 2026-06-22 (Parte 2) — Chat Accionable y Cupo Freemium
-*   **Chat Accionable**: El Chef "Marce" ahora devuelve sugerencias de platos estructuradas que se renderizan como `RecipeChatCard` interactivas dentro de la burbuja del chat.
-*   **Descuento Automático**: La IA extrae los ingredientes consumidos según el chat y el backend actualiza la despensa automáticamente, mostrando badges verdes de confirmación.
-*   **Cupo Freemium**: Límite de 5 mensajes diarios por hogar para cuentas gratuitas (`CHEF_FREE_DAILY_LIMIT`), validado mediante Redis (o fallback en memoria). Superado el límite, se devuelve un error 402 que navega automáticamente a la pasarela de pago (`PaywallScreen`).
-
-### ✅ Sesión 2026-06-22 (Parte 3) — Briefing Personalizado
-*   **Briefing Personalizado**: El saludo matutino del Chef ahora inyecta el `_bloque_memoria_gustos`, logrando que las sugerencias de aprovechamiento en el Dashboard suenen hiper-personalizadas al recordar los gustos y hábitos del hogar.
-
-### ✅ Sesión 2026-06-22 (Parte 4) — Voz al Chef
-*   **Voz al Chef**: Integrado `expo-audio` nativo para permitir mantener presionado el botón del micrófono y dictar por voz al Chef. El audio se procesa vía Base64 usando el modelo multimodal de Gemini (`/chef/transcribe`) enviándolo directamente al chat.
-
-### ✅ Sesión 2026-06-22 (Parte 7) — Purga Acotada e Integración del Anonimizador LLM
-*   **Purga Acotada de Movimientos**: Implementado el recorte físico automático del ledger de `movimientos_despensa` para registros con antigüedad mayor a 12 meses en el job de mantenimiento `purge.py`.
-*   **Anonimización Activa en LLM**: Integrado `AnonimizadorLLM` en todos los flujos de Gemini que manejan apodos o preferencias familiares (`distill_taste_memory`, `generate_recipe_suggestions`, `generate_meal_plan`, `chef_chat`). Los nombres reales/apodos son sustituidos por tokens `Familiar_N` en las peticiones y revertidos en las respuestas, garantizando el cumplimiento del RGPD (art. 5.1.c).
-*   **Verificación Completa**: Ampliado `smoke_test_legal.py` para validar de forma hermética la eliminación de movimientos antiguos y el mantenimiento de auditoría. La suite de pruebas de humo del backend pasó al 100%.
-
-### ✅ Sesión 2026-06-22 (Parte 5) — Chef Proactivo (Fase 3 Completada)
-*   **Chef Proactivo**: Implementadas notificaciones push locales con IA. Al cargar el Dashboard, el LLM calcula silenciosamente una notificación de caducidad en la voz de Marce. El frontend la programa para el día siguiente usando `expo-notifications`, y si el usuario la toca (deep-link), abre automáticamente la pantalla de Chat con un saludo contextual.
-
-### ✅ Sesión 2026-06-23 (Parte 2) — Smoke test de `/restaurar` y limpieza de deuda técnica
-*   **Bloque 4 en `smoke_test_chef.py`**: 10 checks nuevos que cubren el flujo completo de `POST /pantry/{id}/restaurar`: agotar → restaurar → reaparición en GET /pantry + 404 en ítem activo + 404 en ítem ajeno + compensación en ledger (`tipo=compra`, `origen=undo`) verificada vía sesión async directa.
-*   **Deuda técnica actualizada**: eliminados ítems obsoletos (caché Redis y rate-limit ya implementados en código; react-native-svg y Unsplash no existen en el proyecto). Deuda real restante: `REDIS_URL` en Railway, billing Gemini, y ruta del hook pre-commit backend.
-
-### ✅ Sesión 2026-06-23 — Calidad UX: React Query, Toast y Undo del Chef
-*   **React Query**: Hooks de datos migrados a `useQuery`/`useMutation` con caché compartida por dominio (`['pantry']`, `['lista-compra']`, `['dashboard']`, etc.). El Dashboard IA ya no se regenera al cambiar de pestaña mientras el caché esté fresco.
-*   **Mutaciones optimistas**: `toggleItem`/`deleteItem`/`clearChecked` en lista de la compra y `agotarItem`/`confirmarItem`/`updateQuantity` en despensa actualizan la UI al instante con rollback automático si falla la red.
-*   **Toast reutilizable**: Componente `ToastProvider` + `useToast()` con tipos info/success/error y botón de acción "Deshacer". Todos los errores de mutación se notifican visualmente.
-*   **Undo del Chef**: Cumple CLAUDE.md §6.2.5 (escrituras IA reversibles). El backend devuelve `consumos_detalle` estructurado por cada descuento aplicado; el frontend muestra botón "Deshacer" en la burbuja del chef que llama a `POST /pantry/{id}/restaurar` (reactiva soft-deleted + compensa ledger).
-
-### ✅ Sesión 2026-06-23 — Auditoría de Calidad y Seguridad de la Agencia (Clean Slate)
-*   **Reality Checker (QA)**:
-    *   **TypeScript check**: Verificados `frontend/` y `admin-web/` mediante `npm run ts:check`. Resultado: **0 errores de compilación**.
-    *   **Backend Smoke Tests**: Ejecutada la suite completa de 13 pruebas de humo en el backend de FastAPI. Resultado: **100% de éxito**. Todos los tests (auth, pantry, chef, legal, admin, perfiles, etc.) pasaron correctamente sobre SQLite.
-*   **Application Security Engineer (Seguridad)**:
-    *   **JWT Multi-tenant isolation**: Verificado en `deps.py`. El `hogar_id` se extrae de forma hermética a nivel de base de datos a partir del token firmado, anulando cualquier intento de manipulación IDOR/BOLA por headers o cuerpo de petición del cliente.
-    *   **CORS**: Verificado en `main.py`. Restringido en producción a la lista explícita de `ALLOWED_ORIGINS` (evitando orígenes por defecto y mitigando ataques CSRF/Cross-site).
-    *   **Bóveda local de secretos**: Inicializado el almacenamiento externo seguro en `C:\Users\navar\.gemini\agency-vault\AsistenteHogar\.env`, aislando las claves y tokens sensibles del control de Git y eliminando riesgos de fuga en repositorios remotos.
+**Auditoría NEXUS (2026-06-24):**
+*   **Técnico**: 15/15 smoke tests PASS · TypeScript limpio (frontend + admin-web) · pre-commit 9/9 PASS.
+*   **Mercado**: BUEN CAMINO — mercado €379 M EU, Ley 1/2025 de desperdicio alimentario, Mercadona 29,5% cuota de mercado, sin competidor directo en España para gestión doméstica con IA.
+*   **Legal/TestFlight**: APTO TESTFLIGHT INTERNO. Para App Store público: 7 `[COMPLETAR]` en `LegalScreen.tsx` pendientes + `REVENUECAT_SECRET_KEY` en Railway + Apple IDs en `eas.json`.
 
 ---
 
-## 3. Roadmap / Próximos Pasos (Backlog)
+### ✅ Sesión 2026-06-23 — Calidad UX: React Query, Toast y Undo del Chef
 
-### ⏳ Fase 5 — Integración Comercial y Publicación
-*   Definición de `REVENUECAT_SECRET_KEY` en producción (Railway) para cerrar el gate premium.
-*   Creación de productos y offerings en App Store Connect, Google Play Console y RevenueCat.
-*   Builds nativos finales de producción y EAS Submit.
+*   **React Query**: Hooks migrados a `useQuery`/`useMutation` con caché por dominio (`['pantry']`, `['lista-compra']`, `['dashboard']`, etc.).
+*   **Mutaciones optimistas**: `toggleItem`/`deleteItem`/`clearChecked` en lista de la compra y `agotarItem`/`confirmarItem`/`updateQuantity` en despensa con rollback automático.
+*   **Toast reutilizable**: `ToastProvider` + `useToast()` con tipos info/success/error y botón "Deshacer".
+*   **Undo del Chef**: Cumple CLAUDE.md §6.2.5. El backend devuelve `consumos_detalle`; el frontend muestra "Deshacer" en la burbuja del chef que llama a `POST /pantry/{id}/restaurar`.
+
+### ✅ Sesión 2026-06-23 — Smoke test de `/restaurar` y limpieza de deuda técnica
+
+*   **Bloque 4 en `smoke_test_chef.py`**: 10 checks del flujo completo `POST /pantry/{id}/restaurar`: agotar → restaurar → reaparición en GET + compensación en ledger (`tipo=compra`, `origen=undo`).
+*   **Deuda técnica actualizada**: Eliminados ítems obsoletos; deuda real restante documentada.
+
+### ✅ Sesión 2026-06-23 — Optimización del Chef y auditoría de seguridad
+
+*   **Carisma potenciado**: Directiva `PERSONA_CHEF` en `llm.py` con tono más coloquial, cercano y entusiasta.
+*   **Seguridad verificada**: JWT multi-tenant (`hogar_id` extraído en `deps.py`), CORS restringido en producción, bóveda local de secretos en `agency-vault`.
+
+### ✅ Sesión 2026-06-22 — Skeleton Screens + Design System "Tierra Cálida"
+
+*   **Design System**: 20 archivos HTML en `design-system/` (tokens, 8 componentes, 7 mocks de pantalla, guía WCAG AA).
+*   **Skeleton Screens**: 7 helpers en `Skeleton.tsx` + 5 ghost-layouts animados (Moti/nativo) para Dashboard, Pantry, ShoppingList, PlanComida e Historial.
+
+### ✅ Sesión 2026-06-22 — Chef Proactivo (Fase 3 completada) + Voz al Chef + Briefing
+
+*   **Chef Proactivo**: Notificaciones push locales con IA; `expo-notifications`; deep-linking a ChatScreen.
+*   **Voz al Chef**: `expo-audio` hold-to-talk; `POST /chef/transcribe` base64 multimodal Gemini.
+*   **Briefing Personalizado**: `_bloque_memoria_gustos` inyectado en el saludo matutino del Dashboard.
+
+### ✅ Sesión 2026-06-22 — Chat Accionable + Cupo Freemium + Inteligencia de Stock
+
+*   **Chat Accionable**: Sugerencias estructuradas `platos` como `RecipeChatCard`; descuento automático de stock.
+*   **Cupo Freemium**: `CHEF_FREE_DAILY_LIMIT` = 5 mensajes/día; error 402 → `PaywallScreen`. *(Límite subido a 10/día en PR #10.)*
+*   **Stock Fase 2B**: `ultima_confirmacion` + flag `incierto` + endpoints `agotar`/`confirmar`.
+*   **Stock Fase 2A**: `GET /lista-compra/sugerencias` por cadencia, sin coste IA.
+
+### ✅ Sesión 2026-06-21 — Ledger de movimientos + Chef amigo
+
+*   **Ledger (Fase 1)**: Tabla `movimientos_despensa` — compras/consumos para cadencias de compra.
+*   **Chef amigo**: Persona `_PERSONA_CHEF` ("Marce"), tabla `memoria_gustos`, endpoint `/chef/chat`.
+
+### ✅ Sesión 2026-06-20 — Seguridad y tiers
+
+*   **Logout real**: JTI blocklist en Redis (`POST /auth/logout`).
+*   **Webhook RevenueCat**: Invalidación automática de caché de tier.
+*   **HistorialScreen**: FlatList con badges cocinada/rechazada y valoraciones.
+
+---
+
+## 3. Roadmap / Próximos Pasos
+
+### ⏳ Fase 5 — Integración Comercial y Publicación (acciones del fundador)
+
+Las siguientes 7 acciones son bloqueantes para publicación en App Store / Google Play:
+
+1. **`REVENUECAT_SECRET_KEY` en Railway** — cierra el gate premium en producción (actualmente abierto sin la key).
+2. **Rellenar 7 `[COMPLETAR]` en `frontend/src/screens/LegalScreen.tsx`** — razón social, NIF, domicilio, email, fecha de actualización, DPA confirmado.
+3. **Apple IDs en `eas.json` L34–36** — sustituir `REEMPLAZAR_CON_APPLE_ID` y valores análogos.
+4. **Crear productos de suscripción** en App Store Connect + Google Play Console + RevenueCat (offerings premium y familia).
+5. **`eas build --profile production`** + EAS Submit para iOS y Android.
+6. **Sustituir RC key `test_BSy...`** por clave de producción en `eas.json` L21.
+7. **Confirmar DPA con Google Cloud** (RGPD art. 28) — Gemini billing activo garantiza que los datos de prompts no se usen para entrenamiento.
 
 ### ⏳ RGPD & Hardening Pendiente
-*   **Gemini Billing**: Migrar la clave del backend de Railway a una API key con facturación activa para garantizar que Google no recopile los datos de los prompts familiares (RGPD art. 28).
+
+*   **Gemini Billing**: Migrar la API key de Railway a clave con facturación activa (Google no recopila prompts en el tier de pago — RGPD art. 28).
 
 ---
 
 ## 4. Historial de Cambios (Changelog Simplificado)
 
-*   **v1.7.0 (2026-06-22)**: Skeleton Screens — ghost-layouts animados (Moti/nativo) para Dashboard, Pantry, ShoppingList, PlanComida e Historial. Reemplaza `ActivityIndicator`/`LoadingView` de pantalla completa.
-*   **v1.6.0 (2026-06-22)**: Design System "Tierra Cálida" — 20 archivos HTML de referencia canónica en `design-system/` (tokens, 8 componentes, 7 mocks de pantalla, guía WCAG AA y animaciones RN).
-*   **v1.5.0 (2026-06-22)**: Inteligencia de stock predictiva (Ledger de movimientos, lista de compra inteligente sin IA, confianza de stock decaída y "¿Te queda?" UI).
-*   **v1.4.0 (2026-06-21)**: Chef Amigo (Voz cálida Marce, memoria destilada de gustos del hogar, valoraciones del historial e inyección de contexto en sugerencias).
-*   **v1.3.0 (2026-06-20)**: Seguridad y Tiers (JTI Blocklist en Redis, HttpOnly cookie + CSRF en panel admin, webhook de RevenueCat para sincronizar caché de tier, y primera build APK de desarrollo exitosa).
-*   **v1.2.0 (2026-06-19)**: Onboarding y Feedback (Pantalla detallada de recetas `RecipeDetailScreen`, edición de gustos de hogar en ajustes, y notificaciones locales de caducidad).
-*   **v1.1.0 (2026-06-18)**: **Pivote estratégico 2** (Foco exclusivo en comida, stock y recetas de aprovechamiento; remoción de Calendario y Tareas; onboarding de perfil de comensales y gustos).
-*   **v1.0.0 (2026-06-16)**: Versión inicial estable (FastAPI + SQLAlchemy, React Native Expo UI, OCR de tickets con Gemini Vision, purga GDPR y smoke tests del backend).
+*   **v1.8.0 (2026-06-24)**: **Pivote 2** — Gate freemium invertido (OCR/foto/voz GRATIS, chat 10/día), parser de ticket PDF Mercadona (`precio_unitario` + `fecha_compra` en ledger), `AhorroService` + `AhorroScreen` con tarjeta viral, 3 fixes de riesgo (cadena precio, topes IA, pantallas legales RGPD). PR #10.
+*   **v1.7.0 (2026-06-23)**: React Query + mutaciones optimistas + Toast reutilizable + Undo del Chef (`POST /pantry/{id}/restaurar`).
+*   **v1.6.0 (2026-06-22)**: Skeleton Screens — ghost-layouts animados (Moti/nativo) para 5 pantallas principales. Design System "Tierra Cálida" — 20 archivos HTML de referencia canónica.
+*   **v1.5.0 (2026-06-22)**: Chef Proactivo (Fase 3) + Voz al Chef + Briefing personalizado + Cupo freemium + Chat accionable con descuento automático de stock.
+*   **v1.4.0 (2026-06-21)**: Chef Amigo — persona "Marce", memoria destilada de gustos, chat multi-turno, valoraciones en historial.
+*   **v1.3.0 (2026-06-20)**: Seguridad y Tiers — JTI Blocklist Redis, HttpOnly cookie + CSRF en panel admin, webhook RevenueCat.
+*   **v1.2.0 (2026-06-19)**: Onboarding y Feedback — `RecipeDetailScreen`, edición de gustos, notificaciones locales de caducidad.
+*   **v1.1.0 (2026-06-18)**: **Pivote estratégico 1** — foco exclusivo en comida/stock/recetas; eliminación de Calendario y Tareas; onboarding de comensales y gustos.
+*   **v1.0.0 (2026-06-16)**: Versión inicial estable — FastAPI + SQLAlchemy, React Native Expo, OCR de tickets con Gemini Vision, purga GDPR, smoke tests.

@@ -1,6 +1,8 @@
 # Plan de Pivoteo — AsistenteHogar
 > Versión 1.0 · 2026-06-23 · Aprobado por el fundador
 
+> **COMPLETADO (2026-06-24)** — Este plan fue ejecutado íntegramente en PR #10 (rama `feat/gate-inversion-fase1`). El contenido se conserva como referencia histórica de las decisiones de producto tomadas.
+
 ## Nuevo propósito
 **De:** "App de cocina familiar con recetas mediterráneas"
 **A:** "Deja de tirar comida. Ahorra dinero. Marce cocina con lo que tienes."

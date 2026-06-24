@@ -163,6 +163,41 @@ Escanea una imagen de ticket de compra con Gemini Vision y extrae los alimentos 
 Rate limit: 20/5 min por IP (compartido con `/interpretar`). Requiere `GEMINI_API_KEY`.
 **402** si el usuario no tiene suscripción premium activa.
 
+### `POST /api/v1/pantry/ticket/pdf` 🔒
+Importa un ticket PDF de supermercado (Mercadona y otros) con Gemini Flash visión.
+Extrae productos con `precio_unitario` para alimentar el AhorroService. IA pasiva: devuelve propuestas; el usuario confirma y llama a `POST /pantry` por cada producto.
+Sin gate premium — es el motor de onboarding sin fricción.
+Rate limit: cuota diaria de **10 importaciones/día por hogar** en tier free (configurable via `AI_FREE_DAILY_LIMIT_TICKET_PDF`); sin cuota en tier premium. Rate limit adicional: 20/5 min por IP (compartido con `/interpretar`). Requiere `GEMINI_API_KEY`.
+
+**Body** (`TicketPdfRequest`):
+```json
+{
+  "pdf_base64": "<PDF del ticket codificado en Base64, máx. 10 MB>",
+  "fecha_referencia": "2026-06-24"
+}
+```
+**200** → `TicketPdfResponse`:
+```json
+{
+  "productos": [
+    {
+      "nombre": "Leche entera",
+      "cantidad": 2.0,
+      "unidad": "litros",
+      "categoria": "Lácteos",
+      "fecha_caducidad": null,
+      "precio_unitario": 1.05,
+      "precio_confiable": true
+    }
+  ],
+  "fecha_compra": "2026-06-20",
+  "supermercado": "Mercadona",
+  "mensaje": null
+}
+```
+`precio_confiable: false` indica que el precio fue anulado por incoherencia con el total de línea (el frontend puede marcarlo visualmente).
+**422** PDF supera 10 MB o falla validación · **429** cuota diaria o rate limit IP superado · **401** sin token.
+
 ### `POST /api/v1/pantry` 🔒
 **Body** (`InventarioAlimentoCreate`):
 ```json
@@ -387,6 +422,65 @@ Elimina un ítem (soft delete). **204** · **404** ítem inexistente o de otro h
 
 ### `DELETE /api/v1/lista-compra` 🔒
 Elimina en bloque todos los ítems marcados como comprados (`is_checked=true`) del hogar. **204**.
+
+---
+
+## Informe de Ahorro 🔒
+
+> Cruza el historial de recetas cocinadas con los precios reales de los tickets importados
+> para cuantificar el ahorro generado por el aprovechamiento. El tier free recibe un teaser
+> motivacional; el tier premium recibe el desglose completo.
+
+### `GET /api/v1/ahorro/resumen/preview` 🔒 `[FREE]`
+Preview ligero del ahorro del mes actual. Disponible en todos los tiers.
+Devuelve el número de recetas cocinadas y el ahorro estimado (recetas × €3,50 media española)
+como llamada a la acción hacia el Informe Premium.
+
+**Query params:** ninguno (siempre mes actual).
+
+**200** → `AhorroPreviewResponse`:
+```json
+{
+  "mes": "2026-06",
+  "recetas_cocinadas": 8,
+  "ahorro_estimado_eur": 28.0,
+  "tiene_datos_reales": true,
+  "mensaje": null
+}
+```
+`tiene_datos_reales: true` indica que hay tickets importados con precios reales (el informe premium tendría datos exactos). **401** sin token.
+
+### `GET /api/v1/ahorro/resumen` 🔒 `[PREMIUM+]`
+Informe completo de ahorro mensual. Requiere tier premium activo.
+Cruza consumos del mes con precios de tickets importados para calcular el valor real de los
+alimentos aprovechados. Incluye desglose por ingrediente y comparativa con la media española
+de desperdicio (MAPA 2024: 31 kg/persona/año).
+
+**Query params:**
+- `mes` (opcional): primer día del mes a analizar en formato `YYYY-MM-DD` (ej. `2026-06-01`). Si se omite, se usa el mes actual.
+
+**200** → `AhorroResumenResponse`:
+```json
+{
+  "mes": "2026-06",
+  "recetas_cocinadas": 8,
+  "ahorro_real_eur": 32.40,
+  "ahorro_estimado_eur": 28.0,
+  "tiene_datos_reales": true,
+  "kg_no_desperdiciados": 2.80,
+  "porcentaje_media_espana": 9,
+  "num_comensales": 4,
+  "tickets_analizados": 3,
+  "desglose": [
+    { "nombre": "Leche entera", "cantidad_total": 4.0, "unidad": "litros",
+      "precio_unitario_medio": 1.05, "valor_total": 4.20 }
+  ],
+  "mensaje": null
+}
+```
+`ahorro_real_eur` es `null` si no hay tickets con precios importados (solo se dispone del estimado).
+`desglose` contiene hasta los 20 ingredientes más relevantes del mes.
+**402** si el tier del usuario es `free` · **401** sin token.
 
 ---
 
