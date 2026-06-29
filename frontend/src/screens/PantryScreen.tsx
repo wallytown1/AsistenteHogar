@@ -11,6 +11,7 @@ import {
   RefreshControl,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Animated, { FadeInDown, SlideOutRight, LinearTransition } from 'react-native-reanimated';
 import * as ImagePicker from 'expo-image-picker';
 import { usePantry, getDiasParaCaducar } from '../hooks/usePantry';
 import { PantrySkeleton } from '../components/skeletons';
@@ -91,231 +92,242 @@ const PantryItemCard = React.memo(function PantryItemCard({
   const status = getItemStatus(item, diasUmbral);
 
   return (
-    <Card padding={spacing.lg} style={{ marginBottom: spacing.md }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-        {/* Checkbox de lote */}
-        <Pressable
-          onPress={onToggleSelect}
-          hitSlop={8}
-          accessibilityLabel={`Seleccionar ${item.nombre}`}
-          style={{
-            width: 22,
-            height: 22,
-            borderRadius: 7,
-            marginRight: spacing.md,
-            alignItems: 'center',
-            justifyContent: 'center',
-            borderWidth: isSelected ? 0 : 2,
-            borderColor: colors.borderStrong,
-            backgroundColor: isSelected ? colors.pantry : colors.cardAlt,
-          }}
-        >
-          {isSelected ? <Icon name="checkmark" size={14} color={colors.white} /> : null}
-        </Pressable>
+    <Animated.View
+      entering={FadeInDown.duration(280)}
+      exiting={SlideOutRight.duration(280)}
+      layout={LinearTransition.springify().damping(18).stiffness(200)}
+      style={{ marginBottom: spacing.md }}
+    >
+      <Card padding={spacing.lg}>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          {/* Checkbox de lote */}
+          <Pressable
+            onPress={onToggleSelect}
+            hitSlop={8}
+            accessibilityLabel={`Seleccionar ${item.nombre}`}
+            style={{
+              width: 22,
+              height: 22,
+              borderRadius: 7,
+              marginRight: spacing.md,
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderWidth: isSelected ? 0 : 2,
+              borderColor: colors.borderStrong,
+              backgroundColor: isSelected ? colors.pantry : colors.cardAlt,
+            }}
+          >
+            {isSelected ? <Icon name="checkmark" size={14} color={colors.white} /> : null}
+          </Pressable>
 
-        {/* Icono categoría */}
-        <View
-          style={{
-            width: 46,
-            height: 46,
-            borderRadius: radius.md,
-            backgroundColor: colors.pantrySoft,
-            alignItems: 'center',
-            justifyContent: 'center',
-            marginRight: spacing.md,
-          }}
-        >
-          <FoodIcon name={getCategoriaIcon(item.categoria)} size={24} color={colors.pantry} />
-        </View>
-
-        {/* Detalles */}
-        <View style={{ flex: 1, marginRight: spacing.sm }}>
-          <AppText variant="captionStrong" numberOfLines={1}>
-            {item.nombre}
-          </AppText>
-          <AppText variant="micro" color={colors.inkMuted} style={{ marginTop: 1 }}>
-            {item.cantidad} {item.unidad} · {item.categoria}
-          </AppText>
-          <AppText variant="micro" color={colors.inkFaint} style={{ marginTop: 1 }}>
-            {item.fecha_caducidad ? `Caduca: ${item.fecha_caducidad}` : 'Sin caducidad'}
-          </AppText>
-        </View>
-
-        {/* Eliminar */}
-        <IconButton
-          name="trash-outline"
-          size={16}
-          color={colors.danger}
-          bg={colors.dangerSoft}
-          diameter={32}
-          accessibilityLabel={`Eliminar ${item.nombre}`}
-          onPress={() => {
-            Alert.alert(
-              'Confirmar eliminación',
-              `¿Deseas eliminar "${item.nombre}" del inventario?`,
-              [
-                { text: 'No', style: 'cancel' },
-                { text: 'Sí', style: 'destructive', onPress: () => onDelete(item.id) },
-              ]
-            );
-          }}
-        />
-      </View>
-
-      {/* Fila inferior: estado + stepper */}
-      <View
-        style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          marginTop: spacing.md,
-        }}
-      >
-        <View style={{ flex: 1, marginRight: spacing.md }}>
+          {/* Icono categoría */}
           <View
             style={{
-              height: 5,
-              backgroundColor: colors.track,
-              borderRadius: radius.pill,
-              overflow: 'hidden',
+              width: 46,
+              height: 46,
+              borderRadius: radius.md,
+              backgroundColor: colors.pantrySoft,
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginRight: spacing.md,
             }}
           >
+            <FoodIcon name={getCategoriaIcon(item.categoria)} size={24} color={colors.pantry} />
+          </View>
+
+          {/* Detalles */}
+          <View style={{ flex: 1, marginRight: spacing.sm }}>
+            <AppText variant="captionStrong" numberOfLines={1}>
+              {item.nombre}
+            </AppText>
+            <AppText variant="micro" color={colors.inkMuted} style={{ marginTop: 1 }}>
+              {item.cantidad} {item.unidad} · {item.categoria}
+            </AppText>
+            <AppText variant="micro" color={colors.inkFaint} style={{ marginTop: 1 }}>
+              {item.fecha_caducidad ? `Caduca: ${item.fecha_caducidad}` : 'Sin caducidad'}
+            </AppText>
+          </View>
+
+          {/* Eliminar */}
+          <IconButton
+            name="trash-outline"
+            size={16}
+            color={colors.danger}
+            bg={colors.dangerSoft}
+            diameter={32}
+            accessibilityLabel={`Eliminar ${item.nombre}`}
+            onPress={() => {
+              Alert.alert(
+                'Confirmar eliminación',
+                `¿Deseas eliminar "${item.nombre}" del inventario?`,
+                [
+                  { text: 'No', style: 'cancel' },
+                  { text: 'Sí', style: 'destructive', onPress: () => onDelete(item.id) },
+                ]
+              );
+            }}
+          />
+        </View>
+
+        {/* Fila inferior: estado + stepper */}
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            marginTop: spacing.md,
+          }}
+        >
+          <View style={{ flex: 1, marginRight: spacing.md }}>
             <View
               style={{
-                height: '100%',
-                width: `${Math.min(100, Math.round((item.cantidad / 10) * 100))}%`,
-                backgroundColor: status.color,
+                height: 5,
+                backgroundColor: colors.track,
                 borderRadius: radius.pill,
+                overflow: 'hidden',
               }}
-            />
+            >
+              <View
+                style={{
+                  height: '100%',
+                  width: `${Math.min(100, Math.round((item.cantidad / 10) * 100))}%`,
+                  backgroundColor: status.color,
+                  borderRadius: radius.pill,
+                }}
+              />
+            </View>
+            <AppText
+              variant="micro"
+              color={status.color}
+              style={{ marginTop: 4, fontWeight: '700' }}
+            >
+              {status.text}
+            </AppText>
           </View>
-          <AppText variant="micro" color={status.color} style={{ marginTop: 4, fontWeight: '700' }}>
-            {status.text}
-          </AppText>
-        </View>
 
-        {/* Stepper */}
-        <View
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            backgroundColor: colors.cardAlt,
-            borderWidth: 1,
-            borderColor: colors.border,
-            borderRadius: radius.pill,
-            paddingHorizontal: 4,
-            paddingVertical: 3,
-            gap: spacing.sm,
-          }}
-        >
-          <Pressable
-            onPress={() => {
-              const nuevaCant = item.cantidad - 1;
-              if (nuevaCant <= 0) {
-                Alert.alert(
-                  'Cantidad inválida',
-                  'La cantidad debe ser mayor que 0. Usa el botón de eliminar si deseas borrar el producto.'
-                );
-                return;
-              }
-              haptics.light();
-              onUpdateQuantity(item.id, nuevaCant);
-            }}
-            hitSlop={9}
-            accessibilityLabel={`Reducir cantidad de ${item.nombre}`}
+          {/* Stepper */}
+          <View
             style={{
-              width: 26,
-              height: 26,
-              borderRadius: radius.pill,
-              backgroundColor: colors.card,
+              flexDirection: 'row',
+              alignItems: 'center',
+              backgroundColor: colors.cardAlt,
               borderWidth: 1,
-              borderColor: colors.borderStrong,
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <Icon name="remove" size={16} color={colors.ink} />
-          </Pressable>
-          <AppText variant="captionStrong" style={{ minWidth: 18, textAlign: 'center' }}>
-            {item.cantidad}
-          </AppText>
-          <Pressable
-            onPress={() => {
-              haptics.light();
-              onUpdateQuantity(item.id, item.cantidad + 1);
-            }}
-            hitSlop={9}
-            accessibilityLabel={`Aumentar cantidad de ${item.nombre}`}
-            style={{
-              width: 26,
-              height: 26,
+              borderColor: colors.border,
               borderRadius: radius.pill,
-              backgroundColor: colors.pantry,
-              alignItems: 'center',
-              justifyContent: 'center',
+              paddingHorizontal: 4,
+              paddingVertical: 3,
+              gap: spacing.sm,
             }}
           >
-            <Icon name="add" size={16} color={colors.white} />
-          </Pressable>
+            <Pressable
+              onPress={() => {
+                const nuevaCant = item.cantidad - 1;
+                if (nuevaCant <= 0) {
+                  Alert.alert(
+                    'Cantidad inválida',
+                    'La cantidad debe ser mayor que 0. Usa el botón de eliminar si deseas borrar el producto.'
+                  );
+                  return;
+                }
+                haptics.light();
+                onUpdateQuantity(item.id, nuevaCant);
+              }}
+              hitSlop={9}
+              accessibilityLabel={`Reducir cantidad de ${item.nombre}`}
+              style={{
+                width: 26,
+                height: 26,
+                borderRadius: radius.pill,
+                backgroundColor: colors.card,
+                borderWidth: 1,
+                borderColor: colors.borderStrong,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Icon name="remove" size={16} color={colors.ink} />
+            </Pressable>
+            <AppText variant="captionStrong" style={{ minWidth: 18, textAlign: 'center' }}>
+              {item.cantidad}
+            </AppText>
+            <Pressable
+              onPress={() => {
+                haptics.light();
+                onUpdateQuantity(item.id, item.cantidad + 1);
+              }}
+              hitSlop={9}
+              accessibilityLabel={`Aumentar cantidad de ${item.nombre}`}
+              style={{
+                width: 26,
+                height: 26,
+                borderRadius: radius.pill,
+                backgroundColor: colors.pantry,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Icon name="add" size={16} color={colors.white} />
+            </Pressable>
+          </View>
         </View>
-      </View>
 
-      {/* Confianza que decae: si probablemente se ha consumido, pedir confirmación */}
-      {item.incierto && (
-        <View
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            marginTop: spacing.md,
-            paddingTop: spacing.md,
-            borderTopWidth: 1,
-            borderTopColor: colors.border,
-            gap: spacing.sm,
-          }}
-        >
-          <Icon name="help-circle-outline" size={16} color={colors.inkMuted} />
-          <AppText variant="micro" color={colors.inkMuted} style={{ flex: 1 }}>
-            ¿Te queda {item.nombre.toLowerCase()}?
-          </AppText>
-          <Pressable
-            onPress={() => {
-              haptics.light();
-              onConfirmar(item.id);
-            }}
-            hitSlop={6}
-            accessibilityLabel={`Sí, sigo teniendo ${item.nombre}`}
+        {/* Confianza que decae: si probablemente se ha consumido, pedir confirmación */}
+        {item.incierto && (
+          <View
             style={{
-              paddingHorizontal: spacing.md,
-              paddingVertical: 5,
-              borderRadius: radius.pill,
-              backgroundColor: colors.pantrySoft,
+              flexDirection: 'row',
+              alignItems: 'center',
+              marginTop: spacing.md,
+              paddingTop: spacing.md,
+              borderTopWidth: 1,
+              borderTopColor: colors.border,
+              gap: spacing.sm,
             }}
           >
-            <AppText variant="micro" color={colors.pantry} style={{ fontWeight: '700' }}>
-              Sí, sigo
+            <Icon name="help-circle-outline" size={16} color={colors.inkMuted} />
+            <AppText variant="micro" color={colors.inkMuted} style={{ flex: 1 }}>
+              ¿Te queda {item.nombre.toLowerCase()}?
             </AppText>
-          </Pressable>
-          <Pressable
-            onPress={() => {
-              haptics.light();
-              onAgotar(item.id);
-            }}
-            hitSlop={6}
-            accessibilityLabel={`Se acabó ${item.nombre}`}
-            style={{
-              paddingHorizontal: spacing.md,
-              paddingVertical: 5,
-              borderRadius: radius.pill,
-              backgroundColor: colors.dangerSoft,
-            }}
-          >
-            <AppText variant="micro" color={colors.danger} style={{ fontWeight: '700' }}>
-              Se acabó
-            </AppText>
-          </Pressable>
-        </View>
-      )}
-    </Card>
+            <Pressable
+              onPress={() => {
+                haptics.light();
+                onConfirmar(item.id);
+              }}
+              hitSlop={6}
+              accessibilityLabel={`Sí, sigo teniendo ${item.nombre}`}
+              style={{
+                paddingHorizontal: spacing.md,
+                paddingVertical: 5,
+                borderRadius: radius.pill,
+                backgroundColor: colors.pantrySoft,
+              }}
+            >
+              <AppText variant="micro" color={colors.pantry} style={{ fontWeight: '700' }}>
+                Sí, sigo
+              </AppText>
+            </Pressable>
+            <Pressable
+              onPress={() => {
+                haptics.medium();
+                onAgotar(item.id);
+              }}
+              hitSlop={6}
+              accessibilityLabel={`Se acabó ${item.nombre}`}
+              style={{
+                paddingHorizontal: spacing.md,
+                paddingVertical: 5,
+                borderRadius: radius.pill,
+                backgroundColor: colors.dangerSoft,
+              }}
+            >
+              <AppText variant="micro" color={colors.danger} style={{ fontWeight: '700' }}>
+                Se acabó
+              </AppText>
+            </Pressable>
+          </View>
+        )}
+      </Card>
+    </Animated.View>
   );
 });
 
@@ -754,23 +766,6 @@ export default function PantryScreen() {
       const msg = err.message || 'Error al cargar las sugerencias.';
       setRecetasMensaje(msg);
       setPlanMensaje(msg);
-    } finally {
-      setSugerenciasLoading(false);
-    }
-  };
-
-  const fetchRecetasBasicas = async () => {
-    setSugerenciasLoading(true);
-    setRecetasMensaje(null);
-    try {
-      const res = await apiRequest<RecetasSugeridasResponse>('/pantry/recetas/basicas', {
-        timeoutMs: TIMEOUT.DEFAULT,
-      });
-      setRecetas(res.recetas);
-      setRecetasGeneradasPorIA(false);
-      if (res.recetas.length === 0) setRecetasMensaje('El catálogo de recetas está vacío.');
-    } catch (err: any) {
-      setRecetasMensaje(err.message || 'Error al cargar el catálogo.');
     } finally {
       setSugerenciasLoading(false);
     }

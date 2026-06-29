@@ -6,6 +6,38 @@ Formato: `[FECHA] [ÁREA] [TIPO] Descripción`
 
 ---
 
+## [2026-06-24] v1.9.0 — Sistema de Animaciones "Tierra Cálida" (frontend)
+
+Reescritura completa del sistema de movimiento del frontend. `animations/index.tsx` pasa de 58
+líneas (API `Animated` clásica) a 383 líneas con 8 primitivas Reanimated 4 + Moti.
+Todas respetan `useReducedMotion()`. Correcciones WCAG AA P1/P2 en DashboardScreen.
+
+### Frontend
+
+- **MOD** `animations/index.tsx` — reescritura total: `FadeInView`, `SlideInCard`, `ScalePress`,
+  `StaggerList<T>`, `useCountUp` (JS thread rAF easeOutCubic), `PulseAlert`, `TypingIndicator`
+  (3 puntos Moti bounce escalonado), `RevealText` (AnimatePresence). Constantes `MOTION`
+  exportadas (spring / springGentle / springSnappy / fadeDuration / staggerInterval). Renombrado
+  `.ts → .tsx` por uso de JSX. Exports legacy `useFadeInFromBottom`/`usePulseGlow` preservados.
+- **FIX** `DashboardScreen` WCAG AA — `StatMiniCard` label: `inkFaint → inkMuted` (ratio 5.48,
+  pasa AA). Breathing con `Easing.inOut(Easing.sin)` (eliminado easing mecánico lineal).
+- **FIX** `DashboardScreen` a11y — ahorro bloqueado: `accessibilityLabel` en wrapper +
+  `accessibilityElementsHidden` en número. Ahorro stats: muestra `—` para usuarios free en lugar
+  del valor real.  `accessibilityLabel` dinámico en "Plan semana" según tier.
+- **FIX** `DashboardScreen` — triángulo bocadillo Marce: `top: -8 → -7`, sin `borderRadius`.
+- **MOD** `ChefChatScreen` — burbujas entran con spring lateral (usuario ←→ chef ±40/60 px,
+  scale 0.92→1). `TypingIndicator` con `AnimatePresence` reemplaza `ActivityIndicator` + texto.
+- **MOD** `AhorroScreen` — número hero animado con `useCountUp(1400ms)`. `haptics.success()` al
+  alcanzar el 100% (ref anti-re-fire). Símbolo € emerge con `FadeInView delay={800}`.
+- **MOD** `PantryScreen` — `PantryItemCard` en `Animated.View` con `FadeInDown` (entrada),
+  `SlideOutRight` (agotado), `LinearTransition.springify()` (colapso layout). `haptics.medium()`
+  al agotar. Reanimated layout animations preferidas sobre `AnimatePresence` de Moti en FlatList.
+- **MOD** `AppNavigator` — transiciones semánticas: Paywall `fullScreenModal+slide_from_bottom`,
+  Ahorro `slide_from_bottom`, Legal `modal+slide_from_bottom`, resto `slide_from_right`.
+  `haptics.selection()` en `tabPress` del tab Chef.
+
+---
+
 ## [2026-06-24] v1.8.0 — Pivote 2: Informe de Ahorro, Ticket PDF, Inversión del Gate Freemium
 
 Lanzamiento de los módulos de monetización basados en el valor real de la app (PR #10). El

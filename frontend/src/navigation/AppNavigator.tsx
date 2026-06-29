@@ -31,6 +31,7 @@ import { usePurchasesStore } from '../state/purchasesStore';
 import { usePantrySettingsStore } from '../state/pantrySettingsStore';
 import { useOnboarding } from '../hooks/useOnboarding';
 import { colors } from '../theme/tokens';
+import { haptics } from '../lib/haptics';
 
 type RootTabParamList = {
   Inicio: undefined;
@@ -101,7 +102,11 @@ function MainTabs() {
     >
       <Tab.Screen name="Inicio" component={DashboardScreen} />
       <Tab.Screen name="Despensa" component={PantryScreen} />
-      <Tab.Screen name="Chef" component={ChefChatScreen} />
+      <Tab.Screen
+        name="Chef"
+        component={ChefChatScreen}
+        listeners={{ tabPress: () => haptics.selection() }}
+      />
       <Tab.Screen name="Compra" component={ShoppingListScreen} />
       <Tab.Screen name="Ajustes" component={SettingsScreen} />
     </Tab.Navigator>
@@ -163,7 +168,7 @@ function AuthedApp() {
       <Stack.Screen
         name="Paywall"
         component={PaywallScreen}
-        options={{ presentation: 'fullScreenModal' }}
+        options={{ presentation: 'fullScreenModal', animation: 'slide_from_bottom' }}
       />
       <Stack.Screen
         name="RecetaDetalle"
@@ -188,12 +193,12 @@ function AuthedApp() {
       <Stack.Screen
         name="Ahorro"
         component={AhorroScreen}
-        options={{ animation: 'slide_from_right' }}
+        options={{ animation: 'slide_from_bottom' }}
       />
       <Stack.Screen
         name="Legal"
         component={LegalScreen}
-        options={{ animation: 'slide_from_right' }}
+        options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
       />
     </Stack.Navigator>
   );

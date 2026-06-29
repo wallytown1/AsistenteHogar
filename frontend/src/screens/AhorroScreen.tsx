@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { View, ScrollView, StyleSheet, Share, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -9,6 +9,7 @@ import { AhorroResumenResponse } from '../types/types';
 import { colors, radius, spacing } from '../theme/tokens';
 import { AppText, Button, Card, Icon, IconButton } from '../components/ui';
 import { haptics } from '../lib/haptics';
+import { useCountUp, FadeInView } from '../animations';
 
 type NavProp = NativeStackNavigationProp<any>;
 
@@ -55,6 +56,16 @@ export default function AhorroScreen() {
       : (data?.ahorro_estimado_eur ?? 0);
 
   const esEstimado = !data?.tiene_datos_reales || data.ahorro_real_eur == null;
+
+  // Contador animado del número de ahorro (JS thread). Dispara haptic al llegar al 100%.
+  const ahorroAnimado = useCountUp(ahorroMostrado, 1400);
+  const celebrado = useRef(false);
+  useEffect(() => {
+    if (ahorroMostrado > 0 && ahorroAnimado >= ahorroMostrado && !celebrado.current) {
+      celebrado.current = true;
+      haptics.success();
+    }
+  }, [ahorroAnimado, ahorroMostrado]);
 
   const handleCompartir = async () => {
     if (!data) return;
@@ -137,8 +148,10 @@ export default function AhorroScreen() {
                 : 'Valor aprovechado de tu despensa'}
             </AppText>
             <View style={styles.heroAmount}>
-              <AppText style={styles.euroSymbol}>€</AppText>
-              <AppText style={styles.heroNumber}>{ahorroMostrado.toFixed(2)}</AppText>
+              <FadeInView delay={800}>
+                <AppText style={styles.euroSymbol}>€</AppText>
+              </FadeInView>
+              <AppText style={styles.heroNumber}>{ahorroAnimado.toFixed(2)}</AppText>
             </View>
             <AppText variant="caption" color="inkMuted" style={styles.heroSubtitle}>
               {esEstimado

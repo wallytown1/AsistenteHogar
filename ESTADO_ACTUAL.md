@@ -16,6 +16,25 @@ Este documento centraliza el estado de los despliegues, las fases en curso, el r
 
 ## 2. Sesiones Recientes
 
+### ✅ Sesión 2026-06-24 — Sistema de Animaciones "Tierra Cálida" (Fases 1-6)
+
+**Rama:** `feat/gate-inversion-fase1` | **Estado:** cambios pendientes de commit.
+
+**6 fases ejecutadas sobre el frontend:**
+
+*   **Fase 1 — DashboardScreen P1/P2**: Breathing con `Easing.inOut(Easing.sin)`, label `inkFaint→inkMuted` (WCAG AA), a11y en ahorro bloqueado (`accessibilityLabel` + `accessibilityElementsHidden`), ahorro como `—` para usuarios free, `accessibilityLabel` dinámico en "Plan semana", triángulo del bocadillo `top:-7`.
+*   **Fase 2 — `animations/index.tsx`**: Reescritura completa de 58→383 líneas. 8 primitivas Reanimated 4 + Moti: `FadeInView`, `SlideInCard`, `ScalePress`, `StaggerList<T>`, `useCountUp`, `PulseAlert`, `TypingIndicator`, `RevealText`. Constantes `MOTION` exportadas. Todos los componentes respetan `useReducedMotion()`. Exports legacy (`useFadeInFromBottom`, `usePulseGlow`) mantenidos por compatibilidad. **Nota técnica**: renombrado `index.ts → index.tsx` (contiene JSX).
+*   **Fase 3 — ChefChatScreen**: Burbujas entran con spring lateral (`translateX: ±40/60`). `TypingIndicator` (3 puntos bounce) reemplaza `ActivityIndicator` + texto. Ambos con `AnimatePresence` de Moti.
+*   **Fase 4 — AhorroScreen**: `useCountUp(ahorroMostrado, 1400)` anima el número principal. `haptics.success()` al llegar al 100% (ref anti-re-fire). Símbolo `€` emerge con `FadeInView delay={800}`.
+*   **Fase 5 — PantryScreen**: `PantryItemCard` envuelta en `Animated.View` con `FadeInDown` (entrada) + `SlideOutRight` (salida al agotar) + `LinearTransition.springify()` (colapso de layout). Haptic cambiado a `haptics.medium()`. **Nota técnica**: Reanimated layout animations preferidas sobre `AnimatePresence` de Moti en FlatList (más fiables con virtualización).
+*   **Fase 6 — AppNavigator**: `Paywall` → `fullScreenModal + slide_from_bottom`. `Ahorro` → `slide_from_bottom`. `Legal` → `modal + slide_from_bottom`. Resto → `slide_from_right`. `haptics.selection()` en `tabPress` del tab Chef.
+
+**Verificación:** `npm run ts:check` → 0 errores.
+
+**Pendiente (Fase 7 — Marce en Rive):** requiere suscripción Rive Cadet ($9/mes) + instalar Rive MCP (Early Access). Entonces: `marce.riv` con 4 estados (idle/thinking/celebrating/error), instalar `@rive-app/react-native`, crear `MarceRive.tsx`.
+
+---
+
 ### ✅ Sesión 2026-06-24 — Pivote 2 (PR #10) + Auditoría NEXUS
 
 **PR #10 mergeada a `main`**: "Pivote 2: gate freemium invertido + ticket PDF + Informe de Ahorro + 3 fixes de riesgo" (11 commits, rama `feat/gate-inversion-fase1`).

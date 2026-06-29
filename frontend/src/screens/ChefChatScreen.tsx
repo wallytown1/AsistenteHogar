@@ -20,6 +20,8 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { haptics } from '../lib/haptics';
 import RecipeChatCard from '../components/chat/RecipeChatCard';
+import { MotiView, AnimatePresence } from 'moti';
+import { TypingIndicator } from '../animations';
 
 function Burbuja({
   mensaje,
@@ -32,7 +34,12 @@ function Burbuja({
   const navigation = useNavigation<NativeStackNavigationProp<any>>();
 
   return (
-    <View style={[styles.bubbleRow, { justifyContent: esUsuario ? 'flex-end' : 'flex-start' }]}>
+    <MotiView
+      from={{ opacity: 0, translateX: esUsuario ? 60 : -40, scale: 0.92 }}
+      animate={{ opacity: 1, translateX: 0, scale: 1 }}
+      transition={{ type: 'spring', damping: 18, stiffness: 200 }}
+      style={[styles.bubbleRow, { justifyContent: esUsuario ? 'flex-end' : 'flex-start' }]}
+    >
       <View style={{ flex: 1, alignItems: esUsuario ? 'flex-end' : 'flex-start' }}>
         <View style={[styles.bubble, esUsuario ? styles.bubbleUser : styles.bubbleChef]}>
           <AppText
@@ -84,7 +91,7 @@ function Burbuja({
           </View>
         )}
       </View>
-    </View>
+    </MotiView>
   );
 }
 
@@ -144,14 +151,22 @@ export default function ChefChatScreen() {
           showsVerticalScrollIndicator={false}
         />
 
-        {enviando && (
-          <View style={styles.typingRow}>
-            <ActivityIndicator size="small" color={colors.brand} />
-            <AppText variant="caption" color={colors.inkFaint} style={{ marginLeft: spacing.sm }}>
-              Marce está pensando…
-            </AppText>
-          </View>
-        )}
+        <AnimatePresence>
+          {enviando && (
+            <MotiView
+              from={{ opacity: 0, translateY: 8 }}
+              animate={{ opacity: 1, translateY: 0 }}
+              exit={{ opacity: 0, translateY: 8 }}
+              transition={{ type: 'spring', damping: 20, stiffness: 240 }}
+              style={styles.typingRow}
+              accessibilityLabel="Marce está pensando"
+            >
+              <View style={[styles.bubble, styles.bubbleChef]}>
+                <TypingIndicator color={colors.brand} />
+              </View>
+            </MotiView>
+          )}
+        </AnimatePresence>
 
         <View style={styles.inputRow}>
           <TextInput
